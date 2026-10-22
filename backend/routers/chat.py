@@ -69,43 +69,52 @@ def list_conversations(
                 ))
     db.commit()
 
-    # Query all distinct customer phones
-    phones = (
-        db.query(models.ChatMessage.customer_phone)
-        .distinct()
+    # Query distinct customer phones capped by limit
+    phones_query = db.query(models.ChatMessage.customer_phone).distinct()
+    if agent_assigned_phones is not None:
+        phones_query = phones_query.filter(models.ChatMessage.customer_phone.in_(agent_assigned_phones))
+
+    distinct_phones = [p[0] for p in phones_query.all() if p[0]]
+    if not distinct_phones:
+        return []
+
+    # Batch 1: Contacts map
+    contacts = db.query(models.Contact).filter(models.Contact.phone.in_(distinct_phones)).all()
+    contacts_map = {c.phone: c for c in contacts}
+
+    # Batch 2: Unread count grouped by customer phone
+    unread_counts_raw = (
+        db.query(models.ChatMessage.customer_phone, func.count(models.ChatMessage.id))
+        .filter(
+            models.ChatMessage.customer_phone.in_(distinct_phones),
+            models.ChatMessage.sender_type == "CUSTOMER",
+            models.ChatMessage.is_read == False
+        )
+        .group_by(models.ChatMessage.customer_phone)
         .all()
     )
+    unread_map = {p: cnt for p, cnt in unread_counts_raw}
+
+    # Batch 3: Fetch recent messages to resolve latest message per phone
+    # Subquery: get max id per customer_phone
+    latest_ids_subq = (
+        db.query(func.max(models.ChatMessage.id).label("max_id"))
+        .filter(models.ChatMessage.customer_phone.in_(distinct_phones))
+        .group_by(models.ChatMessage.customer_phone)
+        .subquery()
+    )
+    latest_msgs = (
+        db.query(models.ChatMessage)
+        .join(latest_ids_subq, models.ChatMessage.id == latest_ids_subq.c.max_id)
+        .all()
+    )
+    latest_msg_map = {m.customer_phone: m for m in latest_msgs}
 
     summaries = []
-    for (cust_phone,) in phones:
-        if not cust_phone:
-            continue
-
-        # Enforce agent scope: skip if not assigned to this agent
-        if agent_assigned_phones is not None and cust_phone not in agent_assigned_phones:
-            continue
-
-        # Get contact info if available
-        contact = db.query(models.Contact).filter(models.Contact.phone == cust_phone).first()
-
-        # Unread incoming messages count
-        unread = (
-            db.query(func.count(models.ChatMessage.id))
-            .filter(
-                models.ChatMessage.customer_phone == cust_phone,
-                models.ChatMessage.sender_type == "CUSTOMER",
-                models.ChatMessage.is_read == False
-            )
-            .scalar()
-        ) or 0
-
-        # Latest message
-        last_msg = (
-            db.query(models.ChatMessage)
-            .filter(models.ChatMessage.customer_phone == cust_phone)
-            .order_by(desc(models.ChatMessage.created_at))
-            .first()
-        )
+    for cust_phone in distinct_phones:
+        contact = contacts_map.get(cust_phone)
+        last_msg = latest_msg_map.get(cust_phone)
+        unread = unread_map.get(cust_phone, 0)
 
         summaries.append(schemas.ChatConversationSummary(
             customer_phone=cust_phone,

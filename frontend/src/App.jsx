@@ -1008,8 +1008,11 @@ export default function App() {
     }
   };
 
+  const isFetchingConversationsRef = useRef(false);
+
   const fetchChatConversations = async (silent = false) => {
-    if (!token) return;
+    if (!token || isFetchingConversationsRef.current) return;
+    isFetchingConversationsRef.current = true;
     try {
       const res = await axios.get("/api/chat/conversations", {
         headers: { Authorization: `Bearer ${token}` }
@@ -1018,7 +1021,6 @@ export default function App() {
       setChatConversations(convs);
 
       // Global check across all conversations for any new incoming customer message:
-      // Look at customer messages across all threads to detect arrival of any new message
       const latestCustomerMsg = convs.find(
         (c) => c.last_sender === "CUSTOMER" && c.last_message_time
       );
@@ -1035,6 +1037,8 @@ export default function App() {
       }
     } catch (err) {
       if (!silent) console.error("Failed to fetch chat conversations:", err);
+    } finally {
+      isFetchingConversationsRef.current = false;
     }
   };
 
@@ -1330,23 +1334,23 @@ export default function App() {
     }
   }, [token, activeTab, analyticsTimeRange]);
 
-  // Periodic polling for Live Two-Way Chat (polls in background tabs as well so sound chime and auto-refresh works)
+  // Periodic polling for Live Two-Way Chat (polls active tab every 8s, background tabs every 15s)
   useEffect(() => {
     if (!token) return;
+    const pollInterval = activeTab === "chat" ? 8000 : 15000;
     const interval = setInterval(() => {
-      // Background-active: do not stop when tab is hidden, ensuring user hears incoming pings
       fetchChatConversations(true);
       if (activeTab === "chat" && selectedChatPhone) {
         fetchChatMessages(selectedChatPhone, true);
       }
-    }, 2500);
+    }, pollInterval);
     return () => clearInterval(interval);
   }, [token, selectedChatPhone, activeTab]);
 
   // Periodic automatic silent background refresh for all views across the platform
   useEffect(() => {
     if (!token) return;
-    // Auto-refresh every 8 seconds across all platform views
+    // Auto-refresh every 20 seconds across all platform views to prevent worker saturation
     const interval = setInterval(() => {
       if (document.hidden) return; // Pause background polling if user switched away
 
@@ -1362,7 +1366,7 @@ export default function App() {
       if (activeTab === "analytics") {
         fetchAnalytics(analyticsTimeRange, true);
       }
-    }, 8000);
+    }, 20000);
     return () => clearInterval(interval);
   }, [token, activeTab, analyticsPage.open, analyticsPage.flow, analyticsTimeRange]);
 
