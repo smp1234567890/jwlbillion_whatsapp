@@ -245,8 +245,9 @@ def extract_cart_data(data: Dict[str, Any]) -> schemas.CartEventPayload:
         or data.get("customer_phone")
     )
 
-    if not phone_raw:
-        # If no phone in test webhook, use placeholder or raise informative error
+    from services.phone_service import is_valid_phone
+    if not phone_raw or not is_valid_phone(str(phone_raw)):
+        # Shopify test notifications send dummy phones like '555-555-BILL' or empty
         phone_raw = "+919999999999"
 
     first_name = (
@@ -486,8 +487,9 @@ async def receive_order_completed_webhook(
         or customer_phone
     )
 
-    if not raw_phone:
-        # Fallback for Shopify order test webhook without customer phone
+    from services.phone_service import is_valid_phone
+    if not raw_phone or not is_valid_phone(str(raw_phone)):
+        # Fallback for Shopify dummy test notifications (e.g. '555-555-BILL')
         raw_phone = "+919999999999"
 
     if not token:
@@ -626,8 +628,10 @@ def process_customer_sync(payload: Dict[str, Any], current_user: models.User, db
         or (billing_addr.get("phone") if isinstance(billing_addr, dict) else None)
         or (shipping_addr.get("phone") if isinstance(shipping_addr, dict) else None)
     )
-    if not phone_raw:
-        # Fallback for Shopify test webhook without phone
+
+    from services.phone_service import is_valid_phone
+    if not phone_raw or not is_valid_phone(str(phone_raw)):
+        # Fallback for Shopify dummy test webhooks (e.g. '555-555-BILL')
         phone_raw = "+919999999999"
 
     try:
