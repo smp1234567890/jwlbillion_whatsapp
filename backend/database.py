@@ -11,9 +11,24 @@ if not DATABASE_URL:
         raise RuntimeError("FATAL: DATABASE_URL is not configured for production.")
     DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/whatsapp_crm"
 
+from urllib.parse import urlparse, urlencode, parse_qsl, urlunparse
+
 # Fix SQLAlchemy requirement: SQLAlchemy requires 'postgresql://' instead of legacy 'postgres://'
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Ensure query string parameters in DATABASE_URL do not trigger missing root.crt errors on Render
+if DATABASE_URL.startswith("postgresql://"):
+    _parsed = urlparse(DATABASE_URL)
+    _qs = dict(parse_qsl(_parsed.query))
+    _sslrootcert = os.getenv("DB_SSLROOTCERT")
+    # If no custom root cert file exists, ensure sslmode is 'require'
+    if not _sslrootcert and _qs.get("sslmode") in ("verify-full", "verify-ca"):
+        _qs["sslmode"] = "require"
+    elif not _sslrootcert and "sslmode" not in _qs and "localhost" not in _parsed.netloc and "127.0.0.1" not in _parsed.netloc:
+        _qs["sslmode"] = "require"
+    _new_query = urlencode(_qs)
+    DATABASE_URL = urlunparse((_parsed.scheme, _parsed.netloc, _parsed.path, _parsed.params, _new_query, _parsed.fragment))
 
 # Fail closed if production database connects to localhost or sqlite
 if config.ENVIRONMENT == "production":
