@@ -191,14 +191,14 @@ def login(request: Request, response: Response, payload: schemas.UserLogin, db: 
     )
     raw_rt, _ = auth.create_refresh_token_for_user(db, user)
 
-    # Set HttpOnly Secure SameSite=Strict cookie for the refresh token
+    # Set HttpOnly Secure cookie for the refresh token (samesite=none required for cross-domain Vercel -> Render)
     is_prod = config.ENVIRONMENT == "production"
     response.set_cookie(
         key="refresh_token",
         value=raw_rt,
         httponly=True,
         secure=is_prod,
-        samesite="strict",
+        samesite="none" if is_prod else "lax",
         max_age=7 * 24 * 3600,
         path="/api/auth"
     )
@@ -209,7 +209,7 @@ def login(request: Request, response: Response, payload: schemas.UserLogin, db: 
         "username": user.username,
         "role": user.role,
         "requires_2fa": False,
-        "refresh_token": None
+        "refresh_token": raw_rt
     }
 
 
@@ -277,7 +277,7 @@ def verify_two_factor_code(
         value=raw_rt,
         httponly=True,
         secure=is_prod,
-        samesite="strict",
+        samesite="none" if is_prod else "lax",
         max_age=7 * 24 * 3600,
         path="/api/auth"
     )
@@ -288,7 +288,7 @@ def verify_two_factor_code(
         "username": user.username,
         "role": user.role,
         "requires_2fa": False,
-        "refresh_token": None
+        "refresh_token": raw_rt
     }
 
 
@@ -584,7 +584,7 @@ def refresh_token_endpoint(
         value=new_refresh_token,
         httponly=True,
         secure=is_prod,
-        samesite="strict",
+        samesite="none" if is_prod else "lax",
         max_age=7 * 24 * 3600,
         path="/api/auth"
     )
@@ -592,7 +592,7 @@ def refresh_token_endpoint(
     return {
         "access_token": new_access_token,
         "token_type": "bearer",
-        "refresh_token": None
+        "refresh_token": new_refresh_token
     }
 
 
@@ -617,7 +617,13 @@ def logout_endpoint(
             rec.is_revoked = True
             db.commit()
 
-    response.delete_cookie(key="refresh_token", path="/api/auth")
+    is_prod = config.ENVIRONMENT == "production"
+    response.delete_cookie(
+        key="refresh_token",
+        path="/api/auth",
+        secure=is_prod,
+        samesite="none" if is_prod else "lax"
+    )
 
     return {"status": "success", "message": "Logged out successfully"}
 

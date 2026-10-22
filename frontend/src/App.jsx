@@ -810,6 +810,9 @@ export default function App() {
       setUsername(res.data.username);
       localStorage.setItem("token", jwt);
       localStorage.setItem("username", res.data.username);
+      if (res.data.refresh_token) {
+        localStorage.setItem("refresh_token", res.data.refresh_token);
+      }
     } catch (err) {
       if (!err.response) {
         setLoginError(
@@ -838,6 +841,9 @@ export default function App() {
       setUsername(res.data.username);
       localStorage.setItem("token", jwt);
       localStorage.setItem("username", res.data.username);
+      if (res.data.refresh_token) {
+        localStorage.setItem("refresh_token", res.data.refresh_token);
+      }
       setTwoFactorRequired(false);
       setTwoFactorTempToken("");
       setTwoFactorCode("");
@@ -916,6 +922,7 @@ export default function App() {
     setUsername("");
     localStorage.removeItem("token");
     localStorage.removeItem("username");
+    localStorage.removeItem("refresh_token");
   };
 
   // Fetch all data

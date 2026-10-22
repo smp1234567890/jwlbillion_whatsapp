@@ -54,11 +54,12 @@ export async function silentRefreshToken() {
 
   const baseUrl = getApiBaseUrl();
   const refreshUrl = `${baseUrl.replace(/\/+$/, "")}/api/auth/refresh`;
+  const storedRefreshToken = localStorage.getItem("refresh_token") || null;
 
   refreshPromise = axios
     .post(
       refreshUrl,
-      {},
+      storedRefreshToken ? { refresh_token: storedRefreshToken } : {},
       {
         withCredentials: true,
         headers: {
@@ -70,6 +71,9 @@ export async function silentRefreshToken() {
       const newToken = res.data?.access_token;
       if (newToken) {
         localStorage.setItem("token", newToken);
+        if (res.data?.refresh_token) {
+          localStorage.setItem("refresh_token", res.data.refresh_token);
+        }
         api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
         axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
         window.dispatchEvent(
@@ -80,15 +84,10 @@ export async function silentRefreshToken() {
       return null;
     })
     .catch((err) => {
-      const status = err.response?.status;
-      if (status === 401 || status === 400) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("username");
-        delete api.defaults.headers.common["Authorization"];
-        delete axios.defaults.headers.common["Authorization"];
-        window.dispatchEvent(new Event("auth:unauthorized"));
-      }
-      throw err;
+      // Do NOT log the user out on background refresh failures.
+      // The current access_token in localStorage may still be valid.
+      // Actual 401 on real API calls will be caught by handle401Response.
+      return null;
     })
     .finally(() => {
       refreshPromise = null;
