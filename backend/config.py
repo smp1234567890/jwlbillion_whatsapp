@@ -62,7 +62,20 @@ TRUSTED_PROXIES_RAW = os.getenv("TRUSTED_PROXIES", "127.0.0.1,::1")
 TRUSTED_PROXIES = [p.strip() for p in TRUSTED_PROXIES_RAW.split(",") if p.strip()]
 
 # ── Redis (required for distributed rate limiting in production) ──
-REDIS_URL = os.getenv("REDIS_URL")
+_raw_redis_url = os.getenv("REDIS_URL", "").strip()
+if _raw_redis_url:
+    import re
+    _match = re.search(r"(rediss?://[^\s]+)", _raw_redis_url)
+    if _match:
+        _url = _match.group(1)
+        if "--tls" in _raw_redis_url and _url.startswith("redis://"):
+            _url = _url.replace("redis://", "rediss://", 1)
+        REDIS_URL = _url
+    else:
+        REDIS_URL = _raw_redis_url
+else:
+    REDIS_URL = None
+
 if not REDIS_URL and ENVIRONMENT == "production":
     raise RuntimeError("FATAL: REDIS_URL is mandatory in production for distributed rate limiting.")
 
