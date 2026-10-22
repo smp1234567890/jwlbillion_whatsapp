@@ -83,7 +83,17 @@ if not REDIS_URL and ENVIRONMENT == "production":
 AUDIT_HASH_SALT = os.getenv("AUDIT_HASH_SALT", SECRET_KEY)
 
 # ── Allowed Origins ──
-ALLOWED_ORIGINS = [o.strip() for o in ALLOWED_ORIGINS_RAW.split(",") if o.strip()]
+# Normalize: browsers send Origin header without trailing slash (e.g. 'https://site.vercel.app').
+# We strip trailing slashes, and ensure both forms are included for compatibility.
+_raw_origins = [o.strip() for o in ALLOWED_ORIGINS_RAW.split(",") if o.strip()]
+ALLOWED_ORIGINS = []
+for _o in _raw_origins:
+    _clean = _o.rstrip("/")
+    if _clean:
+        if _clean not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(_clean)
+        if f"{_clean}/" not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(f"{_clean}/")
 
 # ── Database Connection ──
 DATABASE_URL = os.getenv("DATABASE_URL")
