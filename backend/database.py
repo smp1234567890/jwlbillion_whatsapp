@@ -42,11 +42,14 @@ elif DATABASE_URL.startswith("postgresql"):
     engine_options["pool_timeout"] = int(os.getenv("DB_POOL_TIMEOUT", "5"))
     connect_args = {}
     if config.ENVIRONMENT == "production":
-        sslmode = os.getenv("DB_SSLMODE", "verify-full").strip()
+        # If no explicit root cert is mounted, default to 'require' so TLS is always enforced
+        # without failing on a missing local /opt/render/.postgresql/root.crt file.
+        sslrootcert = os.getenv("DB_SSLROOTCERT")
+        default_sslmode = "verify-full" if sslrootcert else "require"
+        sslmode = os.getenv("DB_SSLMODE", default_sslmode).strip()
         if sslmode not in ("verify-full", "verify-ca", "require"):
             raise RuntimeError(f"FATAL: Insecure DB_SSLMODE='{sslmode}' in production. Must be verify-full, verify-ca, or require.")
         connect_args["sslmode"] = sslmode
-        sslrootcert = os.getenv("DB_SSLROOTCERT")
         if sslrootcert:
             connect_args["sslrootcert"] = sslrootcert
         sslcert = os.getenv("DB_SSLCERT")
