@@ -37,23 +37,18 @@ def upgrade() -> None:
             sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         )
     else:
-        # Table already exists — use ADD COLUMN IF NOT EXISTS (PostgreSQL-native, no table recreation)
-        # batch_alter_table MUST NOT be used here; it tries to recreate the table on PostgreSQL
-        # which fails when existing rows violate NOT NULL constraints.
-        for ddl in [
-            "ALTER TABLE webhook_events ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'store'",
-            "ALTER TABLE webhook_events ADD COLUMN IF NOT EXISTS external_event_id VARCHAR(150)",
-            "ALTER TABLE webhook_events ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(150)",
-            "ALTER TABLE webhook_events ADD COLUMN IF NOT EXISTS hmac_validated BOOLEAN DEFAULT false",
-            "ALTER TABLE webhook_events ADD COLUMN IF NOT EXISTS correlation_id VARCHAR(64)",
-            "ALTER TABLE webhook_events ADD COLUMN IF NOT EXISTS received_at TIMESTAMP DEFAULT NOW()",
-        ]:
-            try:
-                op.execute(sa.text(ddl))
-            except Exception as e:
-                # Log and continue — failure on one column must not abort the rest
-                import logging
-                logging.getLogger("alembic.3c8e9f1a0b2d").warning(f"Column migration note: {e}")
+        existing_cols = {c['name'] for c in insp.get_columns('webhook_events')}
+        col_defs = [
+            ('source', sa.Column('source', sa.String(length=50), nullable=True, server_default='store')),
+            ('external_event_id', sa.Column('external_event_id', sa.String(length=150), nullable=True)),
+            ('idempotency_key', sa.Column('idempotency_key', sa.String(length=150), nullable=True)),
+            ('hmac_validated', sa.Column('hmac_validated', sa.Boolean(), nullable=True, server_default='false')),
+            ('correlation_id', sa.Column('correlation_id', sa.String(length=64), nullable=True)),
+            ('received_at', sa.Column('received_at', sa.DateTime(), nullable=True, server_default=sa.func.now())),
+        ]
+        for name, col in col_defs:
+            if name not in existing_cols:
+                op.add_column('webhook_events', col)
 
     # Create indexes idempotently
     try:
