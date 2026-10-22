@@ -69,6 +69,10 @@ export async function silentRefreshToken() {
     )
     .then((res) => {
       const newToken = res.data?.access_token;
+      // If the user logged out while refresh was in flight, discard the new token
+      if (!localStorage.getItem("token")) {
+        return null;
+      }
       if (newToken) {
         localStorage.setItem("token", newToken);
         if (res.data?.refresh_token) {

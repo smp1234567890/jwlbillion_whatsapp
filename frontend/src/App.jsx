@@ -918,11 +918,12 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    setToken("");
-    setUsername("");
     localStorage.removeItem("token");
     localStorage.removeItem("username");
     localStorage.removeItem("refresh_token");
+    delete axios.defaults.headers.common["Authorization"];
+    setToken("");
+    setUsername("");
   };
 
   // Fetch all data
