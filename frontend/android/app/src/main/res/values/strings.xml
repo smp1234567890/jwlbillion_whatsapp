@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WhatsApp CRM</string>
+    <string name="title_activity_main">WhatsApp CRM</string>
+    <string name="package_name">com.jwlbillion.whatsappcrm</string>
+    <string name="custom_url_scheme">com.jwlbillion.whatsappcrm</string>
+</resources>
