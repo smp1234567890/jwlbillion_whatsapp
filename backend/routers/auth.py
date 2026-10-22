@@ -14,7 +14,7 @@ from typing import List, Optional
 
 import pyotp
 import qrcode
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 import auth
@@ -153,7 +153,13 @@ def register_user(
 
 @router.post("/api/auth/login", response_model=schemas.Token)
 @limiter.limit("10/minute")
-def login(request: Request, response: Response, payload: schemas.UserLogin, db: Session = Depends(get_db)):
+def login(
+    request: Request,
+    response: Response,
+    payload: schemas.UserLogin,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     client_ip = get_trusted_client_ip(request)
     fail_key = f"{client_ip}:{payload.username.strip().lower()}"
 
@@ -172,7 +178,8 @@ def login(request: Request, response: Response, payload: schemas.UserLogin, db: 
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    clear_failed_attempts(fail_key)
+    # Asynchronously clear failed attempts without freezing HTTP response
+    background_tasks.add_task(clear_failed_attempts, fail_key)
 
     if user.is_2fa_enabled:
         temp_token = auth.create_temp_2fa_token(user.username)
