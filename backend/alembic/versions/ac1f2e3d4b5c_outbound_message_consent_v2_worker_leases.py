@@ -85,16 +85,24 @@ def upgrade() -> None:
 
     # ── WP5: partial unique index on message_logs.meta_message_id ────────────
     if "message_logs" in existing_tables:
-        # Check if the partial unique index already exists
-        try:
-            # PostgreSQL supports WHERE in CREATE UNIQUE INDEX; safe to retry
-            conn.execute(sa.text("""
-                CREATE UNIQUE INDEX IF NOT EXISTS uq_message_logs_meta_message_id
-                ON message_logs (meta_message_id)
-                WHERE meta_message_id IS NOT NULL
-            """))
-        except Exception:
-            pass  # Index may already exist or dialect does not support partial index (SQLite dev)
+        existing_log_indexes = {i["name"] for i in insp.get_indexes("message_logs")}
+        if "uq_message_logs_meta_message_id" not in existing_log_indexes:
+            dialect_name = conn.dialect.name
+            if dialect_name == "postgresql":
+                op.create_index(
+                    "uq_message_logs_meta_message_id",
+                    "message_logs",
+                    ["meta_message_id"],
+                    unique=True,
+                    postgresql_where=sa.text("meta_message_id IS NOT NULL")
+                )
+            else:
+                op.create_index(
+                    "uq_message_logs_meta_message_id",
+                    "message_logs",
+                    ["meta_message_id"],
+                    unique=True
+                )
 
     # ── WP8: workflow_sessions lease columns ──────────────────────────────────
     if "workflow_sessions" in existing_tables:
