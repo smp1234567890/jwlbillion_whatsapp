@@ -20,11 +20,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema safely without dropping legacy data."""
-    # Ensure system_settings table and index exist
-    try:
-        op.create_index(op.f('ix_system_settings_key'), 'system_settings', ['key'], unique=False)
-    except Exception:
-        pass
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    if "system_settings" in insp.get_table_names():
+        indexes = [idx["name"] for idx in insp.get_indexes("system_settings")]
+        if op.f("ix_system_settings_key") not in indexes:
+            op.create_index(op.f("ix_system_settings_key"), "system_settings", ["key"], unique=False)
 
 
 def downgrade() -> None:
