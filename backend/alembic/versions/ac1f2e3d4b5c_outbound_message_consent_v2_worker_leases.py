@@ -115,10 +115,12 @@ def upgrade() -> None:
             if "attempt_count" not in ws_cols:
                 batch_op.add_column(sa.Column("attempt_count", sa.Integer, nullable=False, server_default="0"))
         # Index for efficient un-claimed session queries
-        try:
-            op.create_index("ix_workflow_sessions_claimed_until", "workflow_sessions", ["claimed_until"])
-        except Exception:
-            pass
+        existing_ws_indexes = {i["name"] for i in insp.get_indexes("workflow_sessions")}
+        if "ix_workflow_sessions_claimed_until" not in existing_ws_indexes:
+            try:
+                op.create_index("ix_workflow_sessions_claimed_until", "workflow_sessions", ["claimed_until"])
+            except Exception:
+                pass
 
     # ── WP8: campaigns lease columns ──────────────────────────────────────────
     if "campaigns" in existing_tables:
