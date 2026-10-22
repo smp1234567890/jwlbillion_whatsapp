@@ -950,7 +950,10 @@ export default function App() {
       if (campRes.data !== null) setCampaigns(campRes.data);
       if (rulesRes.data !== null) setAutomationRules(rulesRes.data);
 
-      // ── Batch 2: App config and chat ──
+      // ⚡ Release the loading screen immediately so user enters dashboard in ~1s
+      if (!silent) setLoading(false);
+
+      // ── Batch 2: App config and chat (streams in background) ──
       const [setRes, meRes, convRes, cartRes, logsRes] = await Promise.all([
         axios.get("/api/settings", { headers }).catch(() => ({ data: null })),
         axios.get("/api/auth/me", { headers }).catch(() => ({ data: null })),
@@ -964,7 +967,7 @@ export default function App() {
       if (cartRes.data !== null) setCartEvents(cartRes.data);
       if (logsRes.data !== null) setMessageLogs(logsRes.data);
 
-      // ── Batch 3: Secondary / reference data ──
+      // ── Batch 3: Secondary / reference data (streams in background) ──
       const [optRes, usersRes, discRes, extRes] = await Promise.all([
         axios.get("/api/opt-outs", { headers }).catch(() => ({ data: null })),
         axios.get("/api/users", { headers }).catch(() => ({ data: null })),
@@ -976,7 +979,7 @@ export default function App() {
       if (discRes.data !== null) setDiscountCodes(discRes.data);
       if (extRes.data !== null) setExternalDataSources(extRes.data);
 
-      if (!silent || activeTab === "analytics") {
+      if (activeTab === "analytics") {
         fetchAnalytics(analyticsTimeRange, true);
       }
     } catch (err) {
