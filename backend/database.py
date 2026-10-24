@@ -52,9 +52,9 @@ engine_options = {"pool_pre_ping": True, "pool_recycle": 180}
 if DATABASE_URL.startswith("sqlite"):
     engine_options["connect_args"] = {"check_same_thread": False}
 elif DATABASE_URL.startswith("postgresql"):
-    engine_options["pool_size"] = int(os.getenv("DB_POOL_SIZE", "7"))
-    engine_options["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "3"))
-    engine_options["pool_timeout"] = int(os.getenv("DB_POOL_TIMEOUT", "5"))
+    engine_options["pool_size"] = int(os.getenv("DB_POOL_SIZE", "3"))
+    engine_options["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "2"))
+    engine_options["pool_timeout"] = int(os.getenv("DB_POOL_TIMEOUT", "15"))
     connect_args = {}
     if config.ENVIRONMENT == "production":
         # If no explicit root cert is mounted, default to 'require' so TLS is always enforced

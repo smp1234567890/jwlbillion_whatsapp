@@ -10,6 +10,7 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import auth
@@ -131,22 +132,18 @@ def sync_templates_from_meta(
         except Exception as e:
             logger.warning(f"Optional Meta template_analytics fetch skipped: {e}")
 
-        # 🚀 CUSTOMER REPLY TO READ BACKFILL
-        replied_customers = [
-            r[0] for r in db.query(models.ChatMessage.customer_phone)
-            .filter(models.ChatMessage.sender_type == "CUSTOMER")
-            .distinct().all()
-        ]
-        backfilled_reads = 0
-        for phone in replied_customers:
-            out_logs = db.query(models.MessageLog).filter(
-                models.MessageLog.recipient_phone == phone,
-                models.MessageLog.status.in_(["SENT", "SENT_SIMULATED", "DELIVERED"])
-            ).all()
-            for log in out_logs:
-                log.status = "READ"
-                backfilled_reads += 1
-
+        # 🚀 CUSTOMER REPLY TO READ BACKFILL (Single SQL Update)
+        update_result = db.execute(text("""
+            UPDATE message_logs
+            SET status = 'READ'
+            WHERE recipient_phone IN (
+                SELECT DISTINCT customer_phone
+                FROM chat_messages
+                WHERE sender_type = 'CUSTOMER'
+            )
+            AND status IN ('SENT', 'SENT_SIMULATED', 'DELIVERED')
+        """))
+        backfilled_reads = update_result.rowcount or 0
         db.commit()
         prune_msg = f" (pruned {pruned_count} deleted/unregistered templates)" if pruned_count > 0 else ""
         backfill_msg = f", synced {backfilled_reads} read events from customer replies" if backfilled_reads > 0 else ""

@@ -9,6 +9,7 @@ import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -175,10 +176,11 @@ def get_workflow_sessions(
     sessions = (
         db.query(models.WorkflowSession)
         .filter(models.WorkflowSession.flow_id == flow_id)
+        .order_by(desc(models.WorkflowSession.updated_at))
+        .limit(250)
         .all()
     )
-    sessions.sort(key=get_session_wa_sort_key, reverse=True)
-    return sessions[:250]
+    return sessions
 
 
 @router.post("/{flow_id}/clear-queue")

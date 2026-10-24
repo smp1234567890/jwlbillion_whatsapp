@@ -54,7 +54,7 @@ DEFAULT_DISCOUNT_PERCENT = int(os.getenv("DEFAULT_DISCOUNT_PERCENT", "10"))
 DEFAULT_EXPIRY_DAYS = int(os.getenv("DEFAULT_EXPIRY_DAYS", "30"))
 
 # External HTTP client timeout (in seconds)
-HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "15.0"))
+HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "5.0"))
 SCHEDULER_ENABLED = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
 
 # ── Reverse Proxy & Trusted Networks ──

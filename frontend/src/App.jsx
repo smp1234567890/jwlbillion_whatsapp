@@ -63,7 +63,7 @@ import {
   Volume2,
   VolumeX
 } from "lucide-react";
-import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl } from "./api";
+import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache } from "./api";
 import FlowchartCanvas from "./components/FlowchartCanvas";
 import DashboardPage from "./pages/DashboardPage";
 import AutomationsPage from "./pages/AutomationsPage";
@@ -940,10 +940,10 @@ export default function App() {
       // ── Batch 1: Critical UI data — renders journeys, templates, contacts ──
       const [contRes, wfRes, tmplRes, campRes, rulesRes] = await Promise.all([
         axios.get("/api/contacts", { headers }).catch((e) => { if (e.response?.status === 401) throw e; return { data: null }; }),
-        axios.get("/api/workflows", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/templates", { headers }).catch(() => ({ data: null })),
+        cachedGet("/api/workflows", { headers }, 30_000).catch(() => ({ data: null })),
+        cachedGet("/api/templates", { headers }, 30_000).catch(() => ({ data: null })),
         axios.get("/api/campaigns", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/automation-rules", { headers }).catch(() => ({ data: null })),
+        cachedGet("/api/automation-rules", { headers }, 30_000).catch(() => ({ data: null })),
       ]);
       if (contRes.data !== null) setContacts(contRes.data);
       if (wfRes.data !== null) setWorkflowFlows(wfRes.data);
@@ -1296,6 +1296,7 @@ export default function App() {
         footer_text: "JWL",
         variable_mappings: {}
       });
+      invalidateCache("/api/templates");
       fetchData();
       setTimeout(() => setActionSuccessMsg(""), 6000);
     } catch (err) {
@@ -1310,6 +1311,7 @@ export default function App() {
         { variable_mappings: editMappings },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      invalidateCache("/api/templates");
       setActionSuccessMsg(`Column mappings saved for '${editMappingTemplate.template_name}'!`);
       setEditMappingTemplate(null);
       setEditMappings({});
@@ -1377,6 +1379,7 @@ export default function App() {
       const res = await axios.post("/api/templates/sync-from-meta", {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      invalidateCache("/api/templates");
       setActionSuccessMsg(`${res.data.message}`);
       fetchData();
       setTimeout(() => setActionSuccessMsg(""), 5000);
@@ -1396,6 +1399,7 @@ export default function App() {
       const res = await axios.delete(`/api/templates/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      invalidateCache("/api/templates");
       setActionSuccessMsg(`🗑️ ${res.data.message || "Template deleted successfully."}`);
       fetchData();
       setTimeout(() => setActionSuccessMsg(""), 5000);
@@ -1413,6 +1417,7 @@ export default function App() {
         { is_active: !rule.is_active },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      invalidateCache("/api/automation-rules");
       fetchData();
     } catch (err) {
       alert("Failed to update rule status");
@@ -1429,6 +1434,7 @@ export default function App() {
       } else {
         res = await axios.post("/api/workflows", updatedFlow, { headers });
       }
+      invalidateCache("/api/workflows");
       setActionSuccessMsg(`Workflow "${res.data.name}" saved successfully!`);
       setEditingWorkflow(null);
       fetchData();
@@ -1443,6 +1449,7 @@ export default function App() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.post(`/api/workflows/${flow.id}/toggle`, {}, { headers });
+      invalidateCache("/api/workflows");
       setWorkflowFlows((prev) =>
         prev.map((f) => (f.id === flow.id ? res.data : f))
       );
@@ -1458,6 +1465,7 @@ export default function App() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       await axios.delete(`/api/workflows/${flowId}`, { headers });
+      invalidateCache("/api/workflows");
       setWorkflowFlows((prev) => prev.filter((f) => f.id !== flowId));
       setActionSuccessMsg("Workflow deleted successfully.");
       setTimeout(() => setActionSuccessMsg(""), 4000);

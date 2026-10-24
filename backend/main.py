@@ -142,8 +142,14 @@ else:
 
 
 
+_startup_done = False
+
 @app.on_event("startup")
 def on_startup():
+    global _startup_done
+    if _startup_done:
+        return
+    _startup_done = True
     # ── WP8: Distributed Leader Election for Background Scheduler / Workflow Engine ──
     # Attempts to acquire advisory lock. If leader, runs APScheduler for background sweeps
     try:

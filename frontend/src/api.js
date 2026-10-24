@@ -171,3 +171,49 @@ axios.interceptors.response.use(
 );
 
 export default api;
+
+// ── In-Memory Request Cache for Frequently-Read Metadata ──
+const _apiCache = new Map();
+
+/**
+ * Perform a cached GET request.
+ * If cached data exists and is fresher than ttlMs, return it immediately.
+ * In-flight promises are de-duplicated so simultaneous callers share 1 network request.
+ */
+export async function cachedGet(url, config = {}, ttlMs = 30_000) {
+  const cacheKey = typeof url === "string" ? url : JSON.stringify(url);
+  const cached = _apiCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.ts < ttlMs) {
+    return cached.data;
+  }
+
+  if (cached && cached.promise) {
+    return cached.promise;
+  }
+
+  const reqPromise = api.get(url, config)
+    .then((res) => {
+      _apiCache.set(cacheKey, { data: res, ts: Date.now(), promise: null });
+      return res;
+    })
+    .catch((err) => {
+      _apiCache.delete(cacheKey);
+      throw err;
+    });
+
+  _apiCache.set(cacheKey, { data: null, ts: 0, promise: reqPromise });
+  return reqPromise;
+}
+
+export function invalidateCache(urlPattern) {
+  if (!urlPattern) {
+    _apiCache.clear();
+    return;
+  }
+  for (const key of _apiCache.keys()) {
+    if (key.includes(urlPattern)) {
+      _apiCache.delete(key);
+    }
+  }
+}

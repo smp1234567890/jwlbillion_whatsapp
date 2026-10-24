@@ -36,39 +36,6 @@ def list_conversations(
     if current_user.role == "agent":
         agent_contacts = db.query(models.Contact.phone).filter(models.Contact.assigned_user_id == current_user.id).all()
         agent_assigned_phones = set(p[0] for p in agent_contacts if p[0])
-
-    # Ensure broadcast recipients from MessageLog have chat records
-    recent_broadcast_phones = (
-        db.query(models.MessageLog.recipient_phone)
-        .distinct()
-        .order_by(desc(models.MessageLog.recipient_phone))
-        .limit(100)
-        .all()
-    )
-    for (b_phone,) in recent_broadcast_phones:
-        if not b_phone:
-            continue
-        exists = db.query(models.ChatMessage).filter(models.ChatMessage.customer_phone == b_phone).first()
-        if not exists:
-            last_log = (
-                db.query(models.MessageLog)
-                .filter(models.MessageLog.recipient_phone == b_phone)
-                .order_by(models.MessageLog.created_at.desc())
-                .first()
-            )
-            if last_log:
-                db.add(models.ChatMessage(
-                    customer_phone=b_phone,
-                    sender_type="AGENT",
-                    message_type="TEMPLATE",
-                    text=f"[Template: {last_log.template_name}]",
-                    meta_message_id=last_log.meta_message_id,
-                    status=last_log.status,
-                    is_read=True,
-                    created_at=last_log.created_at
-                ))
-    db.commit()
-
     # Query distinct customer phones capped by limit
     phones_query = db.query(models.ChatMessage.customer_phone).distinct()
     if agent_assigned_phones is not None:
@@ -153,7 +120,7 @@ def get_chat_history(
     # Enforce record scope
     pii_service.verify_conversation_access(db, current_user, clean_phone)
 
-    # Ensure any past marketing template dispatches from MessageLog are present in ChatMessage
+    # Ensure any past marketing template dispatches from MessageLog are present in ChatMessage (batch checked)
     historical_logs = (
         db.query(models.MessageLog)
         .filter(
@@ -162,27 +129,36 @@ def get_chat_history(
         )
         .all()
     )
+    ids_to_check = [h.meta_message_id for h in historical_logs if h.meta_message_id]
+    existing_ids = set()
+    if ids_to_check:
+        existing_ids = set(
+            row[0] for row in db.query(models.ChatMessage.meta_message_id)
+            .filter(models.ChatMessage.meta_message_id.in_(ids_to_check)).all()
+        )
+    to_add = []
+    needed_templates = {h.template_name for h in historical_logs if h.meta_message_id and h.meta_message_id not in existing_ids and h.template_name}
+    template_map = {}
+    if needed_templates:
+        tmpls = db.query(models.Template).filter(models.Template.template_name.in_(needed_templates)).all()
+        template_map = {t.template_name: t.body_text for t in tmpls}
     for h_log in historical_logs:
-        if h_log.meta_message_id:
-            exists = (
-                db.query(models.ChatMessage)
-                .filter(models.ChatMessage.meta_message_id == h_log.meta_message_id)
-                .first()
-            )
-            if not exists:
-                tmpl = db.query(models.Template).filter(models.Template.template_name == h_log.template_name).first()
-                content = tmpl.body_text if tmpl and tmpl.body_text else f"📢 WhatsApp Template: {h_log.template_name}"
-                db.add(models.ChatMessage(
-                    customer_phone=clean_phone,
-                    sender_type="AGENT",
-                    message_type="template",
-                    text=content,
-                    meta_message_id=h_log.meta_message_id,
-                    status=h_log.status,
-                    is_read=True,
-                    created_at=h_log.created_at
-                ))
-    db.commit()
+        if h_log.meta_message_id and h_log.meta_message_id not in existing_ids:
+            body = template_map.get(h_log.template_name)
+            content = body if body else f"📢 WhatsApp Template: {h_log.template_name}"
+            to_add.append(models.ChatMessage(
+                customer_phone=clean_phone,
+                sender_type="AGENT",
+                message_type="template",
+                text=content,
+                meta_message_id=h_log.meta_message_id,
+                status=h_log.status,
+                is_read=True,
+                created_at=h_log.created_at
+            ))
+    if to_add:
+        db.add_all(to_add)
+        db.commit()
 
     # Mark as read
     db.query(models.ChatMessage).filter(

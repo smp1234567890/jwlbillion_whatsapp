@@ -19,7 +19,7 @@ class Contact(Base):
     is_active = Column(Boolean, default=True)
     assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     custom_attributes = Column(JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class DiscountCode(Base):
@@ -100,7 +100,7 @@ class MessageLog(Base):
     template_name = Column(String(100), nullable=False)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
     language = Column(String(10), default="en")
-    status = Column(String(50), default="QUEUED")  # QUEUED, SENT, DELIVERED, READ, FAILED
+    status = Column(String(50), default="QUEUED", index=True)  # QUEUED, SENT, DELIVERED, READ, FAILED
     sender_user = Column(String(50), nullable=True, default="System")  # User or API client who initiated message
     meta_message_id = Column(String(100), nullable=True, index=True)
     error_message = Column(Text, nullable=True)
@@ -224,14 +224,14 @@ class ChatMessage(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     customer_phone = Column(String(20), index=True, nullable=False)
-    sender_type = Column(String(20), default="CUSTOMER")  # "CUSTOMER" (inbound) or "AGENT" (outbound)
+    sender_type = Column(String(20), default="CUSTOMER", index=True)  # "CUSTOMER" (inbound) or "AGENT" (outbound)
     message_type = Column(String(20), default="text")      # text, template, image, document
     text = Column(Text, nullable=True)
     meta_message_id = Column(String(100), nullable=True, unique=True, index=True)
     status = Column(String(30), default="DELIVERED")      # RECEIVED, SENT, DELIVERED, READ, FAILED
-    is_read = Column(Boolean, default=False)
+    is_read = Column(Boolean, default=False, index=True)
     assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class WorkflowFlow(Base):
@@ -258,7 +258,7 @@ class WorkflowSession(Base):
     customer_phone = Column(String(20), index=True, nullable=False)
     current_node_id = Column(String(50), nullable=True)
     state_data = Column(JSON, default=dict)
-    status = Column(String(50), default="ACTIVE")  # ACTIVE, WAITING_DELAY, WAITING_CONDITION, COMPLETED_GOAL, COMPLETED_DROPOUT, CANCELLED
+    status = Column(String(50), default="ACTIVE", index=True)  # ACTIVE, WAITING_DELAY, WAITING_CONDITION, COMPLETED_GOAL, COMPLETED_DROPOUT, CANCELLED
     next_evaluation_at = Column(DateTime, default=datetime.utcnow, index=True)
     history = Column(JSON, default=list)
     # WP8: Worker lease columns for distributed job claiming
