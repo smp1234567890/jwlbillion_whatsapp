@@ -133,7 +133,7 @@ def revoke_consent(
         db.add(models.OptOut(phone=clean_phone, reason=reason))
 
     db.flush()
-    logger.info(f"🛑 [Consent Revoked] Phone {clean_phone} revoked: {reason}")
+    logger.info(f"[Consent Revoked] Phone {clean_phone} revoked: {reason}")
 
 
 def has_active_consent(db: Session, phone: str) -> bool:

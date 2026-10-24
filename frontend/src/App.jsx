@@ -302,7 +302,7 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  // 🔐 Step-Up Security & 2FA Modal States (for Campaign Launch & Automation Release)
+  // Step-Up Security & 2FA Modal States (for Campaign Launch & Automation Release)
   const [securityActionModal, setSecurityActionModal] = useState({
     isOpen: false,
     actionType: null, // "CAMPAIGN" or "AUTOMATION_APPROVAL"
@@ -608,7 +608,7 @@ export default function App() {
       await axios.post("/api/users", newUserForm, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setActionSuccessMsg(`✅ Team user "${newUserForm.username}" registered successfully!`);
+      setActionSuccessMsg(`Team user "${newUserForm.username}"registered successfully!`);
       setIsAddUserModalOpen(false);
       setNewUserForm({ username: "", email: "", password: "", role: "agent" });
       fetchData(true);
@@ -634,7 +634,7 @@ export default function App() {
       setSystemUsers((prev) =>
         prev.map((u) => (u.id === targetUser.id ? { ...u, role: newRole } : u))
       );
-      setActionSuccessMsg(`🛡️ ${targetUser.username} has been updated to ${titleLabel}!`);
+      setActionSuccessMsg(` ${targetUser.username} has been updated to ${titleLabel}!`);
       fetchData(true);
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {
@@ -673,7 +673,7 @@ export default function App() {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setActionSuccessMsg(`🔑 Password for ${adminPasswordModal.user.username} updated successfully!`);
+      setActionSuccessMsg(`Password for ${adminPasswordModal.user.username} updated successfully!`);
       setAdminPasswordModal({ isOpen: false, user: null, newPassword: "", confirmPassword: "", loading: false, error: "" });
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {
@@ -701,7 +701,7 @@ export default function App() {
       setSystemUsers((prev) =>
         prev.map((u) => (u.id === targetUser.id ? { ...u, is_2fa_enabled: enable } : u))
       );
-      setActionSuccessMsg(`🛡️ 2FA has been ${action}d for ${targetUser.username}!`);
+      setActionSuccessMsg(`2FA has been ${action}d for ${targetUser.username}!`);
       fetchData(true);
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {
@@ -725,7 +725,7 @@ export default function App() {
       alert("You cannot delete your own account.");
       return;
     }
-    if (!window.confirm(`⚠️ Are you sure you want to permanently delete user "${targetUser.username}" (${targetUser.email})? This action cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to permanently delete user "${targetUser.username}" (${targetUser.email})? This action cannot be undone.`)) {
       return;
     }
     setUserDeletingId(targetUser.id);
@@ -734,7 +734,7 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSystemUsers((prev) => prev.filter((u) => u.id !== targetUser.id));
-      setActionSuccessMsg(`🗑️ User "${targetUser.username}" was deleted successfully.`);
+      setActionSuccessMsg(`User "${targetUser.username}"was deleted successfully.`);
       fetchData(true);
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {
@@ -770,15 +770,15 @@ export default function App() {
     try {
       const res = await axios.get(`${cleanUrl}/api/health`, { timeout: 6000 });
       if (res.data?.status === "ok") {
-        setServerTestStatus({ loading: false, ok: true, msg: "✅ Connected successfully! Backend is online." });
+        setServerTestStatus({ loading: false, ok: true, msg: "Connected successfully! Backend is online." });
       } else {
-        setServerTestStatus({ loading: false, ok: true, msg: "✅ Connected to server response." });
+        setServerTestStatus({ loading: false, ok: true, msg: "Connected to server response." });
       }
     } catch (err) {
       setServerTestStatus({
         loading: false,
         ok: false,
-        msg: `❌ Cannot connect: ${err.message}. Ensure backend is running and URL is accessible.`
+        msg: `Cannot connect: ${err.message}. Ensure backend is running and URL is accessible.`
       });
     }
   };
@@ -818,10 +818,10 @@ export default function App() {
     } catch (err) {
       if (!err.response) {
         setLoginError(
-          `❌ Cannot connect to backend server at "${axios.defaults.baseURL || "relative URL"}". Please tap "Server Settings" below to check your server address, and ensure the backend is running.`
+          `Cannot connect to backend server at "${axios.defaults.baseURL || "relative URL"}". Please tap "Server Settings"below to check your server address, and ensure the backend is running.`
         );
       } else if (err.response.status === 401) {
-        setLoginError("❌ Incorrect username or password. Please verify your credentials.");
+        setLoginError("Incorrect username or password. Please verify your credentials.");
       } else {
         setLoginError(err.response?.data?.detail || "Login failed. Please try again.");
       }
@@ -851,7 +851,7 @@ export default function App() {
       setTwoFactorCode("");
     } catch (err) {
       if (!err.response) {
-        setLoginError(`❌ Cannot reach backend server at "${axios.defaults.baseURL}".`);
+        setLoginError(`Cannot reach backend server at "${axios.defaults.baseURL}".`);
       } else {
         setLoginError(err.response?.data?.detail || "Invalid 2FA code. Please try again.");
       }
@@ -912,7 +912,7 @@ export default function App() {
       fetchRegistrationStatus();
     } catch (err) {
       if (!err.response) {
-        setLoginError(`❌ Cannot reach backend server at "${axios.defaults.baseURL}".`);
+        setLoginError(`Cannot reach backend server at "${axios.defaults.baseURL}".`);
       } else {
         setLoginError(err.response?.data?.detail || "Registration failed. Try again.");
       }
@@ -929,7 +929,7 @@ export default function App() {
   };
 
   // Fetch all data
-  // ⚡ POOL-SAFE: 14 requests split into 3 sequential batches of max 5.
+  // POOL-SAFE: 14 requests split into 3 sequential batches of max 5.
   // pool_size=7, so running 5 at once leaves 2 connections free for the
   // scheduler (runs every 60s) and incoming Meta webhooks — preventing
   // "QueuePool limit of size 7 overflow 3 reached" errors that blank the UI.
@@ -951,7 +951,7 @@ export default function App() {
       if (tmplRes.data !== null) setTemplates(tmplRes.data);
       if (campRes.data !== null) setCampaigns(campRes.data);
 
-      // ⚡ Release the loading screen immediately so user enters dashboard in <150ms
+      // Release the loading screen immediately so user enters dashboard in <150ms
       if (!silent) setLoading(false);
 
       // ── Priority 2: Streaming secondary data in background without blocking ──
@@ -1240,7 +1240,7 @@ export default function App() {
     if (!window.confirm(`Are you sure you want to delete contact ${c.phone} (${c.name || "Customer"})?`)) return;
     // Optimistically remove contact from UI immediately
     setContacts((prev) => prev.filter((contact) => contact.id !== c.id));
-    setActionSuccessMsg(`🗑️ Contact ${c.phone} deleted successfully!`);
+    setActionSuccessMsg(`Contact ${c.phone} deleted successfully!`);
     try {
       await axios.delete(`/api/contacts/${c.id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1414,7 +1414,7 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       invalidateCache("/api/templates");
-      setActionSuccessMsg(`🗑️ ${res.data.message || "Template deleted successfully."}`);
+      setActionSuccessMsg(` ${res.data.message || "Template deleted successfully."}`);
       fetchData();
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {
@@ -1587,7 +1587,7 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setActionSuccessMsg(`✅ Broadcast Campaign '${payload.title}' launched successfully!`);
+      setActionSuccessMsg(`Broadcast Campaign '${payload.title}'launched successfully!`);
       setIsModalOpen(false);
       const approvedTmpl = templates.find((t) => t.status === "APPROVED") || templates[0];
       setNewCampaign({
@@ -1630,7 +1630,7 @@ export default function App() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        setActionSuccessMsg(`✅ Broadcast Campaign '${payloadData.title}' successfully verified with 2FA and queued for dispatch!`);
+        setActionSuccessMsg(`Broadcast Campaign '${payloadData.title}'successfully verified with 2FA and queued for dispatch!`);
         setIsModalOpen(false);
         setSecurityActionModal((prev) => ({ ...prev, isOpen: false }));
         const approvedTmpl = templates.find((t) => t.status === "APPROVED") || templates[0];
@@ -1655,7 +1655,7 @@ export default function App() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        setActionSuccessMsg(`✅ ${res.data.message}`);
+        setActionSuccessMsg(` ${res.data.message}`);
         setSecurityActionModal((prev) => ({ ...prev, isOpen: false }));
         fetchData();
         setTimeout(() => setActionSuccessMsg(""), 6000);
@@ -1928,7 +1928,7 @@ export default function App() {
         {actionSuccessMsg && (
           <div className="mx-8 mt-4 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center justify-between">
             <span>{actionSuccessMsg}</span>
-            <button onClick={() => setActionSuccessMsg("")} className="text-emerald-600 font-bold">✕</button>
+            <button onClick={() => setActionSuccessMsg("")} className="text-emerald-600 font-bold"></button>
           </div>
         )}
 
@@ -2220,7 +2220,7 @@ export default function App() {
               { code: setupVerifyCode.trim() },
               { headers: { Authorization: `Bearer ${token}` } }
             );
-            setActionSuccessMsg("🛡️ Two-Factor Authentication (2FA) successfully activated!");
+            setActionSuccessMsg("Two-Factor Authentication (2FA) successfully activated!");
             setIs2faModalOpen(false);
             fetchData();
             setTimeout(() => setActionSuccessMsg(""), 5000);

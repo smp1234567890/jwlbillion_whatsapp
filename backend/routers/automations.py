@@ -183,7 +183,7 @@ def approve_and_dispatch_automation_rule(
     db: Session = Depends(get_db)
 ):
     """
-    🔐 Step-Up 2FA Authorization to release a high-volume automation (> 100 recipients).
+     Step-Up 2FA Authorization to release a high-volume automation (> 100 recipients).
     Requires valid password and 2FA code.
     """
     rule = db.query(models.AutomationRule).filter(models.AutomationRule.id == rule_id).first()

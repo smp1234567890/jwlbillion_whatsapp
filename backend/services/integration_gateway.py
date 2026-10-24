@@ -111,7 +111,7 @@ def validate_ssrf_safe_url(url: str, allowed_hosts: Optional[List[str]] = None) 
             or str(ip_obj) == "169.254.169.254"
             or getattr(ip_obj, "is_site_local", False)
         ):
-            logger.warning(f"🚨 [SSRF Blocked] Host '{norm_host}' resolved to forbidden IP {ip_str}.")
+            logger.warning(f"[SSRF Blocked] Host '{norm_host}'resolved to forbidden IP {ip_str}.")
             raise SSRFSecurityError(f"DNS resolved host '{norm_host}' to forbidden network address {ip_str}.")
 
     return cleaned_url

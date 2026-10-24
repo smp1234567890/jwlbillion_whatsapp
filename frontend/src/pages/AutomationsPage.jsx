@@ -71,7 +71,7 @@ export default function AutomationsPage({
                   </button>
                 </div>
               </div>
-                  {/* ── 📊 CLEAN EXECUTIVE AUTOMATION OVERVIEW (ADMIN PORTAL THEME) ── */}
+                  {/* ── CLEAN EXECUTIVE AUTOMATION OVERVIEW (ADMIN PORTAL THEME) ── */}
                   <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
                     <div className="p-5 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
                       

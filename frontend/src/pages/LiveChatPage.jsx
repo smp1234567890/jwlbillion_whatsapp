@@ -432,7 +432,7 @@ export default function LiveChatPage({
                         >
                           {isAgent && msg.message_type === "template" && (
                             <div className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded inline-block mb-1">
-                              📢 WhatsApp Template Broadcast
+                               WhatsApp Template Broadcast
                             </div>
                           )}
                           {!isAgent && (
@@ -492,8 +492,8 @@ export default function LiveChatPage({
               </span>
               {[
                 "નમસ્તે! મનુભાઈ ગાંઠિયાવાળામાં આપનું સ્વાગત છે. હું આપની શું સહાય કરી શકું?",
-                "તમારો ઓર્ડર તૈયાર છે અને ટૂંક સમયમાં ડિલિવર થશે! 🚚",
-                "આજનો સ્પેશિયલ ગરમા ગરમ ગાંઠિયા અને જલેબી નો સ્ટોક ઉપલબ્ધ છે! 😋",
+                "તમારો ઓર્ડર તૈયાર છે અને ટૂંક સમયમાં ડિલિવર થશે! ",
+                "આજનો સ્પેશિયલ ગરમા ગરમ ગાંઠિયા અને જલેબી નો સ્ટોક ઉપલબ્ધ છે! ",
                 "Hello! How can we help you today with your order?",
                 "Special 10% discount code for you: SAVE10"
               ].map((snippet, idx) => (

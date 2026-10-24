@@ -85,9 +85,9 @@ def create_and_schedule_campaign(
             id=job_id,
             replace_existing=True
         )
-        logger.info(f"📅 Campaign {campaign.id} scheduled to execute at {scheduled_dt_tz} (IST)")
+        logger.info(f"Campaign {campaign.id} scheduled to execute at {scheduled_dt_tz} (IST)")
     else:
-        logger.info(f"🚀 Queueing immediate broadcast for Campaign #{campaign.id} via BackgroundTasks")
+        logger.info(f"Queueing immediate broadcast for Campaign #{campaign.id} via BackgroundTasks")
         background_tasks.add_task(execute_campaign_broadcast, campaign.id, payload.custom_phones)
 
     return campaign

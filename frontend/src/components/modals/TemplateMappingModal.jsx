@@ -20,12 +20,12 @@ export default function TemplateMappingModal({
             <h3 className="font-bold text-base text-gray-900">Configure Column Mappings</h3>
             <p className="text-xs text-gray-500 mt-0.5 font-mono">{editMappingTemplate.template_name}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl"></button>
         </div>
 
         <div className="mt-4 space-y-4">
           <p className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
-            📌 Map each <span className="font-mono font-bold">{"{{N}}"}</span> placeholder to a contact/cart/coupon field. This config will automatically apply to all automations and campaigns using this template — no per-flow setup needed.
+             Map each <span className="font-mono font-bold">{"{{N}}"}</span> placeholder to a contact/cart/coupon field. This config will automatically apply to all automations and campaigns using this template — no per-flow setup needed.
           </p>
 
           {/* Template body preview */}

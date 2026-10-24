@@ -110,7 +110,7 @@ def sync_templates_from_meta(
                 db.delete(dbt)
                 pruned_count += 1
 
-        # 📊 META TEMPLATE ANALYTICS / READ INSIGHTS SYNC
+        # META TEMPLATE ANALYTICS / READ INSIGHTS SYNC
         meta_insights_synced = 0
         try:
             now_ts = int(datetime.utcnow().timestamp())
@@ -132,7 +132,7 @@ def sync_templates_from_meta(
         except Exception as e:
             logger.warning(f"Optional Meta template_analytics fetch skipped: {e}")
 
-        # 🚀 CUSTOMER REPLY TO READ BACKFILL (Single SQL Update)
+        # CUSTOMER REPLY TO READ BACKFILL (Single SQL Update)
         update_result = db.execute(text("""
             UPDATE message_logs
             SET status = 'READ'

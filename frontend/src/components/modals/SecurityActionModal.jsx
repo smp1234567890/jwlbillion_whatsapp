@@ -26,7 +26,7 @@ export default function SecurityActionModal({
             onClick={() => setModalState((prev) => ({ ...prev, isOpen: false }))}
             className="text-gray-400 hover:text-gray-600 font-bold text-lg"
           >
-            ✕
+            
           </button>
         </div>
 
@@ -56,7 +56,7 @@ export default function SecurityActionModal({
             <div className="flex items-center justify-between">
               <span className="text-gray-500 font-medium">Trigger Mode:</span>
               <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                ⚡ Immediate Dispatch
+                 Immediate Dispatch
               </span>
             </div>
           )}

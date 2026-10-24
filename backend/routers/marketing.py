@@ -45,7 +45,7 @@ router = APIRouter(tags=["marketing"])
 
 
 # ==========================================
-# 🏷️ DISCOUNT CODES
+# DISCOUNT CODES
 # ==========================================
 
 @router.get("/api/discount-codes", response_model=List[schemas.DiscountCodeResponse])
@@ -97,11 +97,11 @@ def delete_discount_code(
 
 
 # ==========================================
-# 🌐 EXTERNAL DATA SOURCES
+# EXTERNAL DATA SOURCES
 # ==========================================
 
 # ==========================================
-# 🌐 SECURE INTEGRATION GATEWAY & DATA SOURCES
+# SECURE INTEGRATION GATEWAY & DATA SOURCES
 # ==========================================
 
 @router.get("/api/external-data-sources", response_model=List[schemas.ExternalDataSourceResponse])
@@ -306,7 +306,7 @@ def test_external_data_source(
 
 
 # ==========================================
-# 🛑 OPT-OUT / DND MANAGEMENT
+# OPT-OUT / DND MANAGEMENT
 # ==========================================
 
 @router.post("/api/opt-out")
@@ -351,7 +351,7 @@ def remove_opt_out(
 
 
 # ==========================================
-# 🛒 CART EVENTS & MESSAGE LOGS
+# CART EVENTS & MESSAGE LOGS
 # ==========================================
 
 @router.get("/api/cart-events")
@@ -417,7 +417,7 @@ def download_message_logs(
     db: Session = Depends(get_db)
 ):
     """
-    🔐 Step-Up Auth Protected Message Log Export:
+     Step-Up Auth Protected Message Log Export:
     Strictly restricted to admin. Requires password, 2FA code, and valid business justification.
     Records an immutable AuditEvent.
     """
@@ -493,7 +493,7 @@ def download_message_logs(
 
 
 # ==========================================
-# 🎯 RE-ENGAGEMENT SWEEPS & TEST MESSAGES
+# RE-ENGAGEMENT SWEEPS & TEST MESSAGES
 # ==========================================
 
 @router.get("/api/mock-store-feed/inactive-customers")

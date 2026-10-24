@@ -26,7 +26,7 @@ export function TwoFactorSetupModal({
               <p className="text-xs text-gray-500">Scan QR code with your mobile Authenticator app</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl"></button>
         </div>
 
         <div className="mt-4 space-y-4 text-center">
@@ -111,7 +111,7 @@ export function TwoFactorDisableModal({
       <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-200">
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <h3 className="font-bold text-base text-gray-900">Disable 2FA</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl"></button>
         </div>
 
         <p className="text-xs text-gray-500 mt-3 mb-4">

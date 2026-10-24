@@ -14,7 +14,7 @@ def test_database_connection():
     try:
         count = db.query(models.MessageLog).count()
         assert count >= 0
-        print(f"✅ [Smoke Test] Database connection OK ({count} message logs found)")
+        print(f"[Smoke Test] Database connection OK ({count} message logs found)")
     finally:
         db.close()
 
@@ -24,7 +24,7 @@ def test_system_settings():
     try:
         limit = whatsapp_service.get_effective_daily_limit(db)
         assert limit > 0
-        print(f"✅ [Smoke Test] System settings & daily limit OK (effective limit: {limit})")
+        print(f"[Smoke Test] System settings & daily limit OK (effective limit: {limit})")
     finally:
         db.close()
 
@@ -34,7 +34,7 @@ def test_chat_messages_query():
     try:
         msgs = db.query(models.ChatMessage).limit(5).all()
         assert msgs is not None
-        print(f"✅ [Smoke Test] Chat messages query OK ({len(msgs)} sample messages retrieved)")
+        print(f"[Smoke Test] Chat messages query OK ({len(msgs)} sample messages retrieved)")
     finally:
         db.close()
 
@@ -44,15 +44,15 @@ def test_campaigns_query():
     try:
         camps = db.query(models.Campaign).limit(5).all()
         assert camps is not None
-        print(f"✅ [Smoke Test] Campaigns query OK ({len(camps)} sample campaigns retrieved)")
+        print(f"[Smoke Test] Campaigns query OK ({len(camps)} sample campaigns retrieved)")
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    print("🚀 Running WhatsApp CRM Smoke Test Suite...")
+    print("Running WhatsApp CRM Smoke Test Suite...")
     test_database_connection()
     test_system_settings()
     test_chat_messages_query()
     test_campaigns_query()
-    print("🎉 All core smoke tests PASSED!")
+    print("All core smoke tests PASSED!")

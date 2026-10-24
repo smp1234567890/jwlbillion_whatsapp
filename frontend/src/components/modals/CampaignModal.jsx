@@ -18,7 +18,7 @@ export default function CampaignModal({
       <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-200">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <h3 className="font-bold text-lg text-gray-900">Create New WhatsApp Broadcast</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl"></button>
         </div>
 
         <form onSubmit={onSubmit} className="mt-5 space-y-4">

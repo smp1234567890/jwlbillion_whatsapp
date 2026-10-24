@@ -305,7 +305,7 @@ export default function FlowchartCanvas({
       desc: "Marks session as successfully converted, updates recovered revenue metrics and terminates flow.",
       icon: CheckCircle2,
       color: "text-emerald-700 bg-emerald-100 border-emerald-300",
-      defaultLabel: "Goal: Cart Recovered! 🎉",
+      defaultLabel: "Goal: Cart Recovered! ",
       defaultData: {
         outcome: "GOAL_MET",
         description: "Order completed successfully"
@@ -784,7 +784,7 @@ export default function FlowchartCanvas({
         </div>
       </div>
 
-      {/* ── 🗂️ SLIDE-OUT NODE CONFIGURATION DRAWER (MOCKUP 1) ── */}
+      {/* ── SLIDE-OUT NODE CONFIGURATION DRAWER (MOCKUP 1) ── */}
       {selectedNode && (
         <div className="absolute right-0 top-0 bottom-0 w-96 bg-white border-l border-gray-200 shadow-2xl z-30 flex flex-col animate-in slide-in-from-right duration-200">
           {/* Drawer Header */}
@@ -980,10 +980,10 @@ export default function FlowchartCanvas({
                         }}
                         className="w-full px-3 py-2 border border-sky-300 rounded-lg text-xs font-semibold bg-white text-gray-800"
                       >
-                        <option value="RAINY">🌧️ Rainy / Monsoon Weather</option>
-                        <option value="CLOUDY">⛅ Cloudy & Overcast</option>
-                        <option value="CHILLY_WINTER">❄️ Chilly Winter Morning</option>
-                        <option value="HOT_SUMMER">☀️ Hot Summer Afternoon</option>
+                        <option value="RAINY"> Rainy / Monsoon Weather</option>
+                        <option value="CLOUDY"> Cloudy & Overcast</option>
+                        <option value="CHILLY_WINTER"> Chilly Winter Morning</option>
+                        <option value="HOT_SUMMER"> Hot Summer Afternoon</option>
                       </select>
                     </div>
                     <div className="space-y-1">
@@ -1171,7 +1171,7 @@ export default function FlowchartCanvas({
                         onClick={() => setTemplateSearchQuery("")}
                         className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 text-xs"
                       >
-                        ✕
+                        
                       </button>
                     )}
                   </div>
@@ -1200,7 +1200,7 @@ export default function FlowchartCanvas({
                           {/* Always keep currently selected visible if not in filter */}
                           {templateSearchQuery && !filtered.some((t) => t.template_name === currentVal) && (
                             <option value={currentVal}>
-                              ✓ Selected: {currentVal}
+                               Selected: {currentVal}
                             </option>
                           )}
 
@@ -1329,7 +1329,7 @@ export default function FlowchartCanvas({
                         </div>
                       ) : (
                         <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                          ⚠ No mappings — configure in Templates tab → 🗂 Columns
+                           No mappings — configure in Templates tab → Columns
                         </p>
                       )}
                       {bodyText && preview !== bodyText && (
@@ -1527,7 +1527,7 @@ export default function FlowchartCanvas({
         </div>
       )}
 
-      {/* ── ➕ SLIDE-OUT NODE STEP PICKER (MOCKUP 2) ── */}
+      {/* ── SLIDE-OUT NODE STEP PICKER (MOCKUP 2) ── */}
       {isPickerOpen && (
         <div className="absolute inset-0 bg-black/30 backdrop-blur-xs z-40 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">

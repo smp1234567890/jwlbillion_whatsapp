@@ -56,7 +56,7 @@ export default function MessageLogsPage({
       link.click();
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
-      if (onShowToast) onShowToast(`📥 Downloaded logs as ${format.toUpperCase()}`);
+      if (onShowToast) onShowToast(`Downloaded logs as ${format.toUpperCase()}`);
     } catch (err) {
       alert("Failed to download logs: " + (err.response?.data?.detail || err.message));
     } finally {
@@ -96,7 +96,7 @@ export default function MessageLogsPage({
 
       setDeleteSuccess(res.data?.message || "Logs purged successfully.");
       if (onRefresh) onRefresh();
-      if (onShowToast) onShowToast(`🗑️ ${res.data?.message || "Logs deleted"}`);
+      if (onShowToast) onShowToast(` ${res.data?.message || "Logs deleted"}`);
 
       setTimeout(() => {
         setIsDeleteModalOpen(false);
@@ -239,7 +239,7 @@ export default function MessageLogsPage({
 
                         return (
                           <span className={`inline-flex items-center gap-1 text-[11px] font-mono font-semibold px-2 py-0.5 rounded border ${badgeStyle}`}>
-                            {isApi && <span className="text-[10px]">🔑</span>}
+                            {isApi && <span className="text-[10px]"></span>}
                             {sender}
                           </span>
                         );

@@ -20,7 +20,7 @@ export default function TemplateModal({
             <h3 className="font-bold text-base text-gray-900">Create & Submit WhatsApp Template</h3>
             <p className="text-xs text-gray-500">Submits to Meta Graph API & saves to your local catalog</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl"></button>
         </div>
 
         <form onSubmit={onSubmit} className="mt-4 space-y-3.5">
@@ -101,7 +101,7 @@ export default function TemplateModal({
           {params.length > 0 && (
             <div className="border border-blue-200 bg-blue-50 rounded-xl p-3.5 space-y-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase text-blue-800">📌 Column Mapping</span>
+                <span className="text-xs font-bold uppercase text-blue-800"> Column Mapping</span>
                 <span className="text-[10px] text-blue-600 ml-1">Configure once → auto-used everywhere</span>
               </div>
               {params.map((param) => {

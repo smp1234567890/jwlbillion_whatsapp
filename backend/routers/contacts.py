@@ -398,7 +398,7 @@ def export_contacts(
     db: Session = Depends(get_db)
 ):
     """
-    🔐 Step-Up Auth Protected Contact Export:
+     Step-Up Auth Protected Contact Export:
     Strictly restricted to admin. Requires password, 2FA code, and valid business justification.
     Records an immutable AuditEvent.
     """

@@ -81,7 +81,7 @@ def fetch_external_api_value(field_key: str, phone: str, source_id: int = None, 
             clean_phone = re.sub(r"[^\d+]", "", str(phone)).strip()
         params = {param_name: clean_phone}
 
-        logger.info(f"🌐 [External API Pull] Querying {source.endpoint_url} via Integration Gateway for {clean_phone}")
+        logger.info(f"[External API Pull] Querying {source.endpoint_url} via Integration Gateway for {clean_phone}")
         secret_val = get_secret(db, source.secret_reference) if source.secret_reference else None
         
         try:
@@ -102,7 +102,7 @@ def fetch_external_api_value(field_key: str, phone: str, source_id: int = None, 
             else:
                 logger.warning(f"External API returned {gw_resp.get('status_code')}: {gw_resp.get('message')}")
         except (SSRFSecurityError, HostNotAllowedError, CredentialMismatchError) as sec_err:
-            logger.error(f"🚨 [Integration Gateway Blocked] Security policy denied external fetch: {sec_err}")
+            logger.error(f"[Integration Gateway Blocked] Security policy denied external fetch: {sec_err}")
     except Exception as e:
         logger.error(f"Error pulling from external API: {e}")
     finally:
@@ -126,7 +126,7 @@ def process_abandoned_cart_job(cart_event_id: int):
             return
 
         if cart.status == "RECOVERED":
-            logger.info(f"🛒 Order already completed for cart {cart.cart_token}. Skipping WhatsApp message.")
+            logger.info(f"Order already completed for cart {cart.cart_token}. Skipping WhatsApp message.")
             return
 
         if cart.message_sent:
@@ -237,7 +237,7 @@ def process_abandoned_cart_job(cart_event_id: int):
             if cart_rule:
                 cart_rule.total_triggered += 1
             db.commit()
-            logger.info(f"✅ Abandoned cart recovery dispatched for {mask_phone(cart.customer_phone)}")
+            logger.info(f"Abandoned cart recovery dispatched for {mask_phone(cart.customer_phone)}")
         else:
             logger.warning(f"Cart message was not sent: {result}")
             try:
@@ -278,7 +278,7 @@ def schedule_cart_recovery(cart_event_id: int, delay_seconds: int = 0):
     Dispatches immediately if delay_seconds <= 0, or schedules a delayed job.
     """
     if delay_seconds <= 0:
-        logger.info(f"⚡ Processing cart recovery immediately for cart_event_id={cart_event_id}")
+        logger.info(f"Processing cart recovery immediately for cart_event_id={cart_event_id}")
         process_abandoned_cart_job(cart_event_id)
         return
 
@@ -292,7 +292,7 @@ def schedule_cart_recovery(cart_event_id: int, delay_seconds: int = 0):
         id=job_id,
         replace_existing=True
     )
-    logger.info(f"📅 Scheduled recovery job {job_id} to run at {run_date.strftime('%H:%M:%S')} (in {delay_seconds}s)")
+    logger.info(f"Scheduled recovery job {job_id} to run at {run_date.strftime('%H:%M:%S')} (in {delay_seconds}s)")
 
 
 def fetch_inactive_customers_from_store(days: int = 30) -> list:
@@ -335,7 +335,7 @@ def run_thirty_day_reengagement_sweep():
     3. De-duplicates: ensures customer wasn't messaged within the last 7 days.
     4. Sends re-engagement promo code via WhatsApp template.
     """
-    logger.info("🔄 [Cron Sweep] Starting 30-day customer re-engagement sweep...")
+    logger.info("[Cron Sweep] Starting 30-day customer re-engagement sweep...")
     db = SessionLocal()
     try:
         # Step A: Fetch from local DB
@@ -354,7 +354,7 @@ def run_thirty_day_reengagement_sweep():
             if p:
                 target_phones[p] = ec.get("name", "Valued Customer")
 
-        logger.info(f"📋 Found {len(target_phones)} customers eligible for 30-day re-engagement.")
+        logger.info(f"Found {len(target_phones)} customers eligible for 30-day re-engagement.")
 
         # Step C: 7-Day Deduplication Gate
         seven_days_ago = datetime.utcnow() - timedelta(days=7)
@@ -371,7 +371,7 @@ def run_thirty_day_reengagement_sweep():
             ).first()
 
             if recent_msg:
-                logger.info(f"⏭️ Skipping {mask_phone(phone)}: Already received 30-day promo within the last 7 days.")
+                logger.info(f"⏭ Skipping {mask_phone(phone)}: Already received 30-day promo within the last 7 days.")
                 skipped_count += 1
                 continue
 
@@ -387,7 +387,7 @@ def run_thirty_day_reengagement_sweep():
             if res.get("status") in ["success", "success_simulated"]:
                 sent_count += 1
 
-        logger.info(f"🏁 Re-engagement sweep complete: {sent_count} sent, {skipped_count} skipped (7-day dedup).")
+        logger.info(f"Re-engagement sweep complete: {sent_count} sent, {skipped_count} skipped (7-day dedup).")
     except Exception as e:
         logger.error(f"Error in re-engagement sweep: {e}")
     finally:
@@ -399,7 +399,7 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
     Executes a bulk broadcast campaign safely with rate-limiting and opt-out checks.
     Uses a distributed campaign lease (WP8) to prevent duplicate execution across workers.
     """
-    logger.info(f"🚀 [Campaign] Starting execution of campaign_id={campaign_id}")
+    logger.info(f"[Campaign] Starting execution of campaign_id={campaign_id}")
     db = SessionLocal()
     try:
         campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
@@ -430,11 +430,11 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
                 ).all()
                 phones = [c.phone for c in contacts]
 
-        # 🛑 Honor Per Day Message Limit: Cap list to per_day_limit if specified
+        # Honor Per Day Message Limit: Cap list to per_day_limit if specified
         if campaign.per_day_limit and campaign.per_day_limit > 0:
             original_count = len(phones)
             phones = phones[:campaign.per_day_limit]
-            logger.info(f"🎯 [Campaign {campaign_id}] Per-Day limit applied: capped from {original_count} to {len(phones)} messages")
+            logger.info(f"[Campaign {campaign_id}] Per-Day limit applied: capped from {original_count} to {len(phones)} messages")
 
         campaign.total_recipients = len(phones)
         db.commit()
@@ -451,10 +451,10 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
             if matches:
                 placeholder_count = max([int(m) for m in matches])
 
-        # 🚀 BATCH PACING: 7 messages per batch with 1-second pause to match DB pool size (7) and prevent rate-limit
+        # BATCH PACING: 7 messages per batch with 1-second pause to match DB pool size (7) and prevent rate-limit
         BATCH_SIZE = 7
         total_phones = len(phones)
-        logger.info(f"⚡ [Campaign {campaign_id}] Processing {total_phones} recipients in batches of {BATCH_SIZE} (1s pacing)")
+        logger.info(f"[Campaign {campaign_id}] Processing {total_phones} recipients in batches of {BATCH_SIZE} (1s pacing)")
 
         for i in range(0, total_phones, BATCH_SIZE):
             batch = phones[i:i + BATCH_SIZE]
@@ -551,7 +551,7 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
             if fail_count > 0:
                 campaign.error_message = f"Partially completed: {success_count} sent, {fail_count} failed"
         db.commit()
-        logger.info(f"🏁 Campaign {campaign_id} {campaign.status}: {success_count} sent, {fail_count} failed. Note: {campaign.error_message}")
+        logger.info(f"Campaign {campaign_id} {campaign.status}: {success_count} sent, {fail_count} failed. Note: {campaign.error_message}")
 
     except Exception as e:
         logger.error(f"Error executing campaign {campaign_id}: {e}", exc_info=True)
@@ -576,7 +576,7 @@ def run_all_active_automation_rules():
         for rule in rules:
             if rule.rule_type != "CART_RECOVERY":
                 dispatched = run_rule_execution(rule.id)
-                logger.info(f"⚡ [Daily Cron] Rule '{rule.rule_name}': {dispatched} sent.")
+                logger.info(f"[Daily Cron] Rule '{rule.rule_name}': {dispatched} sent.")
     except Exception as e:
         logger.error(f"Error in daily automation rules execution: {e}")
     finally:
@@ -603,7 +603,7 @@ def start_scheduler():
             replace_existing=True
         )
         scheduler.start()
-        logger.info("🚀 APScheduler started successfully with daily sweep and continuous workflow engine.")
+        logger.info("APScheduler started successfully with daily sweep and continuous workflow engine.")
 
 def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
     """
@@ -611,7 +611,7 @@ def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
     - INACTIVE_DAYS (e.g. 15 days or 30 days)
     - ORDER_COUNT_VIP (e.g. >= 2 orders)
 
-    🛡️ HIGH-VOLUME SAFEGUARD:
+     HIGH-VOLUME SAFEGUARD:
     If the rule targets more than 100 contacts (> 100), it is held in PENDING_APPROVAL
     and dispatches an alert email to all admin emails asking for 2FA permission,
     unless explicitly authorized by admin (force_approved=True).
@@ -630,7 +630,7 @@ def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
             logger.info(f"⏳ [Rule Engine] Rule '{rule.rule_name}' has passed its deadline ({rule.expires_at}). Auto-deactivated.")
             return {"status": "expired", "messages_dispatched": 0, "requires_approval": False, "message": "Automation rule has reached its deadline and is now inactive."}
 
-        logger.info(f"⚙️ [Rule Engine] Running automation rule: '{rule.rule_name}' (force_approved={force_approved})")
+        logger.info(f"[Rule Engine] Running automation rule: '{rule.rule_name}' (force_approved={force_approved})")
         target_phones = {}
 
         if rule.rule_type == "INACTIVE_DAYS":
@@ -666,13 +666,13 @@ def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
 
         total_eligible = len(eligible_phones)
 
-        # 🛡️ SAFEGUARD: If > 100 recipients and not force_approved by admin, hold and email alert!
+        # SAFEGUARD: If > 100 recipients and not force_approved by admin, hold and email alert!
         if total_eligible > 100 and not force_approved:
             rule.approval_status = "PENDING_APPROVAL"
             rule.pending_recipients_count = total_eligible
             db.commit()
 
-            logger.info(f"⏸️ Rule '{rule.rule_name}' held: {total_eligible} eligible recipients (> 100 threshold). Requires dashboard approval.")
+            logger.info(f"⏸ Rule '{rule.rule_name}'held: {total_eligible} eligible recipients (> 100 threshold). Requires dashboard approval.")
             return {
                 "status": "pending_approval",
                 "messages_dispatched": 0,
@@ -810,7 +810,7 @@ def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
                 if res.get("status") in ["success", "success_simulated"]:
                     sent_count += 1
                 else:
-                    logger.warning(f"⚠️ [Rule Engine] Dispatch to {mask_phone(phone)} returned: {res}")
+                    logger.warning(f"[Rule Engine] Dispatch to {mask_phone(phone)} returned: {res}")
 
             # Commit after each batch of 7 to release locks and flush logs
             try:
@@ -825,7 +825,7 @@ def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
         rule.approval_status = "IDLE"
         rule.pending_recipients_count = 0
         db.commit()
-        logger.info(f"🏁 Rule '{rule.rule_name}' finished: {sent_count}/{total_eligible} messages sent.")
+        logger.info(f"Rule '{rule.rule_name}'finished: {sent_count}/{total_eligible} messages sent.")
         return {
             "status": "success",
             "messages_dispatched": sent_count,
@@ -840,7 +840,7 @@ def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
 
 
 # =====================================================================
-# 🔀 MULTI-STEP VISUAL FLOWCHART WORKFLOW EXECUTION ENGINE
+# MULTI-STEP VISUAL FLOWCHART WORKFLOW EXECUTION ENGINE
 # =====================================================================
 
 def find_node_by_id(nodes: list, node_id: str):
@@ -919,12 +919,12 @@ def start_workflow_session(flow_id: int, customer_phone: str, state_data: dict, 
                     if actual_cart_float < min_cart_float:
                         if is_simulation:
                             logger.info(
-                                f"ℹ️ [Workflow Simulation] Simulated cart value (₹{actual_cart_float}) adjusted to meet threshold (₹{min_cart_float}) for testing."
+                                f"ℹ [Workflow Simulation] Simulated cart value (₹{actual_cart_float}) adjusted to meet threshold (₹{min_cart_float}) for testing."
                             )
                             state_data["cart_value"] = min_cart_float
                         else:
                             logger.info(
-                                f"🛑 [Workflow Trigger Blocked] Cart value (₹{actual_cart_float}) is below minimum threshold (₹{min_cart_float}) for flow '{flow.name}'. Workflow session skipped."
+                                f"[Workflow Trigger Blocked] Cart value (₹{actual_cart_float}) is below minimum threshold (₹{min_cart_float}) for flow '{flow.name}'. Workflow session skipped."
                             )
                             return None
                 except (ValueError, TypeError) as val_err:
@@ -944,7 +944,7 @@ def start_workflow_session(flow_id: int, customer_phone: str, state_data: dict, 
                     days_since_last_order = (datetime.utcnow() - contact.last_order_date).days
                     if days_since_last_order < days_int and not is_simulation:
                         logger.info(
-                            f"🛑 [Workflow Trigger Blocked] Customer {customer_phone} was active {days_since_last_order} days ago (minimum inactive threshold: {days_int} days) for flow '{flow.name}'. Workflow session skipped."
+                            f"[Workflow Trigger Blocked] Customer {customer_phone} was active {days_since_last_order} days ago (minimum inactive threshold: {days_int} days) for flow '{flow.name}'. Workflow session skipped."
                         )
                         return None
             except Exception as e:
@@ -980,11 +980,11 @@ def start_workflow_session(flow_id: int, customer_phone: str, state_data: dict, 
         db.commit()
         db.refresh(session)
 
-        logger.info(f"🚀 [Workflow Engine] Session #{session.id} started for {customer_phone} in flow '{flow.name}' (simulation={is_simulation})")
+        logger.info(f"[Workflow Engine] Session #{session.id} started for {customer_phone} in flow '{flow.name}' (simulation={is_simulation})")
         
         # Advance from trigger to first downstream node
         step_res = process_workflow_session_step(session.id, db=db, mock_send=is_simulation)
-        logger.info(f"⚙️ [Workflow Engine] Initial step result for session #{session.id}: {step_res}")
+        logger.info(f"[Workflow Engine] Initial step result for session #{session.id}: {step_res}")
         db.refresh(session)
         session.latest_step_result = step_res
         return session
@@ -1034,7 +1034,7 @@ def process_workflow_session_step(session_id: int, db=None, mock_send: bool = Fa
         # Cycle / runaway loop guard: prevent infinite recursion or cycles on any single node
         node_visits = [h for h in (session.history or []) if str(h.get("node_id")) == str(curr_node.get("id"))]
         if len(node_visits) >= 5:
-            logger.warning(f"🛑 [Workflow Engine] Session #{session.id} exceeded cycle limit on node '{curr_node.get('id')}'. Terminating.")
+            logger.warning(f"[Workflow Engine] Session #{session.id} exceeded cycle limit on node '{curr_node.get('id')}'. Terminating.")
             session.status = "COMPLETED_DROPOUT"
             session.history = (session.history or []) + [{
                 "node_id": str(curr_node.get("id")),
@@ -1046,7 +1046,7 @@ def process_workflow_session_step(session_id: int, db=None, mock_send: bool = Fa
             db.commit()
             return {"status": "dropped_out", "reason": "cycle_detected"}
 
-        logger.info(f"⚙️ [Workflow Engine] Session #{session.id} ({session.customer_phone}) at node: {curr_node.get('label')} ({node_type})")
+        logger.info(f"[Workflow Engine] Session #{session.id} ({session.customer_phone}) at node: {curr_node.get('label')} ({node_type})")
 
         # ─── 1. TRIGGER NODE ───
         if node_type == "trigger":
@@ -1133,11 +1133,11 @@ def process_workflow_session_step(session_id: int, db=None, mock_send: bool = Fa
             ]
             if existing_sends_for_node:
                 logger.warning(
-                    f"⚠️ [Workflow Engine] Node '{curr_node_id_str}' already dispatched ({len(existing_sends_for_node)} time(s)) "
+                    f"[Workflow Engine] Node '{curr_node_id_str}'already dispatched ({len(existing_sends_for_node)} time(s)) "
                     f"for session #{session.id}. Suppressing duplicate send to prevent spam."
                 )
                 if len(existing_sends_for_node) >= 2:
-                    logger.warning(f"🛑 [Workflow Engine] Session #{session.id} loop detected on node '{curr_node_id_str}'. Terminating.")
+                    logger.warning(f"[Workflow Engine] Session #{session.id} loop detected on node '{curr_node_id_str}'. Terminating.")
                     session.status = "COMPLETED_DROPOUT"
                     session.history = (session.history or []) + [{
                         "node_id": curr_node_id_str,
@@ -1312,7 +1312,7 @@ def process_workflow_session_step(session_id: int, db=None, mock_send: bool = Fa
                     "details": f"Held during Quiet Hours (21:00-09:00 IST). Rescheduled for {next_morning_utc.strftime('%Y-%m-%d %H:%M:%S UTC')}."
                 }]
                 db.commit()
-                logger.info(f"🌙 [Workflow Engine] Session #{session.id} held during quiet hours. Rescheduled for {next_morning_utc}.")
+                logger.info(f"[Workflow Engine] Session #{session.id} held during quiet hours. Rescheduled for {next_morning_utc}.")
                 return {"status": "held_quiet_hours", "rescheduled_at": next_morning_utc.isoformat()}
 
             if sent_status in ["blocked", "failed", "error"]:
@@ -1334,7 +1334,7 @@ def process_workflow_session_step(session_id: int, db=None, mock_send: bool = Fa
                         "details": f"Dispatch {sent_status} (attempt {session.attempt_count}/3): {block_reason}. Retrying in {backoff_sec}s."
                     }]
                     db.commit()
-                    logger.warning(f"⚠️ [Workflow Engine] Session #{session.id} send failed: {block_reason}. Backoff attempt {session.attempt_count}/3 scheduled.")
+                    logger.warning(f"[Workflow Engine] Session #{session.id} send failed: {block_reason}. Backoff attempt {session.attempt_count}/3 scheduled.")
                     return {"status": "retry_scheduled", "reason": block_reason, "attempt": session.attempt_count}
 
                 # Permanent failure or exhausted retries
@@ -1439,7 +1439,7 @@ def process_workflow_session_step(session_id: int, db=None, mock_send: bool = Fa
                         condition_met = True
 
             branch_handle = "yes" if condition_met else "no"
-            logger.info(f"⚖️ [Workflow Engine] Condition '{condition_type}' evaluated to: {condition_met} -> Branch: {branch_handle}")
+            logger.info(f"[Workflow Engine] Condition '{condition_type}'evaluated to: {condition_met} -> Branch: {branch_handle}")
 
             # Resolve clear display label for the condition check
             cond_label = curr_node.get("label")

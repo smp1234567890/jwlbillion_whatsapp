@@ -127,11 +127,11 @@ export default function TemplatesPage({
                               </span>
                               {t.variable_mappings && Object.keys(t.variable_mappings).length > 0 ? (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  ✓ Mapped
+                                   Mapped
                                 </span>
                               ) : (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                  ⚠ No Mapping
+                                   No Mapping
                                 </span>
                               )}
                             </div>
@@ -185,7 +185,7 @@ export default function TemplatesPage({
                                 className="text-xs text-blue-600 hover:text-blue-800 font-semibold hover:underline flex items-center gap-1 transition"
                                 title="Configure column mappings for this template"
                               >
-                                🗂 Columns
+                                 Columns
                               </button>
                               <button
                                 onClick={() => handleDeleteTemplate(t.id, t.template_name)}

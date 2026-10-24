@@ -159,12 +159,12 @@ def on_startup():
         _db = next(db_gen)
         if config.SCHEDULER_ENABLED or acquire_leader_lock(_db):
             start_scheduler()
-            logger.info("🚀 [Startup] Scheduler leader lock acquired. Background workflow sweeper active.")
+            logger.info("[Startup] Scheduler leader lock acquired. Background workflow sweeper active.")
         else:
             logger.info("[Startup] Secondary instance started. Background scheduler handled by active leader.")
         _db.close()
     except Exception as _sched_init_err:
-        logger.warning(f"⚠️ [Startup] Scheduler auto-start note: {_sched_init_err}")
+        logger.warning(f"[Startup] Scheduler auto-start note: {_sched_init_err}")
 
     # Diagnostic: confirm WEBHOOK_SECRET is loaded
     _ws = config.WEBHOOK_SECRET or ""
@@ -173,7 +173,7 @@ def on_startup():
     # ── Schema Discipline ─────────────────────────────────────────────────────
     # All schema modifications are handled strictly via Alembic migrations.
     # No runtime DDL (CREATE TABLE / ALTER TABLE) is executed at startup.
-    logger.info("✅ [DB] Schema discipline active: database managed via Alembic migrations.")
+    logger.info("[DB] Schema discipline active: database managed via Alembic migrations.")
 
     # ── Database Initialization & Sync ──────────────────────────────────────
     db = next(get_db())
@@ -188,7 +188,7 @@ def on_startup():
             db.commit()
         except Exception as _set_err:
             db.rollback()
-            logger.warning(f"⚠️  [Settings] Daily limit sync note: {_set_err}")
+            logger.warning(f"[Settings] Daily limit sync note: {_set_err}")
 
         # ── Admin user sync ───────────────────────────────────────────────────────
         initial_user = config.INITIAL_ADMIN_USERNAME
@@ -208,7 +208,7 @@ def on_startup():
                     admin.is_active = True
                     admin.role = "admin"
                     db.commit()
-                    logger.info(f"🔒 [Security] Initial admin '{initial_user}' credentials synchronized.")
+                    logger.info(f"[Security] Initial admin '{initial_user}'credentials synchronized.")
                 else:
                     default_admin = models.User(
                         username=initial_user,
@@ -219,10 +219,10 @@ def on_startup():
                     )
                     db.add(default_admin)
                     db.commit()
-                    logger.info(f"🔒 [Security] Initial admin '{initial_user}' created successfully.")
+                    logger.info(f"[Security] Initial admin '{initial_user}'created successfully.")
             except Exception as _admin_err:
                 db.rollback()
-                logger.error(f"⚠️  [Security] Admin user sync failed (non-fatal): {_admin_err}")
+                logger.error(f"[Security] Admin user sync failed (non-fatal): {_admin_err}")
 
         # ── Service Account user sync (For external store / Shopify integration) ────────
         svc_username = config.ECOM_SERVICE_USERNAME
@@ -243,7 +243,7 @@ def on_startup():
                     )
                     db.add(svc_user)
                     db.commit()
-                    logger.info(f"🔒 [Security] Service account '{svc_username}' created successfully.")
+                    logger.info(f"[Security] Service account '{svc_username}'created successfully.")
                 else:
                     svc_user.hashed_password = auth.get_password_hash(svc_password)
                     svc_user.is_active = True
@@ -252,10 +252,10 @@ def on_startup():
                     db.commit()
             except Exception as _svc_err:
                 db.rollback()
-                logger.error(f"⚠️  [Security] Service account sync failed (non-fatal): {_svc_err}")
+                logger.error(f"[Security] Service account sync failed (non-fatal): {_svc_err}")
 
     except Exception as _db_init_err:
-        logger.error(f"⚠️  [Startup] DB initialisation error (non-fatal): {_db_init_err}", exc_info=True)
+        logger.error(f"[Startup] DB initialisation error (non-fatal): {_db_init_err}", exc_info=True)
     finally:
         db.close()
 
@@ -276,12 +276,12 @@ def on_startup():
                         text("INSERT INTO system_migrations (migration_name) VALUES ('purge_sample_automations_2026_09_16')")
                     )
                     _conn.commit()
-                    logger.info("🧹 [Clean Slate] Successfully purged all sample workflows, sessions, and automation rules from database.")
+                    logger.info("[Clean Slate] Successfully purged all sample workflows, sessions, and automation rules from database.")
                 except Exception as _purge_sub_err:
                     _conn.rollback()
-                    logger.warning(f"⚠️  [Clean Slate] Purge step bypassed: {_purge_sub_err}")
+                    logger.warning(f"[Clean Slate] Purge step bypassed: {_purge_sub_err}")
     except Exception as _clean_err:
-        logger.warning(f"⚠️  [Clean Slate] Note: {_clean_err}")
+        logger.warning(f"[Clean Slate] Note: {_clean_err}")
 
     # ── One-time Backfill: Customer Replies to READ status ───────────────────
     try:
@@ -304,9 +304,9 @@ def on_startup():
                     text("INSERT INTO system_migrations (migration_name) VALUES ('backfill_replies_to_read_v1')")
                 )
                 _conn.commit()
-                logger.info("🚀 [Read Sync] Successfully backfilled past customer replies to READ status.")
+                logger.info("[Read Sync] Successfully backfilled past customer replies to READ status.")
     except Exception as _bf_err:
-        logger.warning(f"⚠️  [Read Sync] Backfill note: {_bf_err}")
+        logger.warning(f"[Read Sync] Backfill note: {_bf_err}")
 
 
 
@@ -314,7 +314,7 @@ def on_startup():
 
 @app.get("/")
 def root():
-    return {"message": "WhatsApp CRM is running ✅", "client": config.BRAND_NAME}
+    return {"message": "WhatsApp CRM is running ", "client": config.BRAND_NAME}
 
 
 @app.get("/health")
@@ -324,7 +324,7 @@ def health_check():
 
 
 # ==========================================
-# 🧩 MODULAR DOMAIN ROUTERS
+# MODULAR DOMAIN ROUTERS
 # ==========================================
 
 from routers import (

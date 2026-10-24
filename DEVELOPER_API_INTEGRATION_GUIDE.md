@@ -1,11 +1,11 @@
-# 🔌 E-Commerce WhatsApp Automation — API Integration Guide
+# E-Commerce WhatsApp Automation — API Integration Guide
 
 **Base URL:** `https://jwl-whatsapp-crm.onrender.com`  
 **Content-Type:** `application/json`
 
 ---
 
-## 🔐 Authentication Overview
+## Authentication Overview
 
 The external software authenticates with the WhatsApp CRM platform using standard **Bearer JWT authentication**:
 
@@ -19,7 +19,7 @@ The external software authenticates with the WhatsApp CRM platform using standar
 
 ---
 
-## 📌 STEP 1: Authenticate (Login)
+## STEP 1: Authenticate (Login)
 
 * **Method:** `POST`
 * **Endpoint:** `/api/auth/login`
@@ -48,7 +48,7 @@ The external software authenticates with the WhatsApp CRM platform using standar
 
 ---
 
-## 🛒 STEP 2: Abandoned Cart Webhook
+## STEP 2: Abandoned Cart Webhook
 
 Call this endpoint as soon as a customer enters checkout and provides contact info, but abandons the cart without completing payment. This enrolls the customer into the automated recovery sequence (or scheduled reminder).
 
@@ -111,7 +111,7 @@ Call this endpoint as soon as a customer enters checkout and provides contact in
 
 ---
 
-## ✅ STEP 3: Order Completed / Purchased Webhook
+## STEP 3: Order Completed / Purchased Webhook
 
 Call this endpoint **immediately** when an order is placed and payment succeeds.
 
@@ -147,7 +147,7 @@ Call this endpoint **immediately** when an order is placed and payment succeeds.
 
 ---
 
-## 👤 STEP 4: Client Information APIs
+## STEP 4: Client Information APIs
 
 ### 4A. Search / Lookup Client Information
 Retrieve existing customer record, order history, tags, city, and custom attributes:
@@ -220,7 +220,7 @@ Push newly registered customers or update profile data:
 
 ---
 
-## ⚡ Integration Lifecycle Diagram
+## Integration Lifecycle Diagram
 
 ```
        [Customer enters checkout]
@@ -238,7 +238,7 @@ Push newly registered customers or update profile data:
 
 ---
 
-## 🛡️ HTTP Response Codes Reference
+## HTTP Response Codes Reference
 
 | Code | Status | Meaning |
 |---|---|---|

@@ -142,7 +142,7 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # ⚡ Automatic Rehash: upgrade stored hash to fast rounds (rounds=4) on successful login
+    # Automatic Rehash: upgrade stored hash to fast rounds (rounds=4) on successful login
     try:
         if auth.pwd_context.needs_update(user.hashed_password) or (
             user.hashed_password and not user.hashed_password.startswith("$2b$04$")

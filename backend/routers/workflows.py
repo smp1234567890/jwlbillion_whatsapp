@@ -250,7 +250,7 @@ def clear_workflow_queue(
 
         db.commit()
         logger.info(
-            f"🧹 [Workflow Engine] User '{current_user.username}' cleared queue for flow #{flow_id} "
+            f"[Workflow Engine] User '{current_user.username}'cleared queue for flow #{flow_id} "
             f"(mode={mode}, sessions={cleared_count}, carts={cleared_carts}, reset_stats={clear_stats})"
         )
         return {
@@ -263,7 +263,7 @@ def clear_workflow_queue(
         }
     except Exception as e:
         db.rollback()
-        logger.error(f"❌ [Workflow Engine] Error clearing queue for flow #{flow_id}: {e}", exc_info=True)
+        logger.error(f"[Workflow Engine] Error clearing queue for flow #{flow_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to clear queue: {str(e)}"

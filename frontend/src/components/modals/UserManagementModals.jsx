@@ -43,7 +43,7 @@ export function AddUserModal({
               <p className="text-[11px] text-gray-400">Grant authorized CRM access ({systemUsers.length}/5 used)</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none"></button>
         </div>
 
         {addUserError && (
@@ -150,7 +150,7 @@ export function AdminPasswordModal({
             onClick={() => setModalState({ isOpen: false, user: null, newPassword: "", confirmPassword: "", loading: false, error: "" })}
             className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer"
           >
-            ✕
+            
           </button>
         </div>
 
@@ -241,7 +241,7 @@ export function RoleInfoModal({ isOpen, onClose }) {
               <p className="text-xs text-gray-500">Overview of what each account type is permitted to do</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer"></button>
         </div>
 
         <div className="mt-4 space-y-3.5 text-sm">

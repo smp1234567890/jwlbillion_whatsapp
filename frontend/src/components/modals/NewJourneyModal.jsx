@@ -33,7 +33,7 @@ export default function NewJourneyModal({
               <p className="text-xs text-gray-500">Pick a starting trigger to begin building your visual automation flow</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none"></button>
         </div>
 
         <form onSubmit={onConfirm} className="mt-5 space-y-4">
@@ -256,10 +256,10 @@ export default function NewJourneyModal({
                     onChange={(e) => setNewJourneyForm({ ...newJourneyForm, weather_condition: e.target.value })}
                     className="w-full px-3 py-2 border border-sky-300 rounded-lg text-xs font-semibold bg-white text-gray-800"
                   >
-                    <option value="RAINY">🌧️ Rainy / Monsoon</option>
-                    <option value="CLOUDY">⛅ Cloudy & Overcast</option>
-                    <option value="CHILLY_WINTER">❄️ Chilly Winter Morning</option>
-                    <option value="HOT_SUMMER">☀️ Hot Afternoon</option>
+                    <option value="RAINY"> Rainy / Monsoon</option>
+                    <option value="CLOUDY"> Cloudy & Overcast</option>
+                    <option value="CHILLY_WINTER"> Chilly Winter Morning</option>
+                    <option value="HOT_SUMMER"> Hot Afternoon</option>
                   </select>
                 </div>
                 <div>
@@ -280,7 +280,7 @@ export default function NewJourneyModal({
           {newJourneyForm.trigger_type === "NEW_CUSTOMER_WELCOME" && (
             <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-3.5 space-y-3">
               <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
-                <span>🛡️ Double Opt-In Flow Enabled</span>
+                <span> Double Opt-In Flow Enabled</span>
               </div>
               <p className="text-[11px] text-emerald-700 leading-relaxed">
                 Step 1 sends a friendly opt-in invitation. When the customer confirms (replies &quot;YES&quot;), marketing consent is recorded in their profile and Step 2 unlocks their welcome discount gift.

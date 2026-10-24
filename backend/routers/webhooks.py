@@ -102,7 +102,7 @@ async def get_webhook_authenticated_user(
 
     secret = (config.WEBHOOK_SECRET or "").strip()
     if not secret:
-        logger.warning("🚨 [Webhook Security] Store webhook rejected: WEBHOOK_SECRET is not configured.")
+        logger.warning("[Webhook Security] Store webhook rejected: WEBHOOK_SECRET is not configured.")
         _record_failure()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -121,7 +121,7 @@ async def get_webhook_authenticated_user(
             svc = db.query(models.User).filter(models.User.username == config.ECOM_SERVICE_USERNAME).first()
             return svc or models.User(username=config.ECOM_SERVICE_USERNAME, is_active=True)
         else:
-            logger.warning("🚨 [Webhook Security] Shopify HMAC signature mismatch.")
+            logger.warning("[Webhook Security] Shopify HMAC signature mismatch.")
             _record_failure()
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -136,7 +136,7 @@ async def get_webhook_authenticated_user(
             svc = db.query(models.User).filter(models.User.username == config.ECOM_SERVICE_USERNAME).first()
             return svc or models.User(username=config.ECOM_SERVICE_USERNAME, is_active=True)
         else:
-            logger.warning("🚨 [Webhook Security] Hex HMAC signature mismatch.")
+            logger.warning("[Webhook Security] Hex HMAC signature mismatch.")
             _record_failure()
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -144,7 +144,7 @@ async def get_webhook_authenticated_user(
                 headers={"WWW-Authenticate": "HMAC-SHA256"}
             )
 
-    logger.warning("🚨 [Webhook Security] Store webhook rejected: missing signature or bearer token.")
+    logger.warning("[Webhook Security] Store webhook rejected: missing signature or bearer token.")
     _record_failure()
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -422,7 +422,7 @@ async def receive_cart_webhook(
                 db.commit()
                 wf_sess = existing_sess
                 workflow_session_id = wf_sess.id
-                logger.info(f"🔄 [Cart Event] Customer {payload.customer_phone} already enrolled in session #{wf_sess.id} ({wf_sess.status}). State updated.")
+                logger.info(f"[Cart Event] Customer {payload.customer_phone} already enrolled in session #{wf_sess.id} ({wf_sess.status}). State updated.")
             else:
                 wf_sess = start_workflow_session(flow_id=active_cart_flow.id, customer_phone=payload.customer_phone, state_data=state_data, db=db)
                 if wf_sess:
@@ -658,7 +658,7 @@ async def receive_order_completed_webhook(
             purpose="marketing"
         )
         milestone_triggered = f"Milestone {milestone}th order reward dispatched with coupon {coupon}"
-        logger.info(f"🎉 [MILESTONE REWARD] Customer {clean_phone} reached order #{milestone}! Sent coupon {coupon}")
+        logger.info(f"[MILESTONE REWARD] Customer {clean_phone} reached order #{milestone}! Sent coupon {coupon}")
 
     # 3. Mark cart as RECOVERED if associated with a pending cart event
     cart = db.query(models.CartEvent).filter(
@@ -695,7 +695,7 @@ def process_customer_sync(payload: Dict[str, Any], current_user: models.User, db
     from services.phone_service import is_valid_phone
 
     # Log incoming keys to aid debugging
-    logger.info(f"📥 [Customer Webhook Received] Payload keys: {list(payload.keys())}")
+    logger.info(f"[Customer Webhook Received] Payload keys: {list(payload.keys())}")
 
     # If payload is wrapped under 'customer', unwrap or merge it
     cust = payload.get("customer") if isinstance(payload.get("customer"), dict) else {}
@@ -763,7 +763,7 @@ def process_customer_sync(payload: Dict[str, Any], current_user: models.User, db
         if is_test_sample:
             phone_raw = "+919999999999"
         else:
-            logger.warning(f"⚠️ [Customer Sync] No valid phone found in payload. Keys: {list(payload.keys())}, Note: {note_text[:50]}")
+            logger.warning(f"[Customer Sync] No valid phone found in payload. Keys: {list(payload.keys())}, Note: {note_text[:50]}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Missing phone number. Customer payload must contain a valid phone number in 'phone', 'addresses', note, or tags."
@@ -924,7 +924,7 @@ def process_customer_sync(payload: Dict[str, Any], current_user: models.User, db
             detail=f"Customer sync database error: {type(e).__name__}: {str(e)}"
         )
 
-    logger.info(f"✅ [Customer Sync] Contact {action}: phone={clean_phone}, name={contact.name}, custom_attrs={list(custom_attrs.keys())}")
+    logger.info(f"[Customer Sync] Contact {action}: phone={clean_phone}, name={contact.name}, custom_attrs={list(custom_attrs.keys())}")
 
     # Check for active New Customer Welcome / Double Opt-In Automation
     if action == "created":
@@ -947,7 +947,7 @@ def process_customer_sync(payload: Dict[str, Any], current_user: models.User, db
                     },
                     db=db
                 )
-                logger.info(f"🚀 [Welcome Automation] Triggered flow #{welcome_flow.id} for new customer {clean_phone}")
+                logger.info(f"[Welcome Automation] Triggered flow #{welcome_flow.id} for new customer {clean_phone}")
         except Exception as e:
             logger.warning(f"Note: Could not start welcome workflow for {clean_phone}: {e}")
 
@@ -1026,7 +1026,7 @@ async def receive_inbound_whatsapp_message(
 
     if config.ENVIRONMENT == "production" or config.META_APP_SECRET:
         if not config.META_APP_SECRET:
-            logger.error("🚨 [Meta Webhook Security] META_APP_SECRET is not configured in production!")
+            logger.error("[Meta Webhook Security] META_APP_SECRET is not configured in production!")
             raise HTTPException(status_code=500, detail="Server webhook security configuration error")
         expected_signature = "sha256=" + hmac.new(
             config.META_APP_SECRET.encode(), raw_body, hashlib.sha256
@@ -1209,7 +1209,7 @@ async def receive_inbound_whatsapp_message(
                 if is_opt_out:
                     any_opt_out = True
                     revoke_consent(db, sender_phone, reason="INBOUND_STOP_COMMAND")
-                    logger.info(f"🛑 [AUTO-DND] Customer opted out via inbound message. Added to Opt-Out DND list and consent revoked.")
+                    logger.info(f"[AUTO-DND] Customer opted out via inbound message. Added to Opt-Out DND list and consent revoked.")
                 else:
                     words = [w.strip() for w in raw_body.lower().replace(",", " ").replace(".", " ").replace("!", " ").split()]
                     is_opt_in = any(keyword in words or keyword == raw_body.strip().lower() for keyword in OPT_IN_KEYWORDS)
@@ -1220,7 +1220,7 @@ async def receive_inbound_whatsapp_message(
                             source="inbound_message",
                             proof_details=f"Inbound affirmative double opt-in reply: {raw_body[:60]}"
                         )
-                        logger.info(f"✅ [DOUBLE OPT-IN] Customer {sender_phone} confirmed consent via reply '{raw_body}'.")
+                        logger.info(f"[DOUBLE OPT-IN] Customer {sender_phone} confirmed consent via reply '{raw_body}'.")
                         # Advance any waiting double opt-in workflow sessions
                         waiting_sessions = db.query(models.WorkflowSession).filter(
                             models.WorkflowSession.status.in_(["ACTIVE", "WAITING_DELAY", "WAITING_CONDITION"])

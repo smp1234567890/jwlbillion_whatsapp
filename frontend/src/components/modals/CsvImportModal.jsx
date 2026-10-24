@@ -19,7 +19,7 @@ export default function CsvImportModal({
             <Upload className="w-5 h-5 text-[#25D366]" />
             <h3 className="font-bold text-base text-gray-900">Bulk Import Contacts (CSV)</h3>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl"></button>
         </div>
 
         <form onSubmit={onSubmit} className="mt-5 space-y-4">

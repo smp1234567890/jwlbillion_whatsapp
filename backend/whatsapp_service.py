@@ -171,7 +171,7 @@ def send_whatsapp_template(
         try:
             clean_recipient_phone = normalize_phone(recipient_phone)
         except InvalidPhoneNumberError as pe:
-            logger.error(f"🚨 [Invalid Phone] Cannot send message: {pe}")
+            logger.error(f"[Invalid Phone] Cannot send message: {pe}")
             return {"status": "error", "message": f"Invalid recipient phone: {pe}"}
 
         # Resolve exact approved template specification (language and required param count)
@@ -213,7 +213,7 @@ def send_whatsapp_template(
 
         # Check if already dispatched under this idempotency key — return existing Meta ID without re-calling API
         if outbound_rec and outbound_rec.status == "SENT":
-            logger.info(f"🔁 [Idempotency] Message already dispatched for key '{idempotency_key}' (Meta ID: {outbound_rec.meta_message_id}). Skipping duplicate API call.")
+            logger.info(f"[Idempotency] Message already dispatched for key '{idempotency_key}' (Meta ID: {outbound_rec.meta_message_id}). Skipping duplicate API call.")
             return {
                 "status": "success",
                 "message_id": outbound_rec.meta_message_id or f"dup_{int(datetime.utcnow().timestamp())}",
@@ -221,7 +221,7 @@ def send_whatsapp_template(
             }
 
         if not is_auth:
-            logger.info(f"🚫 [Policy Blocked] Message to {mask_phone(clean_recipient_phone)} blocked: {auth_reason}")
+            logger.info(f"[Policy Blocked] Message to {mask_phone(clean_recipient_phone)} blocked: {auth_reason}")
             try:
                 log_entry = models.MessageLog(
                     recipient_phone=clean_recipient_phone,
@@ -244,7 +244,7 @@ def send_whatsapp_template(
         # Safe local mock mode when Meta credentials are empty
         if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
             mock_wamid = f"mock_wamid_{int(datetime.utcnow().timestamp())}"
-            logger.info(f"📱 [SIMULATION MODE] Template '{template_name}' ({language}) to {mask_phone(clean_recipient_phone)}")
+            logger.info(f"[SIMULATION MODE] Template '{template_name}' ({language}) to {mask_phone(clean_recipient_phone)}")
             
             log_entry = models.MessageLog(
                 recipient_phone=clean_recipient_phone,
@@ -363,7 +363,7 @@ def send_whatsapp_template(
                 # Also insert into ChatMessage for real-time 2-way live chat visibility
                 try:
                     tmpl = db.query(models.Template).filter(models.Template.template_name == template_name).first()
-                    body_content = tmpl.body_text if tmpl and tmpl.body_text else f"📢 Template: {template_name}"
+                    body_content = tmpl.body_text if tmpl and tmpl.body_text else f"Template: {template_name}"
                     if parameters:
                         for i, (k, val) in enumerate(parameters.items(), 1):
                             body_content = body_content.replace(f"{{{{{i}}}}}", str(val))
@@ -448,7 +448,7 @@ def create_meta_template(
     token = config.WHATSAPP_API_TOKEN
 
     if not waba_id or not token:
-        logger.info(f"📝 [SIMULATION] Created template '{template_name}' locally (no Meta credentials).")
+        logger.info(f"[SIMULATION] Created template '{template_name}'locally (no Meta credentials).")
         return {
             "status": "APPROVED",
             "id": f"sim_template_{int(datetime.utcnow().timestamp())}",
@@ -523,7 +523,7 @@ def send_whatsapp_free_text(recipient_phone: str, message_text: str, sender_user
             sender_user=sender_user
         )
         if not is_auth:
-            logger.warning(f"🚫 [Policy Blocked] Free-text to {mask_phone(recipient_phone)} blocked: {auth_reason}")
+            logger.warning(f"[Policy Blocked] Free-text to {mask_phone(recipient_phone)} blocked: {auth_reason}")
             try:
                 log_entry = models.MessageLog(
                     recipient_phone=recipient_phone,
@@ -543,7 +543,7 @@ def send_whatsapp_free_text(recipient_phone: str, message_text: str, sender_user
         # Check if simulated or live
         if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
             mock_id = f"sim_chat_{int(datetime.utcnow().timestamp())}"
-            logger.info(f"💬 [SIMULATED 2-WAY CHAT] Agent sent to {mask_phone(clean_phone)}: '{message_text}'")
+            logger.info(f"[SIMULATED 2-WAY CHAT] Agent sent to {mask_phone(clean_phone)}: '{message_text}'")
             return {
                 "status": "success_simulated",
                 "message_id": mock_id,

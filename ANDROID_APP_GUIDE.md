@@ -4,7 +4,7 @@ This guide explains how to build, run, test, and distribute the native Android a
 
 ---
 
-## 📱 Project Architecture
+## Project Architecture
 
 The Android application is built using **Capacitor**, providing a native Android wrapper around the React dashboard with full access to native hardware features:
 - **Project Location**: `frontend/android/`
@@ -20,7 +20,7 @@ The Android application is built using **Capacitor**, providing a native Android
 
 ---
 
-## 🚀 Quick Start: Running the Android App
+## Quick Start: Running the Android App
 
 ### Step 1: Open the Project in Android Studio
 From the `frontend` directory, run:
@@ -37,7 +37,7 @@ npm run android:open
 
 ---
 
-## 🛠 Building an APK File (.apk)
+## Building an APK File (.apk)
 
 ### Option A: From Android Studio (GUI)
 1. Open the project in Android Studio.
@@ -57,7 +57,7 @@ The APK will be generated at:
 
 ---
 
-## 🌐 Configuring Backend API Connection
+## Configuring Backend API Connection
 
 The app automatically handles network resolution depending on where it is running:
 - **Android Emulator**: Defaults to `http://10.0.2.2:8000` (which routes to your host machine's `localhost:8000`).
@@ -70,7 +70,7 @@ The app automatically handles network resolution depending on where it is runnin
 
 ---
 
-## 🔄 Development Workflow (Making Changes)
+## Development Workflow (Making Changes)
 
 Whenever you make changes to the React code in `frontend/src/`:
 ```bash

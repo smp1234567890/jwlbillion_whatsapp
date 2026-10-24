@@ -31,7 +31,7 @@ export default function ServerConfigModal({
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-lg font-bold p-1 cursor-pointer"
           >
-            ✕
+            
           </button>
         </div>
 
@@ -56,7 +56,7 @@ export default function ServerConfigModal({
                   onClick={() => setServerInput(renderProdUrl)}
                   className="w-full px-2.5 py-1.5 text-[11px] font-mono rounded bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 text-left transition cursor-pointer font-semibold flex items-center justify-between"
                 >
-                  <span>☁️ Production Cloud API</span>
+                  <span> Production Cloud API</span>
                   <span className="text-[10px] bg-emerald-200/60 px-1.5 py-0.5 rounded text-emerald-900">Default</span>
                 </button>
               )}
@@ -66,14 +66,14 @@ export default function ServerConfigModal({
                   onClick={() => setServerInput(`http://${typeof window !== 'undefined' ? (window.location?.hostname || "localhost") : "localhost"}:8000`)}
                   className="px-2.5 py-1.5 text-[11px] font-mono rounded bg-gray-50 hover:bg-gray-100 border border-gray-200 text-left transition cursor-pointer"
                 >
-                  📡 Local Machine<br /><span className="text-[10px] text-gray-500">{typeof window !== 'undefined' ? (window.location?.hostname || "localhost") : "localhost"}:8000</span>
+                   Local Machine<br /><span className="text-[10px] text-gray-500">{typeof window !== 'undefined' ? (window.location?.hostname || "localhost") : "localhost"}:8000</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setServerInput("http://10.0.2.2:8000")}
                   className="px-2.5 py-1.5 text-[11px] font-mono rounded bg-gray-50 hover:bg-gray-100 border border-gray-200 text-left transition cursor-pointer"
                 >
-                  📱 Android Emulator<br /><span className="text-[10px] text-gray-500">10.0.2.2:8000</span>
+                   Android Emulator<br /><span className="text-[10px] text-gray-500">10.0.2.2:8000</span>
                 </button>
               </div>
             </div>

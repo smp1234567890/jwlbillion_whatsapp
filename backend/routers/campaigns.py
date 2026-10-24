@@ -35,7 +35,7 @@ def create_and_trigger_campaign(
     current_user: models.User = Depends(auth.require_roles("admin", "manager")),
     db: Session = Depends(get_db)
 ):
-    # 🔐 CRITICAL SECURITY GUARD: Verify Password + 2FA before mass broadcasting
+    # CRITICAL SECURITY GUARD: Verify Password + 2FA before mass broadcasting
     try:
         auth.verify_user_stepup_auth(
             user=current_user,

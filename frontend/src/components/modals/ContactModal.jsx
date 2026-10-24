@@ -33,7 +33,7 @@ export default function ContactModal({
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 font-bold text-xl"
           >
-            ✕
+            
           </button>
         </div>
 

@@ -267,7 +267,7 @@ export default function ContactsPage({
                         >
                           <option value="ALL">All VIP Tiers</option>
                           <option value="SUPER_VIP">⭐ Super VIP (10+ Orders)</option>
-                          <option value="VIP">🌟 VIP Buyer (5-9 Orders)</option>
+                          <option value="VIP"> VIP Buyer (5-9 Orders)</option>
                           <option value="REGULAR">Regular (&lt; 5 Orders)</option>
                         </select>
 
@@ -446,7 +446,7 @@ export default function ContactsPage({
                                       </span>
                                     ) : orders >= 5 ? (
                                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                                        🌟 VIP Buyer
+                                         VIP Buyer
                                       </span>
                                     ) : (
                                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
@@ -644,7 +644,7 @@ export default function ContactsPage({
   "email": "arjun@example.com",      // Optional: customer email
   "city": "Surat",                   // Optional: city
   "tags": "Wholesale, VIP",          // Optional: tags (comma-separated or array)
-  // ✨ ANY EXTRA COLUMNS ARE AUTOMATICALLY SAVED IN CUSTOM ATTRIBUTES:
+  // ANY EXTRA COLUMNS ARE AUTOMATICALLY SAVED IN CUSTOM ATTRIBUTES:
   "company_name": "Patel Farsan Mart",
   "gstin": "24ABCDE1234F1Z5",
   "loyalty_tier": "Gold"
