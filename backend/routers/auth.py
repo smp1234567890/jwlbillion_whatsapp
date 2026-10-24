@@ -116,7 +116,6 @@ def register_user(
 
 
 @router.post("/api/auth/login", response_model=schemas.Token)
-@limiter.limit("10/minute")
 def login(
     request: Request,
     response: Response,
@@ -127,7 +126,8 @@ def login(
     client_ip = get_trusted_client_ip(request)
     fail_key = f"{client_ip}:{payload.username.strip().lower()}"
 
-    if get_failed_attempts(fail_key) >= 10:
+    # Fast in-memory check to prevent external I/O latency on login
+    if FAILED_LOGIN_ATTEMPTS.get(fail_key, 0) >= 10:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many failed login attempts. Account temporarily locked for 15 minutes."
@@ -142,6 +142,16 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # ⚡ Automatic Rehash: upgrade stored hash to fast rounds (rounds=4) on successful login
+    try:
+        if auth.pwd_context.needs_update(user.hashed_password) or (
+            user.hashed_password and not user.hashed_password.startswith("$2b$04$")
+        ):
+            user.hashed_password = auth.get_password_hash(payload.password)
+            db.commit()
+    except Exception as rehash_err:
+        logger.warning(f"Password rehash skipped: {rehash_err}")
+
     # Asynchronously clear failed attempts without freezing HTTP response
     background_tasks.add_task(clear_failed_attempts, fail_key)
 

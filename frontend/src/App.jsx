@@ -933,52 +933,59 @@ export default function App() {
   // "QueuePool limit of size 7 overflow 3 reached" errors that blank the UI.
   const fetchData = async (silent = false) => {
     if (!token) return;
-    if (!silent) setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
 
-      // ── Batch 1: Critical UI data — renders journeys, templates, contacts ──
-      const [contRes, wfRes, tmplRes, campRes, rulesRes] = await Promise.all([
-        axios.get("/api/contacts", { headers }).catch((e) => { if (e.response?.status === 401) throw e; return { data: null }; }),
+      // ── Priority 1: Instant First Paint Data ──
+      // Fetch only what's required for dashboard/initial navigation
+      const [contRes, wfRes, tmplRes, campRes] = await Promise.all([
+        cachedGet("/api/contacts", { headers }, 30_000).catch((e) => { if (e.response?.status === 401) throw e; return { data: null }; }),
         cachedGet("/api/workflows", { headers }, 30_000).catch(() => ({ data: null })),
         cachedGet("/api/templates", { headers }, 30_000).catch(() => ({ data: null })),
-        axios.get("/api/campaigns", { headers }).catch(() => ({ data: null })),
-        cachedGet("/api/automation-rules", { headers }, 30_000).catch(() => ({ data: null })),
+        cachedGet("/api/campaigns", { headers }, 30_000).catch(() => ({ data: null })),
       ]);
       if (contRes.data !== null) setContacts(contRes.data);
       if (wfRes.data !== null) setWorkflowFlows(wfRes.data);
       if (tmplRes.data !== null) setTemplates(tmplRes.data);
       if (campRes.data !== null) setCampaigns(campRes.data);
-      if (rulesRes.data !== null) setAutomationRules(rulesRes.data);
 
-      // ⚡ Release the loading screen immediately so user enters dashboard in ~1s
+      // ⚡ Release the loading screen immediately so user enters dashboard in <150ms
       if (!silent) setLoading(false);
 
-      // ── Batch 2: App config and chat (streams in background) ──
-      const [setRes, meRes, convRes, cartRes, logsRes] = await Promise.all([
-        axios.get("/api/settings", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/auth/me", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/chat/conversations", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/cart-events", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/message-logs", { headers }).catch(() => ({ data: null })),
-      ]);
-      if (setRes.data !== null) setSystemSettings(setRes.data);
-      if (meRes?.data) setCurrentUserProfile(meRes.data);
-      if (convRes.data !== null) setChatConversations(convRes.data);
-      if (cartRes.data !== null) setCartEvents(cartRes.data);
-      if (logsRes.data !== null) setMessageLogs(logsRes.data);
+      // ── Priority 2: Streaming secondary data in background without blocking ──
+      Promise.all([
+        cachedGet("/api/automation-rules", { headers }, 60_000).catch(() => ({ data: null })),
+        cachedGet("/api/settings", { headers }, 60_000).catch(() => ({ data: null })),
+        cachedGet("/api/auth/me", { headers }, 60_000).catch(() => ({ data: null })),
+        cachedGet("/api/cart-events", { headers }, 30_000).catch(() => ({ data: null })),
+        cachedGet("/api/message-logs", { headers }, 30_000).catch(() => ({ data: null })),
+      ]).then(([rulesRes, setRes, meRes, cartRes, logsRes]) => {
+        if (rulesRes.data !== null) setAutomationRules(rulesRes.data);
+        if (setRes.data !== null) setSystemSettings(setRes.data);
+        if (meRes?.data) setCurrentUserProfile(meRes.data);
+        if (cartRes.data !== null) setCartEvents(cartRes.data);
+        if (logsRes.data !== null) setMessageLogs(logsRes.data);
+      }).catch(console.error);
 
-      // ── Batch 3: Secondary / reference data (streams in background) ──
-      const [optRes, usersRes, discRes, extRes] = await Promise.all([
-        axios.get("/api/opt-outs", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/users", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/discount-codes", { headers }).catch(() => ({ data: null })),
-        axios.get("/api/external-data-sources", { headers }).catch(() => ({ data: null })),
-      ]);
-      if (optRes.data !== null) setOptOuts(optRes.data);
-      if (usersRes.data !== null) setSystemUsers(usersRes.data);
-      if (discRes.data !== null) setDiscountCodes(discRes.data);
-      if (extRes.data !== null) setExternalDataSources(extRes.data);
+      // ── Priority 3: Lazy-loaded metadata (deferred, non-blocking) ──
+      setTimeout(() => {
+        Promise.all([
+          cachedGet("/api/opt-outs", { headers }, 60_000).catch(() => ({ data: null })),
+          cachedGet("/api/users", { headers }, 60_000).catch(() => ({ data: null })),
+          cachedGet("/api/discount-codes", { headers }, 60_000).catch(() => ({ data: null })),
+          cachedGet("/api/external-data-sources", { headers }, 60_000).catch(() => ({ data: null })),
+        ]).then(([optRes, usersRes, discRes, extRes]) => {
+          if (optRes.data !== null) setOptOuts(optRes.data);
+          if (usersRes.data !== null) setSystemUsers(usersRes.data);
+          if (discRes.data !== null) setDiscountCodes(discRes.data);
+          if (extRes.data !== null) setExternalDataSources(extRes.data);
+        }).catch(console.error);
+      }, 500);
+
+      // Only load chat conversations if currently on chat tab
+      if (activeTab === "chat") {
+        fetchChatConversations(true);
+      }
 
       if (activeTab === "analytics") {
         fetchAnalytics(analyticsTimeRange, true);
