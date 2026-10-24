@@ -1209,19 +1209,23 @@ export default function App() {
       };
 
       if (editingContactId) {
-        await axios.put(`/api/contacts/${editingContactId}`, payload, {
+        const res = await axios.put(`/api/contacts/${editingContactId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        const updated = res.data;
+        setContacts((prev) => prev.map((c) => (c.id === editingContactId ? { ...c, ...updated } : c)));
         setActionSuccessMsg(`Contact ${payload.phone} updated successfully!`);
       } else {
-        await axios.post("/api/contacts", payload, {
+        const res = await axios.post("/api/contacts", payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        const created = res.data;
+        setContacts((prev) => [created, ...prev]);
         setActionSuccessMsg(`Contact ${payload.phone} added successfully!`);
       }
 
+      invalidateCache("/api/contacts");
       setIsContactModalOpen(false);
-      fetchData();
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {
       alert("Failed to save contact: " + (err.response?.data?.detail || err.message));
@@ -1239,10 +1243,11 @@ export default function App() {
       await axios.delete(`/api/contacts/${c.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchData(true); // silent sync with backend in background
+      invalidateCache("/api/contacts");
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {
       alert("Failed to delete contact: " + (err.response?.data?.detail || err.message));
+      invalidateCache("/api/contacts");
       fetchData(true); // rollback/re-sync if backend request failed
     }
   };
@@ -1565,13 +1570,8 @@ export default function App() {
       estCount = Math.min(estCount, parsedLimit);
     }
 
-    // Intercept: open 2FA security verification modal before dispatching!
-    setSecurityActionModal({
-      isOpen: true,
-      actionType: "CAMPAIGN",
-      title: `Confirm WhatsApp Broadcast: "${newCampaign.title}"`,
-      recipientCount: estCount,
-      payloadData: {
+    try {
+      const payload = {
         ...newCampaign,
         scheduled_for: newCampaign.scheduled_for
           ? (newCampaign.scheduled_for.includes("+") || newCampaign.scheduled_for.endsWith("Z")
@@ -1579,12 +1579,31 @@ export default function App() {
               : (newCampaign.scheduled_for.length === 16 ? `${newCampaign.scheduled_for}:00+05:30` : `${newCampaign.scheduled_for}+05:30`))
           : null,
         per_day_limit: parsedLimit && parsedLimit > 0 ? parsedLimit : null
-      },
-      password: "",
-      twoFactorCode: "",
-      error: "",
-      loading: false
-    });
+      };
+
+      const res = await axios.post("/api/campaigns", payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setActionSuccessMsg(`✅ Broadcast Campaign '${payload.title}' launched successfully!`);
+      setIsModalOpen(false);
+      const approvedTmpl = templates.find((t) => t.status === "APPROVED") || templates[0];
+      setNewCampaign({
+        title: "",
+        template_name: approvedTmpl ? approvedTmpl.template_name : "",
+        language: approvedTmpl ? (approvedTmpl.language || "en") : "en",
+        target_filter: "ALL",
+        per_day_limit: "",
+        scheduled_for: ""
+      });
+      invalidateCache("/api/campaigns");
+      if (res.data) {
+        setCampaigns((prev) => [res.data, ...prev.filter((c) => c.id !== res.data.id)]);
+      }
+      setTimeout(() => setActionSuccessMsg(""), 6000);
+    } catch (err) {
+      alert("Failed to launch campaign: " + (err.response?.data?.detail || err.message));
+    }
   };
 
   const handleExecuteSecurityAction = async (e) => {

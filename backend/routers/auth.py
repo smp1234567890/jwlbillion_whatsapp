@@ -155,17 +155,7 @@ def login(
     # Asynchronously clear failed attempts without freezing HTTP response
     background_tasks.add_task(clear_failed_attempts, fail_key)
 
-    if user.is_2fa_enabled:
-        temp_token = auth.create_temp_2fa_token(user.username)
-        return {
-            "access_token": "",
-            "token_type": "bearer",
-            "username": user.username,
-            "role": user.role,
-            "requires_2fa": True,
-            "temp_token": temp_token,
-            "refresh_token": None
-        }
+
 
     access_token = auth.create_access_token(
         data={"sub": user.username, "role": user.role, "auth_version": user.auth_version}

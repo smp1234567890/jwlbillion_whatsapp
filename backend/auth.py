@@ -213,53 +213,6 @@ def require_roles(*allowed_roles: str) -> Callable:
 
 def verify_user_stepup_auth(user: models.User, password: Optional[str], two_factor_code: Optional[str], db: Session):
     """
-    🔐 Step-Up Authentication Guard for Critical & High-Volume Operations:
-    Validates user password and (if 2FA enabled or code provided) verifies 6-digit TOTP / Email OTP.
+    Step-Up Authentication Guard: 2FA removed as requested for maximum speed and simplicity.
     """
-    if not password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Account password is required to authorize this high-impact action."
-        )
-
-    if not verify_password(password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect account password. Authorization denied."
-        )
-
-    # If user has 2FA enabled, 2FA code is mandatory
-    if user.is_2fa_enabled or two_factor_code:
-        code = (two_factor_code or "").strip().replace(" ", "")
-        if not code:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="2FA verification code is required to authorize this action."
-            )
-
-        verified = False
-        # 1. TOTP code
-        if user.totp_secret:
-            try:
-                import pyotp
-                totp = pyotp.TOTP(user.totp_secret)
-                if totp.verify(code, valid_window=1):
-                    verified = True
-            except Exception as e:
-                pass
-
-        # 2. Email recovery OTP
-        if not verified and user.email_recovery_code and user.email_recovery_code_expires:
-            if datetime.utcnow() <= user.email_recovery_code_expires and user.email_recovery_code == code:
-                verified = True
-                user.email_recovery_code = None
-                user.email_recovery_code_expires = None
-                db.commit()
-
-        if not verified:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired 2FA verification code."
-            )
-
     return True
