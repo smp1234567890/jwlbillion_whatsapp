@@ -675,7 +675,12 @@ def process_customer_sync(payload: Dict[str, Any], current_user: models.User, db
             break
 
     # If test notification or no valid phone found, fall back only for Shopify sample tests
-    is_test_sample = "test" in str(payload.get("email", "")).lower() or payload.get("name") == "Sini Gos" or "example.com" in str(payload.get("email", "")).lower()
+    is_test_sample = (
+        "test" in str(payload.get("email", "")).lower()
+        or payload.get("name") == "Sini Gos"
+        or "example.com" in str(payload.get("email", "")).lower()
+        or "loves ice cream" in note_text.lower()
+    )
     if not phone_raw:
         if is_test_sample:
             phone_raw = "+919999999999"
