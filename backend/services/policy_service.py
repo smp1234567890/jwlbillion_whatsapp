@@ -228,9 +228,9 @@ def authorize_outbound_message(
     if revoked_consent and (not active_consent or revoked_consent.id > active_consent.id):
         return False, "Customer consent revoked"
 
-    # For promotional campaign broadcasts, active consent is MANDATORY (deny-by-default).
-    # A contact record without explicit ACTIVE consent is NOT sufficient.
-    if campaign_id is not None or purpose == "marketing":
+    # For promotional (marketing) broadcasts, active consent is MANDATORY (deny-by-default).
+    # Utility campaigns (transactional alerts, address updates, etc.) are exempt.
+    if purpose == "marketing":
         if not active_consent:
             return False, "No active marketing consent on file for campaign recipient — send denied"
 

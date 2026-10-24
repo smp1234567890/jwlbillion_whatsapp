@@ -68,6 +68,7 @@ def create_and_schedule_campaign(
         language=payload.language or "en",
         target_filter=payload.target_filter or "ALL",
         per_day_limit=payload.per_day_limit,
+        message_type=payload.message_type or "marketing",
         status="SCHEDULED" if is_future else "IN_PROGRESS",
         scheduled_for=scheduled_dt
     )

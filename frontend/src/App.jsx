@@ -283,6 +283,7 @@ export default function App() {
     template_name: "",
     language: "en",
     target_filter: "ALL",
+    message_type: "marketing",
     per_day_limit: "",
     scheduled_for: ""
   });
@@ -294,6 +295,7 @@ export default function App() {
       template_name: approvedTmpl ? approvedTmpl.template_name : "",
       language: approvedTmpl ? (approvedTmpl.language || "en") : "en",
       target_filter: "ALL",
+      message_type: "marketing",
       per_day_limit: "",
       scheduled_for: ""
     });

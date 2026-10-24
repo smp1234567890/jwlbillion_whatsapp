@@ -119,6 +119,7 @@ class Campaign(Base):
     successful_sends = Column(Integer, default=0)
     failed_sends = Column(Integer, default=0)
     per_day_limit = Column(Integer, nullable=True)
+    message_type = Column(String(20), default="marketing", nullable=False)  # marketing | utility
     scheduled_for = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
     # WP8: Worker lease columns for distributed broadcast claiming

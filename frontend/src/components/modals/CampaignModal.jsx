@@ -34,6 +34,41 @@ export default function CampaignModal({
             />
           </div>
 
+          {/* Message Type Toggle */}
+          <div>
+            <label className="block text-xs font-bold uppercase text-gray-700 mb-2">Message Type</label>
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setNewCampaign({ ...newCampaign, message_type: "marketing" })}
+                className={`flex-1 py-2.5 text-sm font-semibold transition ${
+                  newCampaign.message_type !== "utility"
+                    ? "bg-[#25D366] text-white shadow-inner"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                📢 Marketing
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewCampaign({ ...newCampaign, message_type: "utility" })}
+                className={`flex-1 py-2.5 text-sm font-semibold transition border-l border-gray-300 ${
+                  newCampaign.message_type === "utility"
+                    ? "bg-blue-600 text-white shadow-inner"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                🔔 Utility
+              </button>
+            </div>
+            <p className={`mt-1.5 text-[11px] px-1 ${
+              newCampaign.message_type === "utility" ? "text-blue-700" : "text-amber-700"
+            }`}>
+              {newCampaign.message_type === "utility"
+                ? "Utility: Transactional alerts, address updates, order status — no marketing consent required."
+                : "Marketing: Promotional offers & blasts — requires active marketing consent from each recipient."}
+            </p>
+          </div>
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold uppercase text-gray-700">WhatsApp Approved Template</label>

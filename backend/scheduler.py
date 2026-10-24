@@ -516,7 +516,7 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
                         campaign_id=campaign.id,
                         sender_user=f"Campaign: {campaign.title}",
                         idempotency_key=f"campaign_{campaign.id}_{phone}",
-                        purpose="marketing"
+                        purpose=campaign.message_type or "marketing"
                     )
 
                     if res.get("status") in ["success", "success_simulated"]:

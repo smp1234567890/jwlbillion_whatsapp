@@ -248,6 +248,7 @@ class CampaignCreate(BaseModel):
     language: Optional[str] = "en"
     target_filter: Optional[str] = "ALL"  # ALL, INACTIVE_30_DAYS, HIGH_VALUE
     per_day_limit: Optional[int] = None  # Cap on max messages to send per day/run
+    message_type: Optional[str] = "marketing"  # marketing | utility
     scheduled_for: Optional[str] = None  # ISO timestamp or datetime string
     custom_phones: Optional[List[str]] = None  # Optional list of explicit phone numbers
     # 🔐 Security step-up authentication fields
