@@ -14,7 +14,8 @@ import {
   Send,
   Volume2,
   VolumeX,
-  ArrowDown
+  ArrowDown,
+  ShoppingBag
 } from "lucide-react";
 import { formatToISTTime } from "../utils/dateUtils";
 
@@ -347,6 +348,25 @@ export default function LiveChatPage({
                         <span>
                           Orders: {matchingContact?.total_orders ?? activeConv?.total_orders ?? 0}
                         </span>
+                        {(() => {
+                          const order = activeConv?.last_order || matchingContact?.custom_attributes?.last_order;
+                          if (!order) return null;
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-medium cursor-help"
+                              title={`Last Order: #${order.order_number || order.order_id}\nTotal: ${order.currency || 'INR'} ${order.total_price}\nItems:\n${(order.items || []).map(i => `• ${i.quantity}x ${i.title} (₹${i.price})`).join('\n') || order.items_summary}`}
+                            >
+                              <ShoppingBag className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span className="font-semibold">Last Order:</span>
+                              <span className="max-w-[150px] sm:max-w-[220px] truncate text-amber-800">
+                                {order.items_summary || `#${order.order_number || order.order_id}`}
+                              </span>
+                              {order.total_price ? (
+                                <span className="font-bold text-emerald-700 ml-0.5">({order.currency || '₹'}{order.total_price})</span>
+                              ) : null}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

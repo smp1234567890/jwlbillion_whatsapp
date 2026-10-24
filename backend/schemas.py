@@ -436,6 +436,7 @@ class ChatConversationSummary(BaseModel):
     last_message_text: Optional[str] = None
     last_message_time: Optional[datetime] = None
     last_sender: Optional[str] = None
+    last_order: Optional[Dict[str, Any]] = None
 
 
 class WorkflowFlowCreate(BaseModel):

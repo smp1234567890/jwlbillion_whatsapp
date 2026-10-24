@@ -531,14 +531,92 @@ async def receive_order_completed_webhook(
         db.rollback()
         return {"status": "duplicate", "message": "Webhook event was already processed."}
 
-    # 1. Update contact order statistics
+    # 1. Extract detailed order data (Shopify & native)
+    line_items_raw = raw_payload.get("line_items") or []
+    ordered_items = []
+    item_titles = []
+    for item in line_items_raw:
+        if isinstance(item, dict):
+            title = item.get("title") or item.get("name") or "Product"
+            qty = item.get("quantity") or 1
+            price = item.get("price") or 0.0
+            ordered_items.append({
+                "title": title,
+                "quantity": qty,
+                "price": price,
+                "sku": item.get("sku") or ""
+            })
+            item_titles.append(f"{qty}x {title}" if qty > 1 else title)
+
+    order_number = (
+        raw_payload.get("order_number")
+        or raw_payload.get("name")
+        or raw_payload.get("id")
+        or ""
+    )
+    order_total = (
+        raw_payload.get("total_price")
+        or raw_payload.get("current_total_price")
+        or raw_payload.get("total")
+        or 0.0
+    )
+    currency = raw_payload.get("currency") or "INR"
+    order_summary_text = ", ".join(item_titles[:3]) + (f" (+{len(item_titles) - 3} more)" if len(item_titles) > 3 else "")
+
+    # Customer Name / Email fallbacks from order
+    order_customer_name = None
+    if isinstance(customer, dict):
+        first = customer.get("first_name", "")
+        last = customer.get("last_name", "")
+        order_customer_name = f"{first} {last}".strip() or customer.get("name")
+    if not order_customer_name and isinstance(shipping_addr, dict):
+        order_customer_name = f"{shipping_addr.get('first_name', '')} {shipping_addr.get('last_name', '')}".strip()
+
+    order_customer_email = customer.get("email") if isinstance(customer, dict) else raw_payload.get("email")
+
+    # Update contact order statistics and order metadata
     contact = db.query(models.Contact).filter(models.Contact.phone == clean_phone).first()
+    order_now = datetime.utcnow()
+    last_order_info = {
+        "order_id": str(order_id),
+        "order_number": str(order_number),
+        "total_price": float(order_total) if order_total else 0.0,
+        "currency": currency,
+        "items_summary": order_summary_text or "Order Placed",
+        "items": ordered_items,
+        "ordered_at": order_now.isoformat()
+    }
+
     if not contact:
-        contact = models.Contact(phone=clean_phone, total_orders=1, last_order_date=datetime.utcnow())
+        contact = models.Contact(
+            phone=clean_phone,
+            name=order_customer_name[:100] if order_customer_name else None,
+            email=order_customer_email[:120] if order_customer_email else None,
+            city=shipping_addr.get("city") if isinstance(shipping_addr, dict) else None,
+            total_orders=1,
+            last_order_date=order_now,
+            custom_attributes={
+                "last_order": last_order_info,
+                "last_order_items": order_summary_text or "Order Placed",
+                "last_order_total": f"{currency} {order_total}" if order_total else ""
+            }
+        )
         db.add(contact)
     else:
         contact.total_orders = (contact.total_orders or 0) + 1
-        contact.last_order_date = datetime.utcnow()
+        contact.last_order_date = order_now
+        if order_customer_name and not contact.name:
+            contact.name = order_customer_name[:100]
+        if order_customer_email and not contact.email:
+            contact.email = order_customer_email[:120]
+        if isinstance(shipping_addr, dict) and shipping_addr.get("city") and not contact.city:
+            contact.city = shipping_addr.get("city")[:100]
+
+        attrs = dict(contact.custom_attributes or {})
+        attrs["last_order"] = last_order_info
+        attrs["last_order_items"] = order_summary_text or "Order Placed"
+        attrs["last_order_total"] = f"{currency} {order_total}" if order_total else ""
+        contact.custom_attributes = attrs
 
     try:
         from services.policy_service import record_consent

@@ -418,11 +418,22 @@ export default function ContactsPage({
                                   </td>
                                   <td className="px-6 py-4 text-xs font-medium text-gray-600 whitespace-nowrap">
                                     {c.last_order_date ? (
-                                      <div className="flex items-center gap-1.5">
-                                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                                        <span>
-                                          {formatToISTDate(c.last_order_date)}
-                                        </span>
+                                      <div>
+                                        <div className="flex items-center gap-1.5">
+                                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                          <span>
+                                            {formatToISTDate(c.last_order_date)}
+                                          </span>
+                                        </div>
+                                        {c.custom_attributes?.last_order && (
+                                          <div
+                                            className="text-[10px] text-amber-800 font-medium mt-1 flex items-center gap-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 max-w-[200px] truncate cursor-help"
+                                            title={`Order: #${c.custom_attributes.last_order.order_number || c.custom_attributes.last_order.order_id}\nTotal: ${c.custom_attributes.last_order.currency || 'INR'} ${c.custom_attributes.last_order.total_price}\nItems:\n${(c.custom_attributes.last_order.items || []).map(i => `• ${i.quantity}x ${i.title} (₹${i.price})`).join('\n') || c.custom_attributes.last_order.items_summary}`}
+                                          >
+                                            <span className="font-bold text-amber-900 shrink-0">Items:</span>
+                                            <span className="truncate">{c.custom_attributes.last_order.items_summary}</span>
+                                          </div>
+                                        )}
                                       </div>
                                     ) : (
                                       <span className="text-gray-400">—</span>

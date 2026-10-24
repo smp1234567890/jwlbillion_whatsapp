@@ -83,6 +83,8 @@ def list_conversations(
         last_msg = latest_msg_map.get(cust_phone)
         unread = unread_map.get(cust_phone, 0)
 
+        last_order_obj = (contact.custom_attributes or {}).get("last_order") if contact else None
+
         summaries.append(schemas.ChatConversationSummary(
             customer_phone=cust_phone,
             customer_name=contact.name if contact else "Customer",
@@ -91,7 +93,8 @@ def list_conversations(
             unread_count=unread,
             last_message_text=last_msg.text if last_msg else None,
             last_message_time=last_msg.created_at if last_msg else None,
-            last_sender=last_msg.sender_type if last_msg else None
+            last_sender=last_msg.sender_type if last_msg else None,
+            last_order=last_order_obj
         ))
 
     # Sort: most recent message first
