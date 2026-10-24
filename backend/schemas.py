@@ -251,7 +251,7 @@ class CampaignCreate(BaseModel):
     message_type: Optional[str] = "marketing"  # marketing | utility
     scheduled_for: Optional[str] = None  # ISO timestamp or datetime string
     custom_phones: Optional[List[str]] = None  # Optional list of explicit phone numbers
-    # 🔐 Security step-up authentication fields
+    # Security step-up authentication fields
     password: Optional[str] = None
     two_factor_code: Optional[str] = None
 

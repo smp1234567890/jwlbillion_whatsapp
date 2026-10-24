@@ -47,7 +47,7 @@ export default function CampaignModal({
                     : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                📢 Marketing
+                Marketing
               </button>
               <button
                 type="button"
@@ -58,7 +58,7 @@ export default function CampaignModal({
                     : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                🔔 Utility
+                Utility
               </button>
             </div>
             <p className={`mt-1.5 text-[11px] px-1 ${
@@ -97,7 +97,7 @@ export default function CampaignModal({
                     const isApproved = t.status === "APPROVED";
                     return (
                       <option key={t.id} value={t.template_name}>
-                        {isApproved ? "🟢 [APPROVED]" : "🟡 [PENDING]"} {t.template_name} ({t.language})
+                        [{isApproved ? "APPROVED" : "PENDING"}] {t.template_name} ({t.language})
                       </option>
                     );
                   })
