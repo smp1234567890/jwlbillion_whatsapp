@@ -613,26 +613,78 @@ def process_customer_sync(payload: Dict[str, Any], current_user: models.User, db
     Extracts standard CRM fields, normalizes phone to canonical E.164, and
     persists all extra arbitrary fields in the custom_attributes JSON dictionary.
     """
-    default_addr = payload.get("default_address") or {}
-    billing_addr = payload.get("billing_address") or {}
-    shipping_addr = payload.get("shipping_address") or {}
-
-    phone_raw = (
-        payload.get("phone")
-        or payload.get("phone_number")
-        or payload.get("mobile")
-        or payload.get("customer_phone")
-        or payload.get("telephone")
-        or payload.get("contact_number")
-        or (default_addr.get("phone") if isinstance(default_addr, dict) else None)
-        or (billing_addr.get("phone") if isinstance(billing_addr, dict) else None)
-        or (shipping_addr.get("phone") if isinstance(shipping_addr, dict) else None)
-    )
-
+    import re
     from services.phone_service import is_valid_phone
-    if not phone_raw or not is_valid_phone(str(phone_raw)):
-        # Fallback for Shopify dummy test webhooks (e.g. '555-555-BILL')
-        phone_raw = "+919999999999"
+
+    # Log incoming keys to aid debugging
+    logger.info(f"📥 [Customer Webhook Received] Payload keys: {list(payload.keys())}")
+
+    # If payload is wrapped under 'customer', unwrap or merge it
+    cust = payload.get("customer") if isinstance(payload.get("customer"), dict) else {}
+
+    default_addr = payload.get("default_address") or cust.get("default_address") or {}
+    billing_addr = payload.get("billing_address") or cust.get("billing_address") or {}
+    shipping_addr = payload.get("shipping_address") or cust.get("shipping_address") or {}
+    addresses = payload.get("addresses") or cust.get("addresses") or []
+
+    # 1. Primary phone fields
+    phone_candidates = [
+        payload.get("phone"),
+        payload.get("phone_number"),
+        payload.get("mobile"),
+        payload.get("customer_phone"),
+        payload.get("telephone"),
+        payload.get("contact_number"),
+        cust.get("phone"),
+        cust.get("phone_number"),
+        cust.get("mobile"),
+        (default_addr.get("phone") if isinstance(default_addr, dict) else None),
+        (billing_addr.get("phone") if isinstance(billing_addr, dict) else None),
+        (shipping_addr.get("phone") if isinstance(shipping_addr, dict) else None),
+    ]
+
+    # 2. Check addresses list
+    if isinstance(addresses, list):
+        for addr in addresses:
+            if isinstance(addr, dict) and addr.get("phone"):
+                phone_candidates.append(addr.get("phone"))
+
+    # 3. Check customer note or notes for phone numbers (e.g. from KwikPass or OTP login)
+    note_text = str(payload.get("note") or cust.get("note") or "")
+    if note_text:
+        extracted = re.findall(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b\d{10,12}\b", note_text)
+        phone_candidates.extend(extracted)
+
+    # 4. Check tags for phone numbers
+    tags_raw = payload.get("tags") or cust.get("tags")
+    if isinstance(tags_raw, str):
+        tag_phones = re.findall(r"\b\d{10,12}\b|\+\d{11,13}\b", tags_raw)
+        phone_candidates.extend(tag_phones)
+
+    # 5. Check metafields if provided in payload
+    metafields = payload.get("metafields") or cust.get("metafields") or []
+    if isinstance(metafields, list):
+        for mf in metafields:
+            if isinstance(mf, dict) and any(term in str(mf.get("key", "")).lower() for term in ["phone", "mobile", "kwikpass"]):
+                phone_candidates.append(mf.get("value"))
+
+    phone_raw = None
+    for cand in phone_candidates:
+        if cand and is_valid_phone(str(cand)):
+            phone_raw = str(cand).strip()
+            break
+
+    # If test notification or no valid phone found, fall back only for Shopify sample tests
+    is_test_sample = "test" in str(payload.get("email", "")).lower() or payload.get("name") == "Sini Gos" or "example.com" in str(payload.get("email", "")).lower()
+    if not phone_raw:
+        if is_test_sample:
+            phone_raw = "+919999999999"
+        else:
+            logger.warning(f"⚠️ [Customer Sync] No valid phone found in payload. Keys: {list(payload.keys())}, Note: {note_text[:50]}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing phone number. Customer payload must contain a valid phone number in 'phone', 'addresses', note, or tags."
+            )
 
     try:
         clean_phone = normalize_phone(str(phone_raw))
@@ -643,16 +695,16 @@ def process_customer_sync(payload: Dict[str, Any], current_user: models.User, db
         )
 
     # Name extraction (handles full name or split first/last names)
-    name_val = payload.get("name") or payload.get("full_name") or payload.get("customer_name")
+    name_val = payload.get("name") or payload.get("full_name") or payload.get("customer_name") or cust.get("name")
     if not name_val:
-        first = payload.get("first_name", "") or payload.get("firstname", "")
-        last = payload.get("last_name", "") or payload.get("lastname", "")
+        first = payload.get("first_name", "") or payload.get("firstname", "") or cust.get("first_name", "")
+        last = payload.get("last_name", "") or payload.get("lastname", "") or cust.get("last_name", "")
         combo = f"{first} {last}".strip()
         if combo:
             name_val = combo
 
     # Email
-    email_val = payload.get("email") or payload.get("customer_email")
+    email_val = payload.get("email") or payload.get("customer_email") or cust.get("email")
 
     # City (direct string or nested in address objects)
     city_val = payload.get("city")
