@@ -26,10 +26,14 @@ def purge_all_sample_automations(
     current_user: models.User = Depends(auth.require_roles("admin")),
     db: Session = Depends(get_db)
 ):
-    """Admin endpoint to purge all sample workflows, sessions, and rules for a 100% fresh clean slate."""
-    db.query(models.WorkflowSession).delete()
-    db.query(models.WorkflowFlow).delete()
-    db.query(models.AutomationRule).delete()
+    # Disconnect foreign key references from outbound_messages to prevent FK constraint violation
+    db.query(models.OutboundMessage).filter(
+        models.OutboundMessage.workflow_session_id.isnot(None)
+    ).update({"workflow_session_id": None}, synchronize_session=False)
+
+    db.query(models.WorkflowSession).delete(synchronize_session=False)
+    db.query(models.WorkflowFlow).delete(synchronize_session=False)
+    db.query(models.AutomationRule).delete(synchronize_session=False)
     db.commit()
     return {"status": "ok", "message": "All automations and sample data purged successfully. Clean slate active."}
 

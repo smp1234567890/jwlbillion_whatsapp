@@ -112,7 +112,14 @@ def delete_workflow_flow(
     if not flow:
         raise HTTPException(status_code=404, detail="Workflow flow not found")
 
-    db.query(models.WorkflowSession).filter(models.WorkflowSession.flow_id == flow_id).delete()
+    # Disconnect foreign key references from outbound_messages to prevent FK constraint violation
+    session_ids = [s[0] for s in db.query(models.WorkflowSession.id).filter(models.WorkflowSession.flow_id == flow_id).all()]
+    if session_ids:
+        db.query(models.OutboundMessage).filter(
+            models.OutboundMessage.workflow_session_id.in_(session_ids)
+        ).update({"workflow_session_id": None}, synchronize_session=False)
+
+    db.query(models.WorkflowSession).filter(models.WorkflowSession.flow_id == flow_id).delete(synchronize_session=False)
     db.delete(flow)
     db.commit()
     return {"status": "success", "message": f"Workflow flow #{flow_id} deleted successfully"}
