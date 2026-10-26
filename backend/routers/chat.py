@@ -280,7 +280,7 @@ def delete_conversation(
     db: Session = Depends(get_db)
 ):
     """
-    Deletes all chat messages and history for the given customer phone number.
+    Deletes all chat messages and historical logs for the given customer phone number.
     Only accessible by authorized users.
     """
     try:
@@ -290,10 +290,20 @@ def delete_conversation(
 
     pii_service.verify_conversation_access(db, current_user, clean_phone)
 
-    deleted_count = db.query(models.ChatMessage).filter(
+    deleted_chat_count = db.query(models.ChatMessage).filter(
         models.ChatMessage.customer_phone == clean_phone
     ).delete(synchronize_session=False)
 
+    deleted_log_count = db.query(models.MessageLog).filter(
+        models.MessageLog.recipient_phone == clean_phone
+    ).delete(synchronize_session=False)
+
     db.commit()
-    return {"status": "success", "deleted_messages": deleted_count, "phone": clean_phone}
+    return {
+        "status": "success",
+        "deleted_messages": deleted_chat_count,
+        "deleted_logs": deleted_log_count,
+        "phone": clean_phone
+    }
+
 
