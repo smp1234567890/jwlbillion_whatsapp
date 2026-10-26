@@ -1139,6 +1139,24 @@ export default function App() {
     }
   };
 
+  const handleDeleteConversation = async (phone) => {
+    if (!window.confirm(`Are you sure you want to delete all chat history with ${phone}? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await axios.delete(`/api/chat/conversations/${encodeURIComponent(phone)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setChatMessages([]);
+      setSelectedChatPhone("");
+      fetchChatConversations(true);
+      setActionSuccessMsg("Chat conversation deleted successfully.");
+      setTimeout(() => setActionSuccessMsg(""), 4000);
+    } catch (err) {
+      alert("Failed to delete chat: " + (err.response?.data?.detail || err.message));
+    }
+  };
+
   const handleImportCsv = async (e) => {
     e.preventDefault();
     if (!csvFile) return;
@@ -2105,6 +2123,7 @@ export default function App() {
               handleSelectConversation={handleSelectConversation}
               fetchChatMessages={fetchChatMessages}
               handleSendChatMessage={handleSendChatMessage}
+              handleDeleteConversation={handleDeleteConversation}
             />
           )}
         </div>

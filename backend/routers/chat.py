@@ -271,3 +271,29 @@ def send_agent_reply(
     db.refresh(chat_entry)
 
     return chat_entry
+
+
+@router.delete("/conversations/{phone}")
+def delete_conversation(
+    phone: str,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Deletes all chat messages and history for the given customer phone number.
+    Only accessible by authorized users.
+    """
+    try:
+        clean_phone = normalize_phone(phone)
+    except InvalidPhoneNumberError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    pii_service.verify_conversation_access(db, current_user, clean_phone)
+
+    deleted_count = db.query(models.ChatMessage).filter(
+        models.ChatMessage.customer_phone == clean_phone
+    ).delete(synchronize_session=False)
+
+    db.commit()
+    return {"status": "success", "deleted_messages": deleted_count, "phone": clean_phone}
+

@@ -15,7 +15,8 @@ import {
   Volume2,
   VolumeX,
   ArrowDown,
-  ShoppingBag
+  ShoppingBag,
+  Trash2
 } from "lucide-react";
 import { formatToISTTime } from "../utils/dateUtils";
 
@@ -39,7 +40,8 @@ export default function LiveChatPage({
   contacts = [],
   handleSelectConversation,
   fetchChatMessages,
-  handleSendChatMessage
+  handleSendChatMessage,
+  handleDeleteConversation
 }) {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -390,6 +392,15 @@ export default function LiveChatPage({
                     >
                       <RefreshCw className={`w-4 h-4 ${chatLoading ? "animate-spin" : ""}`} />
                     </button>
+                    {handleDeleteConversation && (
+                      <button
+                        onClick={() => handleDeleteConversation(selectedChatPhone)}
+                        className="p-2 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition cursor-pointer"
+                        title="Delete this conversation"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
