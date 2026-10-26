@@ -228,7 +228,9 @@ export default function App() {
   const [chatReplyText, setChatReplyText] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [chatFilterUnreadOnly, setChatFilterUnreadOnly] = useState(false);
-  const [chatListCollapsed, setChatListCollapsed] = useState(false);
+  const [chatListCollapsed, setChatListCollapsed] = useState(() => {
+    return localStorage.getItem("chatListCollapsed") === "true";
+  });
   const [chatSoundEnabled, setChatSoundEnabled] = useState(true);
   const lastProcessedMessageIdRef = useRef(null);
   const isInitialChatLoadRef = useRef(true);

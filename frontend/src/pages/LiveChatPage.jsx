@@ -168,7 +168,10 @@ export default function LiveChatPage({
                 />
               </div>
               <button
-                onClick={() => setChatListCollapsed(true)}
+                onClick={() => {
+                  setChatListCollapsed(true);
+                  localStorage.setItem("chatListCollapsed", "true");
+                }}
                 className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition cursor-pointer"
                 title="Collapse conversation list (Full screen chat)"
               >
@@ -310,44 +313,47 @@ export default function LiveChatPage({
                 (c) => c.phone === selectedChatPhone
               );
               return (
-                <div className="px-6 py-3 bg-white border-b border-gray-200 flex items-center justify-between shadow-xs">
-                  <div className="flex items-center gap-3">
+                <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     {chatListCollapsed && (
                       <button
-                        onClick={() => setChatListCollapsed(false)}
-                        className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition mr-1 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                        onClick={() => {
+                          setChatListCollapsed(false);
+                          localStorage.setItem("chatListCollapsed", "false");
+                        }}
+                        className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition shrink-0 flex items-center gap-1 text-xs font-semibold cursor-pointer"
                         title="Show conversation list"
                       >
                         <ChevronRight className="w-4 h-4" />
                         <span className="hidden sm:inline">Chats</span>
                       </button>
                     )}
-                    <div className="w-10 h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold text-sm">
+                    <div className="w-10 h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold text-sm shrink-0">
                       {activeConv?.customer_name
                         ? activeConv.customer_name.charAt(0).toUpperCase()
                         : "C"}
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-gray-900">
+                        <h3 className="text-sm font-bold text-gray-900 truncate">
                           {activeConv?.customer_name || matchingContact?.name || "Customer"}
                         </h3>
                         {(matchingContact?.total_orders || activeConv?.total_orders || 0) >= 5 && (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold rounded text-[10px] flex items-center gap-1">
+                          <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 font-bold rounded text-[10px] flex items-center gap-0.5 shrink-0">
                             <Star className="w-3 h-3 fill-amber-500 text-amber-500" /> VIP
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="font-mono">{selectedChatPhone}</span>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 mt-0.5">
+                        <span className="font-mono text-gray-700 font-medium shrink-0">{selectedChatPhone}</span>
                         {(matchingContact?.city || activeConv?.customer_city) && (
                           <>
-                            <span>•</span>
-                            <span>{matchingContact?.city || activeConv?.customer_city}</span>
+                            <span className="text-gray-300">•</span>
+                            <span className="shrink-0">{matchingContact?.city || activeConv?.customer_city}</span>
                           </>
                         )}
-                        <span>•</span>
-                        <span>
+                        <span className="text-gray-300">•</span>
+                        <span className="shrink-0">
                           Orders: {matchingContact?.total_orders ?? activeConv?.total_orders ?? 0}
                         </span>
                         {(() => {
@@ -355,16 +361,16 @@ export default function LiveChatPage({
                           if (!order) return null;
                           return (
                             <span
-                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-medium cursor-help"
+                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] font-medium cursor-help shrink-0 max-w-full"
                               title={`Last Order: #${order.order_number || order.order_id}\nTotal: ${order.currency || 'INR'} ${order.total_price}\nItems:\n${(order.items || []).map(i => `• ${i.quantity}x ${i.title} (₹${i.price})`).join('\n') || order.items_summary}`}
                             >
                               <ShoppingBag className="w-3 h-3 text-amber-600 shrink-0" />
-                              <span className="font-semibold">Last Order:</span>
-                              <span className="max-w-[150px] sm:max-w-[220px] truncate text-amber-800">
+                              <span className="font-semibold text-amber-800">Last:</span>
+                              <span className="max-w-[120px] sm:max-w-[180px] md:max-w-[240px] truncate text-amber-900 font-medium">
                                 {order.items_summary || `#${order.order_number || order.order_id}`}
                               </span>
                               {order.total_price ? (
-                                <span className="font-bold text-emerald-700 ml-0.5">({order.currency || '₹'}{order.total_price})</span>
+                                <span className="font-bold text-emerald-700 shrink-0">({order.currency || '₹'}{order.total_price})</span>
                               ) : null}
                             </span>
                           );
@@ -373,21 +379,22 @@ export default function LiveChatPage({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  {/* Actions Header Toolbar: always shrink-0 and visible */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     <a
                       href={`https://wa.me/${selectedChatPhone.replace("+", "")}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-3 py-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition flex items-center gap-1.5"
+                      className="px-2.5 py-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition flex items-center gap-1.5 shrink-0"
                       title="Open in WhatsApp Web"
                     >
                       <PhoneCall className="w-3.5 h-3.5" />
-                      WhatsApp Web
+                      <span className="hidden sm:inline">WhatsApp Web</span>
                     </a>
                     <button
                       onClick={() => fetchChatMessages(selectedChatPhone, false)}
                       disabled={chatLoading}
-                      className="p-2 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition cursor-pointer"
+                      className="p-1.5 text-gray-500 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition cursor-pointer shrink-0"
                       title="Refresh messages"
                     >
                       <RefreshCw className={`w-4 h-4 ${chatLoading ? "animate-spin" : ""}`} />
@@ -395,7 +402,7 @@ export default function LiveChatPage({
                     {handleDeleteConversation && (
                       <button
                         onClick={() => handleDeleteConversation(selectedChatPhone)}
-                        className="p-2 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition cursor-pointer"
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition cursor-pointer shrink-0"
                         title="Delete this conversation"
                       >
                         <Trash2 className="w-4 h-4" />
