@@ -509,11 +509,11 @@ export default function LiveChatPage({
                 <Sparkles className="w-3 h-3 text-[#F5A623]" /> Quick replies:
               </span>
               {[
-                "નમસ્તે! મનુભાઈ ગાંઠિયાવાળામાં આપનું સ્વાગત છે. હું આપની શું સહાય કરી શકું?",
-                "તમારો ઓર્ડર તૈયાર છે અને ટૂંક સમયમાં ડિલિવર થશે! ",
-                "આજનો સ્પેશિયલ ગરમા ગરમ ગાંઠિયા અને જલેબી નો સ્ટોક ઉપલબ્ધ છે! ",
-                "Hello! How can we help you today with your order?",
-                "Special 10% discount code for you: SAVE10"
+                "Hello! Welcome to JWL Billion. How can we assist you today?",
+                "Your order has been confirmed and is being processed for dispatch.",
+                "Thank you for reaching out! A representative will connect with you shortly.",
+                "Here is your special discount code: WELCOME (7% OFF)",
+                "Could you please share your Order ID so we can check the status?"
               ].map((snippet, idx) => (
                 <button
                   key={idx}
