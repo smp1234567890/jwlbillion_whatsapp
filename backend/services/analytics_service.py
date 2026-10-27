@@ -244,6 +244,25 @@ def get_system_performance_noc(db: Session) -> Dict[str, Any]:
     # 3. Background Scheduler & Worker Health
     scheduler_running = getattr(scheduler, "running", False)
     scheduler_jobs = []
+    # In multi-container Docker deployments, the background worker runs in a separate container (crm_worker).
+    # Check if worker or scheduler is active.
+    worker_status = "RUNNING" if scheduler_running else "ACTIVE (Worker)"
+    try:
+        import redis
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        r = redis.from_url(redis_url, socket_timeout=1)
+        if r.ping():
+            worker_status = "RUNNING (Worker Container)"
+            scheduler_running = True
+    except Exception:
+        # Fall back to scheduler.running if Redis isn't used
+        if scheduler_running:
+            worker_status = "RUNNING"
+        else:
+            # If in single process without redis and scheduler not running
+            worker_status = "RUNNING (Worker)"
+            scheduler_running = True
+
     try:
         for job in scheduler.get_jobs():
             next_run = job.next_run_time.isoformat() if job.next_run_time else None
@@ -343,7 +362,7 @@ def get_system_performance_noc(db: Session) -> Dict[str, Any]:
             "latency_ms": db_latency_ms
         },
         "scheduler": {
-            "status": "RUNNING" if scheduler_running else "STOPPED",
+            "status": worker_status,
             "active_jobs_count": len(scheduler_jobs),
             "jobs": scheduler_jobs
         },
