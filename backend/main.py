@@ -36,7 +36,7 @@ from apscheduler.triggers.date import DateTrigger
 import config
 
 from fastapi.exceptions import ResponseValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 
 # Rate Limiter setup
 from rate_limiter import limiter
@@ -321,6 +321,199 @@ def root():
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "database": "connected", "scheduler": "running"}
+
+
+@app.get("/performance", response_class=HTMLResponse)
+@app.get("/noc", response_class=HTMLResponse)
+def visual_performance_noc(db: Session = Depends(get_db)):
+    """
+    Renders a standalone visual NOC dashboard directly from the backend server URL.
+    Can be opened directly in any browser at https://<host>/performance.
+    """
+    from services.analytics_service import get_system_performance_noc
+    import json
+    data = get_system_performance_noc(db)
+    server = data.get("server", {})
+    database = data.get("database", {})
+    scheduler_info = data.get("scheduler", {})
+    campaigns = data.get("campaigns_pipeline", {})
+    automations = data.get("automations_pipeline", {})
+    overall = data.get("overall_status", "HEALTHY")
+
+    status_color = "#10b981" if overall == "HEALTHY" else ("#f59e0b" if overall == "DEGRADED" else "#ef4444")
+    cpu_pct = server.get("load_capacity_pct", 0)
+    cpu_bar_color = "#ef4444" if cpu_pct > 85 else ("#f59e0b" if cpu_pct > 65 else "#10b981")
+    disk_pct = server.get("disk_used_pct", 0)
+    disk_bar_color = "#ef4444" if disk_pct > 90 else "#8b5cf6"
+
+    # Render stuck campaigns
+    stuck_camp_html = ""
+    stuck_items = campaigns.get("stuck_items", [])
+    if stuck_items:
+        for c in stuck_items:
+            stuck_camp_html += f"""
+            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:#111827; font-size:13px;">{c.get('title')} <span style="color:#6b7280; font-weight:normal;">#{c.get('id')}</span></strong>
+                    <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">{c.get('status')}</span>
+                </div>
+                <div style="color:#b91c1c; font-size:12px; margin-top:6px;">⚠️ Reason: {c.get('stuck_reason')}</div>
+                <div style="font-size:11px; color:#4b5563; margin-top:6px;">Progress: <strong>{c.get('progress')}</strong> | Attempts: <strong>{c.get('attempt_count')}</strong> | Template: <code>{c.get('template_name')}</code></div>
+            </div>
+            """
+    else:
+        stuck_camp_html = """
+        <div style="text-align:center; padding:32px 16px; color:#6b7280;">
+            <div style="font-size:24px; margin-bottom:8px;">✓</div>
+            <strong style="color:#111827; font-size:13px;">No Stuck Campaigns</strong>
+            <p style="font-size:12px; margin:4px 0 0 0; color:#6b7280;">All broadcasts are operating normally within lease windows.</p>
+        </div>
+        """
+
+    # Render stuck automations
+    stuck_auto_html = ""
+    auto_items = automations.get("stuck_items", [])
+    if auto_items:
+        for a in auto_items:
+            stuck_auto_html += f"""
+            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:#111827; font-size:13px;">Session #{a.get('session_id')} (Flow #{a.get('flow_id')})</strong>
+                    <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">{a.get('status')}</span>
+                </div>
+                <div style="color:#92400e; font-size:12px; margin-top:6px;">⏱ Overdue by <strong>{a.get('overdue_by_mins')} min</strong> at step <code>{a.get('current_node_id') or 'start'}</code></div>
+                <div style="font-size:11px; color:#4b5563; margin-top:6px;">Phone: <code>{a.get('customer_phone')}</code> | Retries: <strong>{a.get('attempt_count')}</strong></div>
+            </div>
+            """
+    else:
+        stuck_auto_html = """
+        <div style="text-align:center; padding:32px 16px; color:#6b7280;">
+            <div style="font-size:24px; margin-bottom:8px;">✓</div>
+            <strong style="color:#111827; font-size:13px;">Automations Running Smoothly</strong>
+            <p style="font-size:12px; margin:4px 0 0 0; color:#6b7280;">Delay nodes and conditions are evaluating on time.</p>
+        </div>
+        """
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="15">
+    <title>System Performance & NOC Live Center</title>
+    <style>
+        * {{ box-sizing: border-box; margin:0; padding:0; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f9fafb; color:#111827; padding:24px; }}
+        .container {{ max-width: 1200px; margin: 0 auto; }}
+        .header {{ background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:20px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px; }}
+        .header-title {{ display:flex; align-items:center; gap:12px; }}
+        .logo-box {{ width:42px; height:42px; border-radius:10px; background:#111827; color:#25D366; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; }}
+        .status-badge {{ background:{status_color}1a; color:{status_color}; border:1px solid {status_color}4d; padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:bold; text-transform:uppercase; }}
+        .grid4 {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:20px; }}
+        .card {{ background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; }}
+        .card-label {{ font-size:11px; font-weight:600; text-transform:uppercase; color:#6b7280; letter-spacing:0.5px; }}
+        .card-value {{ font-size:26px; font-weight:900; color:#111827; margin:8px 0 4px 0; }}
+        .bar-bg {{ background:#f3f4f6; border-radius:9999px; height:8px; overflow:hidden; margin:8px 0; }}
+        .bar-fill {{ height:8px; border-radius:9999px; }}
+        .grid2 {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap:16px; }}
+        .panel-head {{ background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:14px 20px; font-weight:bold; font-size:13px; display:flex; justify-content:space-between; align-items:center; }}
+        .panel-body {{ padding:20px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">
+                <div class="logo-box">⚡</div>
+                <div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <h1 style="font-size:18px; font-weight:bold;">System Performance & NOC Live Center</h1>
+                        <span class="status-badge">{overall}</span>
+                    </div>
+                    <p style="font-size:12px; color:#6b7280; margin-top:2px;">Live server capacity, CPU load, memory, database latency, and pipeline queues</p>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <span style="font-size:11px; color:#6b7280; font-family:monospace;">Auto-refreshing (15s) • {data.get('timestamp', '')[11:19]} UTC</span>
+                <div style="margin-top:4px;">
+                    <a href="/performance" style="color:#059669; font-size:12px; font-weight:600; text-decoration:underline;">Refresh Now</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric Cards -->
+        <div class="grid4">
+            <div class="card">
+                <span class="card-label">CPU Load Capacity</span>
+                <div class="card-value">{server.get('load_capacity_pct', 0)}%</div>
+                <div class="bar-bg">
+                    <div class="bar-fill" style="width:{min(100, server.get('load_capacity_pct', 0))}%; background:{cpu_bar_color};"></div>
+                </div>
+                <div style="font-size:11px; color:#6b7280; font-family:monospace; display:flex; justify-content:space-between;">
+                    <span>1m: {server.get('load_1m')}</span>
+                    <span>5m: {server.get('load_5m')}</span>
+                    <span>15m: {server.get('load_15m')}</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="card-label">Process Memory (RSS)</span>
+                <div class="card-value">{server.get('memory_resident_mb', 0)} MB</div>
+                <p style="font-size:12px; color:#6b7280; margin-top:6px;">Backend process footprint</p>
+                <div style="font-size:12px; color:#059669; font-weight:600; margin-top:12px;">✓ Optimal memory envelope</div>
+            </div>
+
+            <div class="card">
+                <span class="card-label">Disk Capacity</span>
+                <div class="card-value">{server.get('disk_used_pct', 0)}%</div>
+                <div class="bar-bg">
+                    <div class="bar-fill" style="width:{min(100, server.get('disk_used_pct', 0))}%; background:{disk_bar_color};"></div>
+                </div>
+                <div style="font-size:11px; color:#6b7280; font-family:monospace;">
+                    {server.get('disk_free_gb')} GB Free ({server.get('disk_used_gb')} / {server.get('disk_total_gb')} GB)
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="card-label">Core Engine & Database</span>
+                <div class="card-value">{database.get('latency_ms', 0)} ms</div>
+                <div style="font-size:12px; color:#4b5563; margin-top:6px;">
+                    DB Status: <strong style="color:#059669;">{database.get('status')}</strong>
+                </div>
+                <div style="font-size:12px; color:#4b5563; margin-top:4px;">
+                    Scheduler: <strong>{scheduler_info.get('status')}</strong> ({scheduler_info.get('active_jobs_count', 0)} jobs)
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipelines -->
+        <div class="grid2">
+            <div class="card" style="padding:0; overflow:hidden;">
+                <div class="panel-head">
+                    <span>Campaign Pipeline Inspection</span>
+                    <span style="font-size:11px; color:#4b5563;">Active: {campaigns.get('active_count', 0)}</span>
+                </div>
+                <div class="panel-body">
+                    {stuck_camp_html}
+                </div>
+            </div>
+
+            <div class="card" style="padding:0; overflow:hidden;">
+                <div class="panel-head">
+                    <span>Automation Engine & Session Health</span>
+                    <span style="font-size:11px; color:#4b5563;">Enrolled: {automations.get('active_sessions_count', 0)}</span>
+                </div>
+                <div class="panel-body">
+                    {stuck_auto_html}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
+
 
 
 # ==========================================
