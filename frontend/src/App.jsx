@@ -75,6 +75,7 @@ import ContactsPage from "./pages/ContactsPage";
 import MessageLogsPage from "./pages/MessageLogsPage";
 import OptOutPage from "./pages/OptOutPage";
 import LiveChatPage from "./pages/LiveChatPage";
+import PerformanceNocPage from "./pages/PerformanceNocPage";
 
 const INITIAL_API_BASE_URL = getApiBaseUrl();
 setApiBaseUrl(INITIAL_API_BASE_URL);
@@ -145,7 +146,7 @@ export default function App() {
 
   const getInitialTab = () => {
     const hash = window.location.hash.replace("#", "");
-    if (hash && ["dashboard", "chat", "automations", "campaigns", "templates", "contacts", "logs", "opt_out", "settings"].includes(hash)) {
+    if (hash && ["dashboard", "chat", "automations", "campaigns", "analytics", "performance", "templates", "contacts", "logs", "opt_out", "settings"].includes(hash)) {
       return hash;
     }
     return localStorage.getItem("activeTab") || "dashboard";
@@ -1862,22 +1863,55 @@ export default function App() {
         {/* Bottom Status & Logout */}
         <div className="p-3 border-t border-gray-800 space-y-2">
           {!sidebarCollapsed ? (
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#25D366] animate-pulse"></span>
-                <span className="text-gray-300 font-semibold truncate max-w-[120px]">{username}</span>
+            <div className="space-y-2">
+              <div className="pb-1.5 border-b border-gray-800/80">
+                <a
+                  href="#performance"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleTabChange("performance");
+                  }}
+                  className={`text-xs font-medium flex items-center gap-1.5 transition ${
+                    activeTab === "performance"
+                      ? "text-[#F5A623] font-bold"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                  title="Check platform health, server load, and campaign/automation bottlenecks"
+                >
+                  <Activity className="w-3.5 h-3.5 text-[#25D366]" />
+                  <span>Check Performance</span>
+                </a>
               </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 text-gray-400 hover:text-red-400 transition"
-                title="Logout"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Exit
-              </button>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#25D366] animate-pulse"></span>
+                  <span className="text-gray-300 font-semibold truncate max-w-[120px]">{username}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 text-gray-400 hover:text-red-400 transition"
+                  title="Logout"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Exit
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
+              <a
+                href="#performance"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleTabChange("performance");
+                }}
+                className={`p-1.5 rounded transition ${
+                  activeTab === "performance" ? "text-[#F5A623] bg-gray-800" : "text-gray-400 hover:text-white"
+                }`}
+                title="Check Performance (NOC)"
+              >
+                <Activity className="w-4 h-4 text-[#25D366]" />
+              </a>
               <span className="w-2.5 h-2.5 rounded-full bg-[#25D366] animate-pulse" title={`Logged in as ${username}`}></span>
               <button
                 onClick={handleLogout}
@@ -1903,6 +1937,8 @@ export default function App() {
                 ? "Two-Way WhatsApp Live Chat / Inbox"
                 : activeTab === "analytics"
                 ? "Delivery & Engagement Analytics"
+                : activeTab === "performance"
+                ? "System Performance & NOC Live Center"
                 : activeTab === "templates"
                 ? "WhatsApp Template Messages (Doc 04)"
                 : activeTab === "automations"
@@ -2039,6 +2075,7 @@ export default function App() {
               handleOpenCampaignModal={handleOpenCampaignModal}
               handleCancelScheduledCampaign={handleCancelCampaign}
               token={token}
+              handleTabChange={handleTabChange}
             />
           )}
 
@@ -2052,6 +2089,13 @@ export default function App() {
               loading={loading}
               analyticsLoading={analyticsLoading}
               analyticsData={analyticsData}
+              handleTabChange={handleTabChange}
+            />
+          )}
+
+          {activeTab === "performance" && (
+            <PerformanceNocPage
+              token={token}
               handleTabChange={handleTabChange}
             />
           )}

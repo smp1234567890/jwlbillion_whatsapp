@@ -188,3 +188,175 @@ def compute_analytics_overview(time_range: str, db: Session) -> Dict[str, Any]:
         "template_performance": template_performance,
         "daily_trends": daily_trends
     }
+
+
+def get_system_performance_noc(db: Session) -> Dict[str, Any]:
+    """
+    NOC (Network Operations Center) & System Performance Telemetry:
+    - Server capacity & load (load averages, memory, disk usage)
+    - Database connectivity & pool status
+    - Background scheduler heartbeat
+    - Campaign pipeline health (in-progress, scheduled, stuck/failed detection)
+    - Workflow / Automation health (active sessions, delayed, overdue/stuck detection)
+    """
+    import os
+    import shutil
+    import resource
+    from sqlalchemy import text
+    from scheduler import scheduler
+
+    now_utc = datetime.utcnow()
+
+    # 1. Server Load & Resource Usage
+    load_avg = os.getloadavg() if hasattr(os, "getloadavg") else (0.0, 0.0, 0.0)
+    cpu_cores = os.cpu_count() or 1
+    # 1-min load percentage based on available CPU cores
+    cpu_load_pct = min(100.0, round((load_avg[0] / cpu_cores) * 100, 1))
+
+    # Disk usage for current directory
+    du = shutil.disk_usage(".")
+    disk_total_gb = round(du.total / (1024 ** 3), 2)
+    disk_used_gb = round(du.used / (1024 ** 3), 2)
+    disk_free_gb = round(du.free / (1024 ** 3), 2)
+    disk_pct = round((du.used / du.total) * 100, 1)
+
+    # Process Memory (ru_maxrss is KB on Linux, Bytes on macOS)
+    rusage = resource.getrusage(resource.RUSAGE_SELF)
+    max_rss = rusage.ru_maxrss
+    # On macOS, ru_maxrss is in bytes; on Linux, it is in kilobytes
+    import sys
+    if sys.platform == "darwin":
+        memory_mb = round(max_rss / (1024 * 1024), 1)
+    else:
+        memory_mb = round(max_rss / 1024, 1)
+
+    # 2. Database Health
+    db_status = "HEALTHY"
+    db_latency_ms = 0.0
+    try:
+        t0 = datetime.utcnow()
+        db.execute(text("SELECT 1"))
+        db_latency_ms = round((datetime.utcnow() - t0).total_seconds() * 1000, 2)
+    except Exception as e:
+        logger.error(f"[NOC] Database health probe failed: {e}")
+        db_status = "DEGRADED"
+
+    # 3. Background Scheduler & Worker Health
+    scheduler_running = getattr(scheduler, "running", False)
+    scheduler_jobs = []
+    try:
+        for job in scheduler.get_jobs():
+            next_run = job.next_run_time.isoformat() if job.next_run_time else None
+            scheduler_jobs.append({
+                "id": job.id,
+                "name": job.name or job.id,
+                "next_run_time": next_run
+            })
+    except Exception:
+        pass
+
+    # 4. Campaign Pipeline & Stuck Detection
+    # A campaign is considered "stuck" if:
+    # - status == 'IN_PROGRESS' and claimed_until has expired or attempt_count > 3
+    # - status == 'IN_PROGRESS' and created/updated > 2 hours ago with successful_sends < total_recipients
+    stuck_campaigns = []
+    active_campaigns = []
+    recent_campaigns = db.query(models.Campaign).order_by(models.Campaign.created_at.desc()).limit(30).all()
+
+    for c in recent_campaigns:
+        is_stuck = False
+        stuck_reason = ""
+
+        if c.status == "IN_PROGRESS":
+            # Check if lease expired or runs unusually long
+            if c.claimed_until and c.claimed_until < now_utc:
+                is_stuck = True
+                stuck_reason = f"Worker lease expired at {c.claimed_until.strftime('%H:%M:%S UTC')}"
+            elif c.created_at and (now_utc - c.created_at).total_seconds() > 7200:
+                is_stuck = True
+                stuck_reason = "In-progress for > 2 hours without completion"
+            active_campaigns.append(c)
+        elif c.status == "FAILED":
+            is_stuck = True
+            stuck_reason = c.error_message or "Execution failed"
+
+        if is_stuck:
+            stuck_campaigns.append({
+                "id": c.id,
+                "title": c.title,
+                "template_name": c.template_name,
+                "status": c.status,
+                "progress": f"{c.successful_sends}/{c.total_recipients}",
+                "stuck_reason": stuck_reason,
+                "attempt_count": getattr(c, "attempt_count", 0),
+                "created_at": c.created_at.isoformat() if c.created_at else None
+            })
+
+    # 5. Workflow Automations & Stuck Sessions Detection
+    # A session is overdue / stuck if status is ACTIVE / WAITING_DELAY and next_evaluation_at was > 15 mins ago
+    overdue_cutoff = now_utc - timedelta(minutes=15)
+    stuck_sessions_q = db.query(models.WorkflowSession).filter(
+        models.WorkflowSession.status.in_(["ACTIVE", "WAITING_DELAY", "WAITING_CONDITION"]),
+        models.WorkflowSession.next_evaluation_at < overdue_cutoff
+    ).limit(20).all()
+
+    stuck_workflow_sessions = []
+    for s in stuck_sessions_q:
+        delay_mins = round((now_utc - s.next_evaluation_at).total_seconds() / 60, 1)
+        stuck_workflow_sessions.append({
+            "session_id": s.id,
+            "flow_id": s.flow_id,
+            "customer_phone": s.customer_phone,
+            "status": s.status,
+            "current_node_id": s.current_node_id,
+            "overdue_by_mins": delay_mins,
+            "attempt_count": getattr(s, "attempt_count", 0)
+        })
+
+    active_sessions_count = db.query(models.WorkflowSession).filter(
+        models.WorkflowSession.status.in_(["ACTIVE", "WAITING_DELAY", "WAITING_CONDITION"])
+    ).count()
+
+    # Overall system health flag
+    overall_status = "HEALTHY"
+    if db_status != "HEALTHY" or not scheduler_running:
+        overall_status = "CRITICAL"
+    elif len(stuck_campaigns) > 0 or len(stuck_workflow_sessions) > 0 or disk_pct > 90 or cpu_load_pct > 85:
+        overall_status = "DEGRADED"
+
+    return {
+        "overall_status": overall_status,
+        "server": {
+            "cores": cpu_cores,
+            "load_1m": round(load_avg[0], 2),
+            "load_5m": round(load_avg[1], 2),
+            "load_15m": round(load_avg[2], 2),
+            "load_capacity_pct": cpu_load_pct,
+            "memory_resident_mb": memory_mb,
+            "disk_used_gb": disk_used_gb,
+            "disk_total_gb": disk_total_gb,
+            "disk_free_gb": disk_free_gb,
+            "disk_used_pct": disk_pct,
+        },
+        "database": {
+            "status": db_status,
+            "latency_ms": db_latency_ms
+        },
+        "scheduler": {
+            "status": "RUNNING" if scheduler_running else "STOPPED",
+            "active_jobs_count": len(scheduler_jobs),
+            "jobs": scheduler_jobs
+        },
+        "campaigns_pipeline": {
+            "active_count": len(active_campaigns),
+            "stuck_count": len(stuck_campaigns),
+            "stuck_items": stuck_campaigns
+        },
+        "automations_pipeline": {
+            "active_sessions_count": active_sessions_count,
+            "stuck_sessions_count": len(stuck_workflow_sessions),
+            "stuck_items": stuck_workflow_sessions
+        },
+        "timestamp": now_utc.isoformat()
+    }
+

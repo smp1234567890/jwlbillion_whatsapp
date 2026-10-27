@@ -17,7 +17,8 @@ export default function CampaignsPage({
   campaigns = [],
   handleOpenCampaignModal,
   handleCancelScheduledCampaign,
-  token
+  token,
+  handleTabChange
 }) {
   const [selectedCampaignForReport, setSelectedCampaignForReport] = useState(null);
 
@@ -29,13 +30,29 @@ export default function CampaignsPage({
             <h3 className="font-bold text-gray-900 text-base">Campaign Manager</h3>
             <p className="text-xs text-gray-500 mt-0.5">Manage and trigger promotional WhatsApp broadcasts</p>
           </div>
-          <button
-            onClick={handleOpenCampaignModal}
-            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-3.5 py-1.5 rounded-lg font-semibold text-xs shadow-sm transition"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New Broadcast
-          </button>
+          <div className="flex items-center gap-4">
+            {handleTabChange && (
+              <a
+                href="#performance"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleTabChange("performance");
+                }}
+                className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 underline flex items-center gap-1 transition"
+                title="Check live server capacity, load, database status, and stuck campaign detection"
+              >
+                <span>Check Performance (NOC)</span>
+                <span className="text-[10px] no-underline">↗</span>
+              </a>
+            )}
+            <button
+              onClick={handleOpenCampaignModal}
+              className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-3.5 py-1.5 rounded-lg font-semibold text-xs shadow-sm transition"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New Broadcast
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

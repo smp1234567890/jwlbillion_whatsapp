@@ -123,3 +123,23 @@ def test_analytics_customer_reply_counted_as_read(client, auth_headers, db):
     assert data["funnel"]["total_read"] >= 1
     assert data["funnel"]["total_replied"] >= 1
     assert data["rates"]["read_rate"] > 0
+
+
+def test_system_performance_noc(client, auth_headers):
+    # Test unauthorized access
+    unauth = client.get("/api/analytics/system-performance")
+    assert unauth.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Test authorized access
+    res = client.get("/api/analytics/system-performance", headers=auth_headers)
+    assert res.status_code == status.HTTP_200_OK
+    data = res.json()
+    assert data["overall_status"] in ("HEALTHY", "DEGRADED", "CRITICAL")
+    assert "server" in data
+    assert "cores" in data["server"]
+    assert "disk_total_gb" in data["server"]
+    assert "database" in data
+    assert data["database"]["status"] in ("HEALTHY", "DEGRADED")
+    assert "campaigns_pipeline" in data
+    assert "automations_pipeline" in data
+
