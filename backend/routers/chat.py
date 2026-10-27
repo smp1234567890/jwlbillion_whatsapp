@@ -1,7 +1,9 @@
+import os
+import uuid
 from datetime import datetime, timedelta
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
@@ -10,7 +12,13 @@ import config
 import models
 import schemas
 import auth
-from whatsapp_service import send_whatsapp_free_text, check_daily_limit, get_effective_daily_limit
+from whatsapp_service import (
+    send_whatsapp_free_text,
+    send_whatsapp_media,
+    upload_media_to_meta,
+    check_daily_limit,
+    get_effective_daily_limit
+)
 from services.phone_service import normalize_phone, InvalidPhoneNumberError
 from services import pii_service
 
@@ -262,6 +270,133 @@ def send_agent_reply(
     log_entry = models.MessageLog(
         recipient_phone=clean_phone,
         template_name="two_way_custom_chat",
+        language="en",
+        sender_user=current_user.username,
+        status=status_str,
+        meta_message_id=msg_id
+    )
+    db.add(log_entry)
+    db.commit()
+    db.refresh(chat_entry)
+
+    return chat_entry
+
+
+@router.post("/send-media", response_model=schemas.ChatMessageResponse)
+async def send_chat_media_message(
+    customer_phone: str = Form(...),
+    media_type: str = Form(...),  # "image", "document", "video", "audio"
+    caption: Optional[str] = Form(None),
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Uploads and sends media (document, image, video, audio) to a customer's WhatsApp.
+    Enforces DND/Opt-Out, Meta's 24-hour customer service window, support_send permission,
+    and daily spending guardrails.
+    """
+    try:
+        clean_phone = normalize_phone(customer_phone)
+    except InvalidPhoneNumberError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # 1. Verify support_send capability and record scope
+    pii_service.verify_support_send_permission(db, current_user, clean_phone)
+
+    # 2. Strict DND / Opt-Out Check
+    is_opted_out = db.query(models.OptOut).filter(models.OptOut.phone == clean_phone).first()
+    if is_opted_out:
+        logger.warning(f"[Chat Media Blocked] Attempted outbound media to opted-out recipient {clean_phone} by '{current_user.username}'.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Customer {clean_phone} has opted out of WhatsApp messages (DND list). Outbound media is prohibited."
+        )
+
+    # 3. Meta 24-Hour Customer Service Window Check
+    twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+    last_inbound_msg = (
+        db.query(models.ChatMessage)
+        .filter(
+            models.ChatMessage.customer_phone == clean_phone,
+            models.ChatMessage.sender_type == "CUSTOMER",
+            models.ChatMessage.created_at >= twenty_four_hours_ago
+        )
+        .order_by(models.ChatMessage.created_at.desc())
+        .first()
+    )
+
+    if config.WHATSAPP_API_TOKEN and config.WHATSAPP_PHONE_NUMBER_ID and not last_inbound_msg:
+        logger.warning(f"[Chat Media Service Window] Customer {clean_phone} is outside Meta's 24-hour service window.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Outside Meta's 24-hour customer service window. Free-form media is prohibited; please initiate contact using an approved WhatsApp template."
+        )
+
+    # 4. Daily Send Limit Guardrail
+    under_limit, count_today = check_daily_limit(db)
+    if not under_limit:
+        effective_limit = get_effective_daily_limit(db)
+        logger.error(f"[BUDGET GUARD] Daily send limit ({effective_limit}) reached! Chat media blocked.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Daily outbound message limit reached ({count_today}/{effective_limit}). Outbound media blocked."
+        )
+
+    # Normalize media type
+    media_type_clean = media_type.lower().strip()
+    if media_type_clean not in ["image", "document", "video", "audio"]:
+        raise HTTPException(status_code=400, detail="Invalid media_type. Must be image, document, video, or audio.")
+
+    # Read file contents and save locally to uploads
+    file_bytes = await file.read()
+    orig_filename = file.filename or f"upload_{uuid.uuid4().hex}"
+    mime_type = file.content_type or "application/octet-stream"
+
+    upload_dir = "uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    saved_filename = f"{uuid.uuid4().hex}_{orig_filename}"
+    local_path = os.path.join(upload_dir, saved_filename)
+    with open(local_path, "wb") as f_out:
+        f_out.write(file_bytes)
+
+    relative_media_url = f"/uploads/{saved_filename}"
+
+    # Upload to Meta Cloud API to obtain media_id
+    upload_res = upload_media_to_meta(file_bytes, mime_type, orig_filename)
+    meta_media_id = upload_res.get("media_id")
+
+    # Dispatch to customer via WhatsApp
+    res = send_whatsapp_media(
+        recipient_phone=clean_phone,
+        media_type=media_type_clean,
+        media_id=meta_media_id,
+        caption=caption,
+        filename=orig_filename,
+        sender_user=current_user.username,
+        db=db
+    )
+
+    msg_id = res.get("message_id")
+    status_str = "SENT" if res.get("status") in ["success", "success_simulated"] else "FAILED"
+
+    chat_entry = models.ChatMessage(
+        customer_phone=clean_phone,
+        sender_type="AGENT",
+        message_type=media_type_clean,
+        text=caption or f"[{media_type_clean.upper()}] {orig_filename}",
+        media_url=relative_media_url,
+        filename=orig_filename,
+        meta_message_id=msg_id,
+        status=status_str,
+        is_read=True,
+        assigned_user_id=current_user.id
+    )
+    db.add(chat_entry)
+
+    log_entry = models.MessageLog(
+        recipient_phone=clean_phone,
+        template_name=f"media_{media_type_clean}",
         language="en",
         sender_user=current_user.username,
         status=status_str,

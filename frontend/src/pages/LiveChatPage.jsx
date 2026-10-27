@@ -16,7 +16,15 @@ import {
   VolumeX,
   ArrowDown,
   ShoppingBag,
-  Trash2
+  Trash2,
+  Paperclip,
+  Image as ImageIcon,
+  FileText,
+  Video,
+  Music,
+  X,
+  Download,
+  ExternalLink
 } from "lucide-react";
 import { formatToISTTime } from "../utils/dateUtils";
 
@@ -41,6 +49,7 @@ export default function LiveChatPage({
   handleSelectConversation,
   fetchChatMessages,
   handleSendChatMessage,
+  handleSendChatMedia,
   handleDeleteConversation
 }) {
   const messagesEndRef = useRef(null);
@@ -49,6 +58,50 @@ export default function LiveChatPage({
   const prevPhoneRef = useRef(selectedChatPhone);
   const prevMessagesLengthRef = useRef(chatMessages.length);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFileType, setSelectedFileType] = useState("document");
+  const [mediaCaption, setMediaCaption] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handleFilePicked = (e, forcedType = null) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    let type = forcedType;
+    if (!type) {
+      if (file.type.startsWith("image/")) type = "image";
+      else if (file.type.startsWith("video/")) type = "video";
+      else if (file.type.startsWith("audio/")) type = "audio";
+      else type = "document";
+    }
+
+    setSelectedFile(file);
+    setSelectedFileType(type);
+    setShowAttachMenu(false);
+    // Reset file input value so re-selecting same file triggers onChange
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleSendMediaSubmit = async (e) => {
+    e?.preventDefault();
+    if (!selectedFile || !handleSendChatMedia || chatSending) return;
+
+    const fileToSend = selectedFile;
+    const typeToSend = selectedFileType;
+    const captionToSend = mediaCaption.trim();
+
+    setSelectedFile(null);
+    setMediaCaption("");
+    setShowAttachMenu(false);
+
+    await handleSendChatMedia({
+      file: fileToSend,
+      mediaType: typeToSend,
+      caption: captionToSend
+    });
+    setTimeout(() => scrollToBottom("smooth"), 100);
+  };
 
   const scrollToBottom = (behavior = "auto") => {
     if (messagesEndRef.current) {
@@ -458,9 +511,72 @@ export default function LiveChatPage({
                               Customer
                             </div>
                           )}
-                          <p className="whitespace-pre-wrap leading-relaxed text-xs md:text-sm">
-                            {msg.text}
-                          </p>
+
+                          {/* Media Rendering */}
+                          {msg.media_url && (
+                            <div className="mb-2">
+                              {msg.message_type === "image" && (
+                                <div className="rounded-xl overflow-hidden border border-gray-200/60 max-w-sm bg-black/5">
+                                  <img
+                                    src={msg.media_url}
+                                    alt={msg.filename || "WhatsApp Image"}
+                                    className="max-h-64 w-full object-cover rounded-xl hover:opacity-95 transition cursor-pointer"
+                                    onClick={() => window.open(msg.media_url, "_blank")}
+                                  />
+                                </div>
+                              )}
+
+                              {msg.message_type === "video" && (
+                                <div className="rounded-xl overflow-hidden border border-gray-200/60 max-w-sm bg-black/10">
+                                  <video
+                                    src={msg.media_url}
+                                    controls
+                                    className="max-h-64 w-full rounded-xl"
+                                  />
+                                </div>
+                              )}
+
+                              {msg.message_type === "audio" && (
+                                <div className="py-1">
+                                  <audio
+                                    src={msg.media_url}
+                                    controls
+                                    className="w-full max-w-xs h-9"
+                                  />
+                                </div>
+                              )}
+
+                              {msg.message_type === "document" && (
+                                <a
+                                  href={msg.media_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  download={msg.filename || "document"}
+                                  className="flex items-center gap-3 p-2.5 rounded-xl bg-black/5 hover:bg-black/10 border border-gray-200/60 transition group text-left"
+                                >
+                                  <div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                    <FileText className="w-5 h-5" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold text-gray-900 truncate">
+                                      {msg.filename || "Document Attachment"}
+                                    </p>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+                                      Click to download / view
+                                    </p>
+                                  </div>
+                                  <Download className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 shrink-0 transition" />
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Text or Caption */}
+                          {msg.text && (
+                            <p className="whitespace-pre-wrap leading-relaxed text-xs md:text-sm">
+                              {msg.text}
+                            </p>
+                          )}
                           <div
                             className={`flex items-center gap-1.5 justify-end mt-1 text-[10px] ${
                               isAgent ? "text-emerald-800/70" : "text-gray-400"
@@ -526,36 +642,194 @@ export default function LiveChatPage({
               ))}
             </div>
 
+            {/* Hidden native file inputs */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={(e) => handleFilePicked(e, selectedFileType)}
+            />
+
+            {/* Media Attachment Preview Tray (if file selected) */}
+            {selectedFile && (
+              <div className="p-3 bg-emerald-50/90 border-t border-emerald-200 flex items-center justify-between gap-3 flex-shrink-0 animate-in fade-in duration-150">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    {selectedFileType === "image" && <ImageIcon className="w-5 h-5" />}
+                    {selectedFileType === "video" && <Video className="w-5 h-5" />}
+                    {selectedFileType === "audio" && <Music className="w-5 h-5" />}
+                    {selectedFileType === "document" && <FileText className="w-5 h-5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-900 truncate">
+                        {selectedFile.name}
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded uppercase">
+                        {selectedFileType}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500">
+                      {(selectedFile.size / 1024).toFixed(1)} KB • Ready to send via WhatsApp
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setMediaCaption("");
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white rounded-lg transition"
+                    title="Cancel attachment"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Chat Input Bar */}
-            <form
-              onSubmit={(e) => {
-                isNearBottomRef.current = true;
-                handleSendChatMessage(e);
-                setTimeout(() => scrollToBottom("smooth"), 50);
-              }}
-              className="p-3 bg-white border-t border-gray-200 flex items-center gap-2.5 flex-shrink-0 min-w-0 w-full"
-            >
-              <input
-                type="text"
-                placeholder="Type a message to reply on WhatsApp..."
-                value={chatReplyText}
-                onChange={(e) => setChatReplyText(e.target.value)}
-                disabled={chatSending}
-                className="flex-1 min-w-0 px-4 py-2 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366]"
-              />
-              <button
-                type="submit"
-                disabled={!chatReplyText.trim() || chatSending}
-                className="px-5 py-2 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer"
+            <div className="p-3 bg-white border-t border-gray-200 relative flex-shrink-0 min-w-0 w-full">
+              {/* Attachment Popup Menu */}
+              {showAttachMenu && (
+                <div className="absolute bottom-16 left-4 z-30 bg-white border border-gray-200 rounded-2xl shadow-xl p-2 flex flex-col gap-1 w-52 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFileType("document");
+                      fileInputRef.current.accept = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv";
+                      fileInputRef.current.click();
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl transition text-left cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900">Document / PDF</p>
+                      <p className="text-[10px] text-gray-400">PDF, Word, Excel, TXT</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFileType("image");
+                      fileInputRef.current.accept = "image/*";
+                      fileInputRef.current.click();
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl transition text-left cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900">Image / Photo</p>
+                      <p className="text-[10px] text-gray-400">PNG, JPG, WEBP</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFileType("video");
+                      fileInputRef.current.accept = "video/mp4,video/3gpp";
+                      fileInputRef.current.click();
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl transition text-left cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                      <Video className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900">Video Clip</p>
+                      <p className="text-[10px] text-gray-400">MP4, 3GP</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFileType("audio");
+                      fileInputRef.current.accept = "audio/*";
+                      fileInputRef.current.click();
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl transition text-left cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                      <Music className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900">Audio / Voice Note</p>
+                      <p className="text-[10px] text-gray-400">MP3, AAC, OGG</p>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              {/* Form Bar */}
+              <form
+                onSubmit={(e) => {
+                  isNearBottomRef.current = true;
+                  if (selectedFile) {
+                    handleSendMediaSubmit(e);
+                  } else {
+                    handleSendChatMessage(e);
+                  }
+                  setTimeout(() => scrollToBottom("smooth"), 50);
+                }}
+                className="flex items-center gap-2 min-w-0 w-full"
               >
-                {chatSending ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                Send
-              </button>
-            </form>
+                {/* Paperclip Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowAttachMenu((prev) => !prev)}
+                  className={`p-2.5 rounded-xl border transition cursor-pointer shrink-0 ${
+                    showAttachMenu || selectedFile
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                      : "bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200 border-gray-200"
+                  }`}
+                  title="Attach document, image, video or audio"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </button>
+
+                {/* Input Field: caption if file selected, else regular text */}
+                <input
+                  type="text"
+                  placeholder={
+                    selectedFile
+                      ? `Add caption for this ${selectedFileType} (optional)...`
+                      : "Type a message to reply on WhatsApp..."
+                  }
+                  value={selectedFile ? mediaCaption : chatReplyText}
+                  onChange={(e) => {
+                    if (selectedFile) {
+                      setMediaCaption(e.target.value);
+                    } else {
+                      setChatReplyText(e.target.value);
+                    }
+                  }}
+                  disabled={chatSending}
+                  className="flex-1 min-w-0 px-4 py-2 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                />
+
+                <button
+                  type="submit"
+                  disabled={(!selectedFile && !chatReplyText.trim()) || chatSending}
+                  className="px-5 py-2 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer"
+                >
+                  {chatSending ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  {selectedFile ? "Send Media" : "Send"}
+                </button>
+              </form>
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/50 relative">

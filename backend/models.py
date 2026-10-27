@@ -226,8 +226,10 @@ class ChatMessage(Base):
     id = Column(Integer, primary_key=True, index=True)
     customer_phone = Column(String(20), index=True, nullable=False)
     sender_type = Column(String(20), default="CUSTOMER", index=True)  # "CUSTOMER" (inbound) or "AGENT" (outbound)
-    message_type = Column(String(20), default="text")      # text, template, image, document
+    message_type = Column(String(20), default="text")      # text, template, image, document, video, audio
     text = Column(Text, nullable=True)
+    media_url = Column(String(1000), nullable=True)
+    filename = Column(String(255), nullable=True)
     meta_message_id = Column(String(100), nullable=True, unique=True, index=True)
     status = Column(String(30), default="DELIVERED")      # RECEIVED, SENT, DELIVERED, READ, FAILED
     is_read = Column(Boolean, default=False, index=True)

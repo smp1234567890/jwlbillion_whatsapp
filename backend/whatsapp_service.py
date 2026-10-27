@@ -582,3 +582,188 @@ def send_whatsapp_free_text(recipient_phone: str, message_text: str, sender_user
     finally:
         if owns_db:
             db.close()
+
+
+def upload_media_to_meta(file_bytes: bytes, mime_type: str, filename: str) -> dict:
+    """
+    Uploads a file directly to Meta's Cloud API media endpoint:
+    POST /v19.0/{PHONE_NUMBER_ID}/media
+    Returns {"status": "success", "media_id": "..."} or {"status": "failed", "error": "..."}.
+    """
+    if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+        mock_id = f"sim_media_{int(datetime.utcnow().timestamp())}"
+        return {"status": "success_simulated", "media_id": mock_id}
+
+    url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/media"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_API_TOKEN}"
+    }
+    files = {
+        "file": (filename, file_bytes, mime_type)
+    }
+    data = {
+        "messaging_product": "whatsapp"
+    }
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(url, headers=headers, data=data, files=files)
+            resp_data = resp.json()
+            if resp.status_code == 200 and "id" in resp_data:
+                return {"status": "success", "media_id": resp_data["id"]}
+            else:
+                err_msg = str(resp_data.get("error", resp.text))
+                logger.error(f"[Meta Media Upload Failed] {err_msg}")
+                return {"status": "failed", "error": err_msg}
+    except Exception as e:
+        logger.error(f"[Meta Media Upload Exception] {e}")
+        return {"status": "error", "error": str(e)}
+
+
+def send_whatsapp_media(
+    recipient_phone: str,
+    media_type: str,  # "image", "document", "video", "audio"
+    media_id: Optional[str] = None,
+    media_url: Optional[str] = None,
+    caption: Optional[str] = None,
+    filename: Optional[str] = None,
+    sender_user: str = "Agent",
+    db: Optional[Session] = None
+) -> dict:
+    """
+    Sends an outbound media message (document, image, video, audio) to a recipient via WhatsApp Cloud API.
+    """
+    owns_db = False
+    if db is None:
+        db = SessionLocal()
+        owns_db = True
+    try:
+        is_auth, auth_reason = authorize_outbound_message(
+            db=db,
+            recipient_phone=recipient_phone,
+            message_type=f"media_{media_type}",
+            sender_user=sender_user
+        )
+        if not is_auth:
+            logger.warning(f"[Policy Blocked] Media to {mask_phone(recipient_phone)} blocked: {auth_reason}")
+            try:
+                log_entry = models.MessageLog(
+                    recipient_phone=recipient_phone,
+                    template_name=f"media_{media_type}",
+                    sender_user=sender_user,
+                    status="FAILED",
+                    error_message=auth_reason
+                )
+                db.add(log_entry)
+                db.commit()
+            except Exception:
+                db.rollback()
+            return {"status": "blocked", "reason": auth_reason}
+
+        clean_phone = normalize_phone(recipient_phone)
+
+        if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+            mock_id = f"sim_media_msg_{int(datetime.utcnow().timestamp())}"
+            logger.info(f"[SIMULATED MEDIA CHAT] Agent sent {media_type} to {mask_phone(clean_phone)}: url={media_url}, id={media_id}")
+            return {
+                "status": "success_simulated",
+                "message_id": mock_id,
+                "info": "Simulated locally without live Meta credentials"
+            }
+
+        headers = {
+            "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        # Build media object payload
+        media_obj = {}
+        if media_id:
+            media_obj["id"] = media_id
+        elif media_url:
+            media_obj["link"] = media_url
+        else:
+            return {"status": "failed", "error": "Either media_id or media_url must be provided"}
+
+        if caption and media_type in ["image", "video", "document"]:
+            media_obj["caption"] = caption
+        if filename and media_type == "document":
+            media_obj["filename"] = filename
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": clean_phone.replace("+", ""),
+            "type": media_type,
+            media_type: media_obj
+        }
+
+        with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
+            resp = client.post(META_API_URL, headers=headers, json=payload)
+            data = resp.json()
+            if resp.status_code == 200:
+                msg_id = data.get("messages", [{}])[0].get("id", "")
+                return {"status": "success", "message_id": msg_id}
+            else:
+                error_info = str(data.get("error", {}))
+                logger.error(f"Meta media send error: {error_info}")
+                return {"status": "failed", "error": error_info}
+    except Exception as e:
+        logger.error(f"Error in send_whatsapp_media: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        if owns_db:
+            db.close()
+
+
+def download_meta_media(media_id: str, output_dir: str = "uploads") -> Optional[dict]:
+    """
+    Retrieves and downloads an inbound media attachment from Meta Cloud API by media_id.
+    1. GET https://graph.facebook.com/v19.0/{media_id} -> returns url and mime_type
+    2. GET {url} with Bearer token -> binary stream
+    3. Saves file into output_dir and returns {filepath, filename, mime_type, relative_url}.
+    """
+    if not WHATSAPP_API_TOKEN or not media_id or media_id.startswith("sim_"):
+        return None
+
+    try:
+        meta_url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{media_id}"
+        headers = {"Authorization": f"Bearer {WHATSAPP_API_TOKEN}"}
+
+        with httpx.Client(timeout=20.0) as client:
+            meta_resp = client.get(meta_url, headers=headers)
+            if meta_resp.status_code != 200:
+                logger.error(f"[Media Download] Failed to fetch media info for {media_id}: {meta_resp.text}")
+                return None
+            meta_info = meta_resp.json()
+            download_url = meta_info.get("url")
+            mime_type = meta_info.get("mime_type", "application/octet-stream")
+
+            if not download_url:
+                return None
+
+            dl_resp = client.get(download_url, headers=headers)
+            if dl_resp.status_code != 200:
+                logger.error(f"[Media Download] Failed to download binary for {media_id}: {dl_resp.status_code}")
+                return None
+
+            os.makedirs(output_dir, exist_ok=True)
+            import mimetypes
+            ext = mimetypes.guess_extension(mime_type) or ".bin"
+            if ext == ".jpe":
+                ext = ".jpg"
+            saved_filename = f"{media_id}{ext}"
+            saved_path = os.path.join(output_dir, saved_filename)
+
+            with open(saved_path, "wb") as f:
+                f.write(dl_resp.content)
+
+            return {
+                "filepath": saved_path,
+                "filename": saved_filename,
+                "mime_type": mime_type,
+                "relative_url": f"/uploads/{saved_filename}"
+            }
+    except Exception as e:
+        logger.error(f"[Media Download Exception] {e}")
+        return None

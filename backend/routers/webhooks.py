@@ -25,7 +25,7 @@ from scheduler import schedule_cart_recovery
 from services.phone_service import normalize_phone, InvalidPhoneNumberError
 from services.policy_service import record_consent, revoke_consent
 from services.audit_service import record_audit_event, hash_phone
-from whatsapp_service import send_whatsapp_template
+from whatsapp_service import send_whatsapp_template, download_meta_media
 
 logger = logging.getLogger("webhooks_router")
 
@@ -1191,6 +1191,8 @@ async def receive_inbound_whatsapp_message(
 
                 msg_type = msg.get("type", "text")
                 raw_body = ""
+                inbound_media_url = None
+                inbound_filename = None
 
                 if msg_type == "text":
                     raw_body = msg.get("text", {}).get("body", "").strip()
@@ -1199,6 +1201,35 @@ async def receive_inbound_whatsapp_message(
                 elif msg_type == "interactive":
                     interactive = msg.get("interactive", {})
                     raw_body = interactive.get("button_reply", {}).get("title") or interactive.get("list_reply", {}).get("title") or "Interactive Response"
+                elif msg_type in ["image", "document", "video", "audio", "voice"]:
+                    media_payload = msg.get(msg_type, {})
+                    media_id = media_payload.get("id")
+                    caption = media_payload.get("caption") or ""
+                    inbound_filename = media_payload.get("filename") or f"{msg_type}_{media_id}"
+                    raw_body = caption or f"[{msg_type.upper()}]"
+
+                    # Normalize voice to audio for unified handling
+                    if msg_type == "voice":
+                        msg_type = "audio"
+
+                    if media_id:
+                        dl_info = download_meta_media(media_id)
+                        if dl_info:
+                            inbound_media_url = dl_info.get("relative_url")
+                            if "filename" in dl_info and not media_payload.get("filename"):
+                                inbound_filename = dl_info["filename"]
+                elif msg_type == "location":
+                    loc = msg.get("location", {})
+                    lat, lng = loc.get("latitude"), loc.get("longitude")
+                    name = loc.get("name") or loc.get("address") or "Location"
+                    raw_body = f"📍 {name} ({lat}, {lng})"
+                elif msg_type == "contacts":
+                    contacts_list = msg.get("contacts", [])
+                    c_name = contacts_list[0].get("name", {}).get("formatted_name", "Contact Card") if contacts_list else "Contact Card"
+                    raw_body = f"👤 {c_name}"
+                elif msg_type == "reaction":
+                    emoji = msg.get("reaction", {}).get("emoji", "👍")
+                    raw_body = f"Reacted {emoji}"
                 else:
                     raw_body = f"[{msg_type.upper()} message received]"
 
@@ -1236,6 +1267,8 @@ async def receive_inbound_whatsapp_message(
                     sender_type="CUSTOMER",
                     message_type=msg_type,
                     text=raw_body,
+                    media_url=inbound_media_url,
+                    filename=inbound_filename,
                     meta_message_id=meta_id,
                     status="RECEIVED",
                     is_read=False

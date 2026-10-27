@@ -1142,6 +1142,51 @@ export default function App() {
     }
   };
 
+  const handleSendChatMedia = async ({ file, mediaType, caption }) => {
+    if (!file || !selectedChatPhone || chatSending) return;
+
+    setChatSending(true);
+    const tempUrl = URL.createObjectURL(file);
+    const optimisticMsg = {
+      id: "opt_" + Date.now(),
+      customer_phone: selectedChatPhone,
+      sender_type: "AGENT",
+      message_type: mediaType,
+      text: caption || `[${mediaType.toUpperCase()}] ${file.name}`,
+      media_url: tempUrl,
+      filename: file.name,
+      status: "SENDING",
+      is_read: true,
+      created_at: new Date().toISOString()
+    };
+    setChatMessages((prev) => [...prev, optimisticMsg]);
+
+    try {
+      const formData = new FormData();
+      formData.append("customer_phone", selectedChatPhone);
+      formData.append("media_type", mediaType);
+      if (caption) formData.append("caption", caption);
+      formData.append("file", file);
+
+      const res = await axios.post("/api/chat/send-media", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        }
+      });
+
+      setChatMessages((prev) =>
+        prev.map((m) => (m.id === optimisticMsg.id ? res.data : m))
+      );
+      fetchChatConversations(true);
+    } catch (err) {
+      alert("Failed to send media: " + (err.response?.data?.detail || err.message));
+      setChatMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+    } finally {
+      setChatSending(false);
+    }
+  };
+
   const handleDeleteConversation = async (phone) => {
     if (!window.confirm(`Are you sure you want to delete all chat history with ${phone}? This cannot be undone.`)) {
       return;
@@ -2145,6 +2190,7 @@ export default function App() {
               handleSelectConversation={handleSelectConversation}
               fetchChatMessages={fetchChatMessages}
               handleSendChatMessage={handleSendChatMessage}
+              handleSendChatMedia={handleSendChatMedia}
               handleDeleteConversation={handleDeleteConversation}
             />
           )}

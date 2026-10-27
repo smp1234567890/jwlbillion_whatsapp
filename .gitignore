@@ -35,3 +35,8 @@ frontend/android/capacitor-cordova-android-plugins/build/
 Thumbs.db
 *.swp
 *.swo
+
+# Local media uploads
+uploads/
+backend/uploads/
+

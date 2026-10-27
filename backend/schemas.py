@@ -418,8 +418,10 @@ class ChatMessageResponse(BaseModel):
     customer_phone: str
     sender_type: str
     message_type: str
-    text: Optional[str]
-    meta_message_id: Optional[str]
+    text: Optional[str] = None
+    media_url: Optional[str] = None
+    filename: Optional[str] = None
+    meta_message_id: Optional[str] = None
     status: str
     is_read: bool
     created_at: datetime

@@ -546,3 +546,8 @@ app.include_router(workflows_router.router)
 app.include_router(settings_router.router)
 app.include_router(analytics_router.router)
 
+from fastapi.staticfiles import StaticFiles
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
