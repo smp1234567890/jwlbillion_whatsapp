@@ -1863,55 +1863,22 @@ export default function App() {
         {/* Bottom Status & Logout */}
         <div className="p-3 border-t border-gray-800 space-y-2">
           {!sidebarCollapsed ? (
-            <div className="space-y-2">
-              <div className="pb-1.5 border-b border-gray-800/80">
-                <a
-                  href="#performance"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleTabChange("performance");
-                  }}
-                  className={`text-xs font-medium flex items-center gap-1.5 transition ${
-                    activeTab === "performance"
-                      ? "text-[#F5A623] font-bold"
-                      : "text-gray-400 hover:text-white"
-                  }`}
-                  title="Check platform health, server load, and campaign/automation bottlenecks"
-                >
-                  <Activity className="w-3.5 h-3.5 text-[#25D366]" />
-                  <span>Check Performance</span>
-                </a>
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#25D366] animate-pulse"></span>
+                <span className="text-gray-300 font-semibold truncate max-w-[120px]">{username}</span>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#25D366] animate-pulse"></span>
-                  <span className="text-gray-300 font-semibold truncate max-w-[120px]">{username}</span>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-1 text-gray-400 hover:text-red-400 transition"
-                  title="Logout"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Exit
-                </button>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 text-gray-400 hover:text-red-400 transition"
+                title="Logout"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Exit
+              </button>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
-              <a
-                href="#performance"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleTabChange("performance");
-                }}
-                className={`p-1.5 rounded transition ${
-                  activeTab === "performance" ? "text-[#F5A623] bg-gray-800" : "text-gray-400 hover:text-white"
-                }`}
-                title="Check Performance (NOC)"
-              >
-                <Activity className="w-4 h-4 text-[#25D366]" />
-              </a>
               <span className="w-2.5 h-2.5 rounded-full bg-[#25D366] animate-pulse" title={`Logged in as ${username}`}></span>
               <button
                 onClick={handleLogout}
