@@ -163,13 +163,14 @@ def get_chat_history(
         db.add_all(to_add)
         db.commit()
 
-    # Mark as read
-    db.query(models.ChatMessage).filter(
+    # Mark as read only if there are actually unread customer messages
+    updated_count = db.query(models.ChatMessage).filter(
         models.ChatMessage.customer_phone == clean_phone,
         models.ChatMessage.sender_type == "CUSTOMER",
         models.ChatMessage.is_read == False
-    ).update({"is_read": True})
-    db.commit()
+    ).update({"is_read": True}, synchronize_session=False)
+    if updated_count > 0:
+        db.commit()
 
     messages = (
         db.query(models.ChatMessage)

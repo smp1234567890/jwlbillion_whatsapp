@@ -1371,10 +1371,19 @@ export default function App() {
     }
   }, [token, activeTab, analyticsTimeRange]);
 
-  // Periodic polling for Live Two-Way Chat (polls active tab every 8s, background tabs every 15s)
+  // Instant eager load & high-frequency polling for Live Two-Way Chat (2.5s on active tab, 15s in background)
   useEffect(() => {
     if (!token) return;
-    const pollInterval = activeTab === "chat" ? 8000 : 15000;
+
+    if (activeTab === "chat") {
+      // Eager fetch immediately on switching to Live Chat tab
+      fetchChatConversations(true);
+      if (selectedChatPhone) {
+        fetchChatMessages(selectedChatPhone, true);
+      }
+    }
+
+    const pollInterval = activeTab === "chat" ? 2500 : 15000;
     const interval = setInterval(() => {
       fetchChatConversations(true);
       if (activeTab === "chat" && selectedChatPhone) {
