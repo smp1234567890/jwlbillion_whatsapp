@@ -629,8 +629,19 @@ export default function LiveChatPage({
                             );
                           })()}
 
-                          {/* Text or Caption */}
-                          {msg.text && (
+                          {/* Fallback for sticker message without downloaded media_url */}
+                          {msg.message_type === "sticker" && !msg.media_url && (
+                            <div className="mb-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center gap-3">
+                              <Smile className="w-6 h-6 text-amber-600 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-amber-900">WhatsApp Sticker</p>
+                                <p className="text-[10px] text-amber-700">Sticker message received from customer</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Text or Caption (omitted if already rendered as contact card or sticker) */}
+                          {msg.text && msg.message_type !== "contacts" && !(msg.message_type === "sticker" && !msg.media_url) && (
                             <p className="whitespace-pre-wrap leading-relaxed text-xs md:text-sm">
                               {msg.text}
                             </p>
