@@ -24,9 +24,12 @@ import {
   Music,
   X,
   Download,
-  ExternalLink
+  ExternalLink,
+  User,
+  Smile
 } from "lucide-react";
 import { formatToISTTime } from "../utils/dateUtils";
+import { getApiBaseUrl } from "../api";
 
 export default function LiveChatPage({
   chatConversations = [],
@@ -512,64 +515,119 @@ export default function LiveChatPage({
                             </div>
                           )}
 
-                          {/* Media Rendering */}
-                          {msg.media_url && (
-                            <div className="mb-2">
-                              {msg.message_type === "image" && (
-                                <div className="rounded-xl overflow-hidden border border-gray-200/60 max-w-sm bg-black/5">
-                                  <img
-                                    src={msg.media_url}
-                                    alt={msg.filename || "WhatsApp Image"}
-                                    className="max-h-64 w-full object-cover rounded-xl hover:opacity-95 transition cursor-pointer"
-                                    onClick={() => window.open(msg.media_url, "_blank")}
-                                  />
-                                </div>
-                              )}
-
-                              {msg.message_type === "video" && (
-                                <div className="rounded-xl overflow-hidden border border-gray-200/60 max-w-sm bg-black/10">
-                                  <video
-                                    src={msg.media_url}
-                                    controls
-                                    className="max-h-64 w-full rounded-xl"
-                                  />
-                                </div>
-                              )}
-
-                              {msg.message_type === "audio" && (
-                                <div className="py-1">
-                                  <audio
-                                    src={msg.media_url}
-                                    controls
-                                    className="w-full max-w-xs h-9"
-                                  />
-                                </div>
-                              )}
-
-                              {msg.message_type === "document" && (
-                                <a
-                                  href={msg.media_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  download={msg.filename || "document"}
-                                  className="flex items-center gap-3 p-2.5 rounded-xl bg-black/5 hover:bg-black/10 border border-gray-200/60 transition group text-left"
-                                >
-                                  <div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                                    <FileText className="w-5 h-5" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-bold text-gray-900 truncate">
-                                      {msg.filename || "Document Attachment"}
-                                    </p>
-                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
-                                      Click to download / view
-                                    </p>
-                                  </div>
-                                  <Download className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 shrink-0 transition" />
-                                </a>
-                              )}
+                          {/* Contact Card Message */}
+                          {msg.message_type === "contacts" && (
+                            <div className="mb-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-gray-900 flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                <User className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-gray-900 truncate">
+                                  {msg.filename || msg.text?.replace("👤", "").trim() || "Shared Contact"}
+                                </p>
+                                {msg.text && msg.text.includes("\n") && (
+                                  <p className="text-[11px] font-mono text-emerald-800 truncate">
+                                    {msg.text.split("\n")[1]}
+                                  </p>
+                                )}
+                                <span className="inline-block mt-0.5 text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded">
+                                  WhatsApp Contact
+                                </span>
+                              </div>
                             </div>
                           )}
+
+                          {/* Media Rendering */}
+                          {msg.media_url && (() => {
+                            const rawUrl = msg.media_url;
+                            const fullUrl = rawUrl.startsWith("http://") || rawUrl.startsWith("https://") || rawUrl.startsWith("blob:")
+                              ? rawUrl
+                              : `${getApiBaseUrl().replace(/\/$/, "")}${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
+
+                            return (
+                              <div className="mb-2">
+                                {msg.message_type === "image" && (
+                                  <div className="rounded-xl overflow-hidden border border-gray-200/60 max-w-sm bg-black/5">
+                                    <img
+                                      src={fullUrl}
+                                      alt={msg.filename || "WhatsApp Image"}
+                                      className="max-h-64 w-full object-cover rounded-xl hover:opacity-95 transition cursor-pointer"
+                                      onClick={() => window.open(fullUrl, "_blank")}
+                                    />
+                                  </div>
+                                )}
+
+                                {msg.message_type === "sticker" && (
+                                  <div className="p-1 max-w-[160px] bg-transparent">
+                                    <img
+                                      src={fullUrl}
+                                      alt="WhatsApp Sticker"
+                                      className="max-h-36 max-w-[160px] object-contain drop-shadow hover:scale-105 transition cursor-pointer"
+                                      onClick={() => window.open(fullUrl, "_blank")}
+                                    />
+                                  </div>
+                                )}
+
+                                {msg.message_type === "video" && (
+                                  <div className="rounded-xl overflow-hidden border border-gray-200/60 max-w-sm bg-black">
+                                    <video
+                                      src={fullUrl}
+                                      controls
+                                      preload="metadata"
+                                      playsInline
+                                      className="max-h-64 w-full rounded-xl"
+                                    />
+                                    <div className="p-1.5 bg-black/80 flex items-center justify-between text-[11px] text-gray-300 px-3">
+                                      <span className="truncate max-w-[200px]">{msg.filename || "WhatsApp Video"}</span>
+                                      <a
+                                        href={fullUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        download={msg.filename || "video.mp4"}
+                                        className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                                      >
+                                        <Download className="w-3.5 h-3.5" /> Open / Download
+                                      </a>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {msg.message_type === "audio" && (
+                                  <div className="py-1">
+                                    <audio
+                                      src={fullUrl}
+                                      controls
+                                      preload="metadata"
+                                      className="w-full max-w-xs h-9"
+                                    />
+                                  </div>
+                                )}
+
+                                {msg.message_type === "document" && (
+                                  <a
+                                    href={fullUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download={msg.filename || "document"}
+                                    className="flex items-center gap-3 p-2.5 rounded-xl bg-black/5 hover:bg-black/10 border border-gray-200/60 transition group text-left"
+                                  >
+                                    <div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                      <FileText className="w-5 h-5" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-bold text-gray-900 truncate">
+                                        {msg.filename || "Document Attachment"}
+                                      </p>
+                                      <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+                                        Click to download / view
+                                      </p>
+                                    </div>
+                                    <Download className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 shrink-0 transition" />
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {/* Text or Caption */}
                           {msg.text && (

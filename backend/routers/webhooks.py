@@ -1203,12 +1203,12 @@ async def receive_inbound_whatsapp_message(
                 elif msg_type == "interactive":
                     interactive = msg.get("interactive", {})
                     raw_body = interactive.get("button_reply", {}).get("title") or interactive.get("list_reply", {}).get("title") or "Interactive Response"
-                elif msg_type in ["image", "document", "video", "audio", "voice"]:
+                elif msg_type in ["image", "document", "video", "audio", "voice", "sticker"]:
                     media_payload = msg.get(msg_type, {})
                     media_id = media_payload.get("id")
                     caption = media_payload.get("caption") or ""
                     inbound_filename = media_payload.get("filename") or f"{msg_type}_{media_id}"
-                    raw_body = caption or f"[{msg_type.upper()}]"
+                    raw_body = caption or (f"[{msg_type.upper()}]" if msg_type != "sticker" else "")
 
                     # Normalize voice to audio for unified handling
                     if msg_type == "voice":
@@ -1227,8 +1227,15 @@ async def receive_inbound_whatsapp_message(
                     raw_body = f"📍 {name} ({lat}, {lng})"
                 elif msg_type == "contacts":
                     contacts_list = msg.get("contacts", [])
-                    c_name = contacts_list[0].get("name", {}).get("formatted_name", "Contact Card") if contacts_list else "Contact Card"
-                    raw_body = f"👤 {c_name}"
+                    if contacts_list:
+                        first_c = contacts_list[0]
+                        c_name = first_c.get("name", {}).get("formatted_name") or "Shared Contact"
+                        c_phones = [p.get("phone") for p in first_c.get("phones", []) if p.get("phone")]
+                        phone_str = f"\n📞 {', '.join(c_phones)}" if c_phones else ""
+                        inbound_filename = c_name
+                        raw_body = f"👤 {c_name}{phone_str}"
+                    else:
+                        raw_body = "👤 Contact Card"
                 elif msg_type == "reaction":
                     emoji = msg.get("reaction", {}).get("emoji", "👍")
                     raw_body = f"Reacted {emoji}"
