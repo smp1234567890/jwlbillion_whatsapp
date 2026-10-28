@@ -1058,6 +1058,8 @@ async def receive_inbound_whatsapp_message(
     if not entries:
         return {"status": "ok"}
 
+    logger.info(f"[Meta Inbound Webhook] Received webhook payload with {len(entries)} entry/entries")
+
     processed_messages_count = 0
     processed_statuses_count = 0
     any_opt_out = False
@@ -1230,8 +1232,17 @@ async def receive_inbound_whatsapp_message(
                 elif msg_type == "reaction":
                     emoji = msg.get("reaction", {}).get("emoji", "👍")
                     raw_body = f"Reacted {emoji}"
+                elif msg_type == "unsupported":
+                    err_list = msg.get("errors", [])
+                    err_detail = ""
+                    if err_list:
+                        first_err = err_list[0]
+                        err_detail = f" ({first_err.get('title') or first_err.get('message') or first_err.get('code')})"
+                    raw_body = f"[Unsupported message sent by user: e.g. poll, live location, ephemeral/disappearing message, or unsupported sticker{err_detail}]"
+                    logger.warning(f"[Meta Inbound Webhook] Received 'unsupported' message from {sender_phone}: {msg}")
                 else:
                     raw_body = f"[{msg_type.upper()} message received]"
+                    logger.info(f"[Meta Inbound Webhook] Received unrecognized type '{msg_type}' from {sender_phone}: {msg}")
 
                 # Only exact or word-bounded match for opt-out to avoid false positives
                 words_lower = [w.strip() for w in raw_body.lower().replace(",", " ").replace(".", " ").replace("!", " ").split()]
