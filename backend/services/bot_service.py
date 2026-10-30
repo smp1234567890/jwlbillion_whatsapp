@@ -17,8 +17,14 @@ from whatsapp_service import send_whatsapp_free_text
 logger = logging.getLogger("bot_service")
 
 GREETING_WORDS = {
-    "hi", "hello", "hey", "namaste", "kem cho", "kemcho", "halo", "ola", "start", "good morning", "good evening", "good afternoon", "hii", "hiii", "heyy", "yo", "yoo", "yoyoo"
+    "hi", "hello", "hey", "namaste", "kem cho", "kemcho", "halo", "ola",
+    "hi there", "hey there", "heya", "hiya", "howdy", "sup", "yo", "yoo", "yoyoo",
+    "good morning", "good afternoon", "good evening", "good night"
 }
+
+GREETING_PHRASES = [
+    "hi there", "hey there", "good morning", "good afternoon", "good evening", "good night", "kem cho"
+]
 
 ORDER_QUERY_TRIGGERS = [
     "order", "track", "tracking", "status", "where is my order", "parcel", "shipment", "delivery", "kaha hai", "dispatch"
@@ -112,12 +118,12 @@ def generate_auto_reply(
             "To check the live status of your order, please reply with your *Order Number* (for example: *#1024*)."
         )
 
-    # Check for simple greeting (collapsing repeated letters like 'Hiii' -> 'hi', 'Heyyy' -> 'hey')
+    # Check for simple greeting (collapsing repeated letters like 'Hiii' / 'hiiiiiii' -> 'hi', 'Heyyy' -> 'hey')
     normalized_words = [re.sub(r'(.)\1{1,}', r'\1', w) for w in words]
     is_greeting = (
         any(w in GREETING_WORDS for w in words)
         or any(nw in GREETING_WORDS for nw in normalized_words)
-        or any(phrase in text_clean for phrase in ["kem cho", "good morning", "good evening", "good afternoon"])
+        or any(phrase in text_clean for phrase in GREETING_PHRASES)
     )
     if is_greeting and len(words) <= 5:
         greeting_name = f" {customer_name}" if customer_name and customer_name != "Customer" and customer_name != "New WhatsApp Lead" else ""
