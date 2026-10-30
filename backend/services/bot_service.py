@@ -130,9 +130,7 @@ def generate_auto_reply(
         return (
             f"Hello{greeting_name}! 😊\n"
             "Thank you for reaching out to *JWL Billion*.\n\n"
-            "How can we assist you today?\n"
-            "• Reply with your *Order Number* (e.g. *#1024*) to track your order\n"
-            "• Ask any question and our support team will reply shortly!"
+            "How can we assist you today?"
         )
 
     return None
