@@ -18,18 +18,21 @@ import {
 import api from "../api";
 
 const VERTICAL_OPTIONS = [
-  { value: "RETAIL", label: "Retail & Shopping" },
+  { value: "RETAIL", label: "Retail & Shopping (Recommended for Jewelry)" },
   { value: "APPAREL", label: "Apparel & Accessories" },
   { value: "BEAUTY", label: "Beauty & Personal Care" },
-  { value: "JEWELRY", label: "Jewelry & Luxury Goods" },
-  { value: "FOOD_BEV", label: "Food & Beverage" },
+  { value: "FOOD_BEV", label: "Restaurant / Food & Beverage" },
   { value: "GROCERY", label: "Grocery" },
+  { value: "EDU", label: "Education" },
   { value: "ENTERTAIN", label: "Entertainment" },
-  { value: "HOTEL_LODG", label: "Hotel & Lodging" },
+  { value: "EVENT_PLAN", label: "Event Planning" },
   { value: "FINANCE", label: "Financial Services" },
+  { value: "HOTEL", label: "Hotel & Lodging" },
   { value: "HEALTH", label: "Health & Medical" },
-  { value: "PROF_SERV", label: "Professional Services" },
   { value: "NONPROFIT", label: "Non-profit" },
+  { value: "PROF_SERVICES", label: "Professional Services" },
+  { value: "TRAVEL", label: "Travel & Transportation" },
+  { value: "AUTO", label: "Automotive" },
   { value: "OTHER", label: "Other" }
 ];
 
@@ -518,3 +521,4 @@ export default function ProfileDetailsPage() {
     </div>
   );
 }
+
