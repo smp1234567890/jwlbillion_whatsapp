@@ -1751,6 +1751,8 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setActionSuccessMsg(`Campaign #${campaignId} has been deleted.`);
+      setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
+      invalidateCache("/api/campaigns");
       fetchData();
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {

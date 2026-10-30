@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import auth
@@ -341,6 +342,10 @@ def delete_campaign(
     campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # Nullify foreign key references in message_logs and outbound_messages before deleting campaign
+    db.execute(text("UPDATE message_logs SET campaign_id = NULL WHERE campaign_id = :cid"), {"cid": campaign_id})
+    db.execute(text("UPDATE outbound_messages SET campaign_id = NULL WHERE campaign_id = :cid"), {"cid": campaign_id})
     db.delete(campaign)
     db.commit()
     return {"status": "success", "message": f"Campaign #{campaign_id} deleted"}
