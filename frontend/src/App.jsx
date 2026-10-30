@@ -62,7 +62,8 @@ import {
   ArrowRight,
   Volume2,
   VolumeX,
-  UserCheck
+  UserCheck,
+  ShoppingBag
 } from "lucide-react";
 import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache } from "./api";
 import FlowchartCanvas from "./components/FlowchartCanvas";
@@ -78,6 +79,7 @@ import OptOutPage from "./pages/OptOutPage";
 import LiveChatPage from "./pages/LiveChatPage";
 import ProfileDetailsPage from "./pages/ProfileDetailsPage";
 import PerformanceNocPage from "./pages/PerformanceNocPage";
+import ShopifyProductsPage from "./pages/ShopifyProductsPage";
 
 const INITIAL_API_BASE_URL = getApiBaseUrl();
 setApiBaseUrl(INITIAL_API_BASE_URL);
@@ -1908,6 +1910,7 @@ export default function App() {
               },
               { id: "automations", label: "Automations", icon: Sliders, badge: workflowFlows.length },
               { id: "campaigns", label: "Campaigns", icon: Megaphone },
+              { id: "products", label: "Shopify Products", icon: ShoppingBag },
               { id: "analytics", label: "Analytics", icon: BarChart3 },
               { id: "templates", label: "Templates", icon: BookOpen, badge: templates.length },
               { id: "contacts", label: "Contacts", icon: Users },
@@ -2019,6 +2022,8 @@ export default function App() {
                 ? "WhatsApp Template Messages (Doc 04)"
                 : activeTab === "profile"
                 ? "WhatsApp Business Profile & Contact Card"
+                : activeTab === "products"
+                ? "Shopify Live Products Catalog"
                 : activeTab === "automations"
                 ? "Automation Triggers & Rules"
                 : activeTab.replace("_", " ")}
@@ -2228,6 +2233,10 @@ export default function App() {
 
           {activeTab === "profile" && (
             <ProfileDetailsPage />
+          )}
+
+          {activeTab === "products" && (
+            <ShopifyProductsPage />
           )}
 
           {activeTab === "chat" && (

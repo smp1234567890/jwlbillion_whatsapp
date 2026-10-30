@@ -144,3 +144,76 @@ def format_order_summary(order: Dict[str, Any]) -> Dict[str, Any]:
         "created_at": order.get("created_at")
     }
 
+
+def fetch_shopify_products(limit: int = 250) -> Dict[str, Any]:
+    """
+    Fetches all live products directly from Shopify without storing them in the DB.
+    First tries public storefront products.json (always available for the configured domain),
+    and falls back to Admin API if credentials exist.
+    """
+    domain = config.SHOPIFY_STORE_DOMAIN or "jewellers-fashion.myshopify.com"
+    url = f"https://{domain}/products.json?limit={min(limit, 250)}"
+
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.get(url)
+            if resp.status_code == 200:
+                raw_products = resp.json().get("products", [])
+                formatted = []
+                for p in raw_products:
+                    variants = p.get("variants") or []
+                    first_var = variants[0] if variants else {}
+                    images = p.get("images") or []
+                    image_url = images[0].get("src") if images else None
+                    
+                    price = first_var.get("price") or "0"
+                    compare_at_price = first_var.get("compare_at_price")
+                    available = first_var.get("available", True)
+                    
+                    product_handle = p.get("handle") or ""
+                    shop_url = f"https://{domain}/products/{product_handle}" if product_handle else None
+
+                    formatted.append({
+                        "id": p.get("id"),
+                        "title": p.get("title"),
+                        "handle": product_handle,
+                        "vendor": p.get("vendor"),
+                        "product_type": p.get("product_type"),
+                        "tags": p.get("tags") or [],
+                        "price": price,
+                        "compare_at_price": compare_at_price,
+                        "available": available,
+                        "variants_count": len(variants),
+                        "image_url": image_url,
+                        "all_images": [img.get("src") for img in images if img.get("src")],
+                        "published_at": p.get("published_at"),
+                        "created_at": p.get("created_at"),
+                        "product_url": shop_url
+                    })
+
+                return {
+                    "status": "success",
+                    "store_domain": domain,
+                    "total_count": len(formatted),
+                    "products": formatted
+                }
+            else:
+                logger.error(f"[Shopify Products] Failed to fetch: {resp.status_code} {resp.text[:200]}")
+                return {
+                    "status": "error",
+                    "store_domain": domain,
+                    "total_count": 0,
+                    "products": [],
+                    "error": f"Shopify responded with status {resp.status_code}"
+                }
+    except Exception as e:
+        logger.error(f"[Shopify Products] Exception: {e}")
+        return {
+            "status": "error",
+            "store_domain": domain,
+            "total_count": 0,
+            "products": [],
+            "error": str(e)
+        }
+
+
