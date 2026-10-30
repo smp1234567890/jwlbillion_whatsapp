@@ -61,7 +61,8 @@ import {
   MousePointerClick,
   ArrowRight,
   Volume2,
-  VolumeX
+  VolumeX,
+  UserCheck
 } from "lucide-react";
 import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache } from "./api";
 import FlowchartCanvas from "./components/FlowchartCanvas";
@@ -75,6 +76,7 @@ import ContactsPage from "./pages/ContactsPage";
 import MessageLogsPage from "./pages/MessageLogsPage";
 import OptOutPage from "./pages/OptOutPage";
 import LiveChatPage from "./pages/LiveChatPage";
+import ProfileDetailsPage from "./pages/ProfileDetailsPage";
 import PerformanceNocPage from "./pages/PerformanceNocPage";
 
 const INITIAL_API_BASE_URL = getApiBaseUrl();
@@ -1876,6 +1878,7 @@ export default function App() {
               { id: "contacts", label: "Contacts", icon: Users },
               { id: "logs", label: "Message Logs", icon: FileText },
               { id: "opt_out", label: "Opt-Out (DND)", icon: ShieldBan, badge: optOuts.length },
+              { id: "profile", label: "Profile Details", icon: UserCheck },
               { id: "settings", label: "Settings", icon: Settings },
             ].map((item) => {
               const Icon = item.icon;
@@ -1979,6 +1982,8 @@ export default function App() {
                 ? "System Performance & NOC Live Center"
                 : activeTab === "templates"
                 ? "WhatsApp Template Messages (Doc 04)"
+                : activeTab === "profile"
+                ? "WhatsApp Business Profile & Contact Card"
                 : activeTab === "automations"
                 ? "Automation Triggers & Rules"
                 : activeTab.replace("_", " ")}
@@ -2184,6 +2189,10 @@ export default function App() {
               handleRemoveOptOut={handleRemoveOptOut}
               handleAddOptOut={handleAddOptOut}
             />
+          )}
+
+          {activeTab === "profile" && (
+            <ProfileDetailsPage />
           )}
 
           {activeTab === "chat" && (
