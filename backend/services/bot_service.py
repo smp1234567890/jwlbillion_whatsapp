@@ -17,7 +17,7 @@ from whatsapp_service import send_whatsapp_free_text
 logger = logging.getLogger("bot_service")
 
 GREETING_WORDS = {
-    "hi", "hello", "hey", "namaste", "kem cho", "halo", "ola", "start", "good morning", "good evening", "good afternoon"
+    "hi", "hello", "hey", "namaste", "kem cho", "kemcho", "halo", "ola", "start", "good morning", "good evening", "good afternoon", "hii", "hiii", "heyy", "yo", "yoo", "yoyoo"
 }
 
 ORDER_QUERY_TRIGGERS = [
@@ -112,9 +112,14 @@ def generate_auto_reply(
             "To check the live status of your order, please reply with your *Order Number* (for example: *#1024*)."
         )
 
-    # Check for simple greeting
-    is_greeting = any(w in GREETING_WORDS for w in words)
-    if is_greeting and len(words) <= 4:
+    # Check for simple greeting (collapsing repeated letters like 'Hiii' -> 'hi', 'Heyyy' -> 'hey')
+    normalized_words = [re.sub(r'(.)\1{1,}', r'\1', w) for w in words]
+    is_greeting = (
+        any(w in GREETING_WORDS for w in words)
+        or any(nw in GREETING_WORDS for nw in normalized_words)
+        or any(phrase in text_clean for phrase in ["kem cho", "good morning", "good evening", "good afternoon"])
+    )
+    if is_greeting and len(words) <= 5:
         greeting_name = f" {customer_name}" if customer_name and customer_name != "Customer" and customer_name != "New WhatsApp Lead" else ""
         return (
             f"Hello{greeting_name}! 😊\n"
@@ -154,3 +159,4 @@ def handle_inbound_auto_reply(
     except Exception as e:
         logger.error(f"[Bot Auto-Reply] Failed sending reply to {sender_phone}: {e}")
         return None
+
