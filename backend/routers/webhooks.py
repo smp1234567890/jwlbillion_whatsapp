@@ -25,6 +25,7 @@ from scheduler import schedule_cart_recovery
 from services.phone_service import normalize_phone, InvalidPhoneNumberError
 from services.policy_service import record_consent, revoke_consent
 from services.audit_service import record_audit_event, hash_phone
+from services.bot_service import handle_inbound_auto_reply
 from whatsapp_service import send_whatsapp_template, download_meta_media
 
 logger = logging.getLogger("webhooks_router")
@@ -1348,6 +1349,19 @@ async def receive_inbound_whatsapp_message(
                 except IntegrityError:
                     db.rollback()
                     logger.info(f"Duplicate ChatMessage skipped on commit: {meta_id}")
+
+                # Conversational AI / Bot Auto-Reply (e.g. Order Tracking, Greetings)
+                if not is_opt_out and raw_body:
+                    try:
+                        cust_name = existing_contact.name if existing_contact else profile_name
+                        handle_inbound_auto_reply(
+                            sender_phone=sender_phone,
+                            message_text=raw_body,
+                            customer_name=cust_name,
+                            db=db
+                        )
+                    except Exception as bot_err:
+                        logger.warning(f"[Bot Auto-Reply] Execution skipped/error: {bot_err}")
 
     if any_opt_out:
         return {"status": "opted_out", "messages_processed": processed_messages_count, "statuses_processed": processed_statuses_count}

@@ -6,6 +6,7 @@ import {
   Sparkles,
   Star,
   MessageSquare,
+  Phone,
   PhoneCall,
   RefreshCw,
   Clock,
@@ -437,6 +438,14 @@ export default function LiveChatPage({
 
                   {/* Actions Header Toolbar: always shrink-0 and visible */}
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <a
+                      href={`tel:${selectedChatPhone}`}
+                      className="px-2.5 py-1.5 border border-blue-300 text-blue-700 bg-blue-50 rounded-lg text-xs font-semibold hover:bg-blue-100 transition flex items-center gap-1.5 shrink-0"
+                      title={`Call customer directly (${selectedChatPhone})`}
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Call</span>
+                    </a>
                     <a
                       href={`https://wa.me/${selectedChatPhone.replace("+", "")}`}
                       target="_blank"

@@ -131,6 +131,12 @@ INTEGRATION_ALLOWED_HOSTS = [
     h.strip().lower() for h in INTEGRATION_ALLOWED_HOSTS_RAW.split(",") if h.strip()
 ]
 
+# ── Shopify Configuration ──
+SHOPIFY_STORE_DOMAIN = os.getenv("SHOPIFY_STORE_DOMAIN", "").strip()
+SHOPIFY_CLIENT_ID = os.getenv("SHOPIFY_CLIENT_ID", "").strip()
+SHOPIFY_CLIENT_SECRET = os.getenv("SHOPIFY_CLIENT_SECRET", "").strip()
+SHOPIFY_ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN", "").strip()
+
 APP_ENCRYPTION_KEY = os.getenv("APP_ENCRYPTION_KEY")
 if not APP_ENCRYPTION_KEY:
     if ENVIRONMENT == "production":
