@@ -26,7 +26,7 @@ from services.phone_service import normalize_phone, InvalidPhoneNumberError
 from services.policy_service import record_consent, revoke_consent
 from services.audit_service import record_audit_event, hash_phone
 from services.bot_service import handle_inbound_auto_reply
-from whatsapp_service import send_whatsapp_template, download_meta_media
+from whatsapp_service import send_whatsapp_template, download_meta_media, send_whatsapp_free_text
 
 logger = logging.getLogger("webhooks_router")
 
@@ -1260,6 +1260,30 @@ async def receive_inbound_whatsapp_message(
                     any_opt_out = True
                     revoke_consent(db, sender_phone, reason="INBOUND_STOP_COMMAND")
                     logger.info(f"[AUTO-DND] Customer opted out via inbound message. Added to Opt-Out DND list and consent revoked.")
+
+                    # Send Stop confirmation message
+                    stop_reply_text = "You have opted out of marketing messages from JWL Billion. You will no longer receive promotional updates.\n\nReply START at any time to opt back in."
+                    try:
+                        res = send_whatsapp_free_text(
+                            recipient_phone=sender_phone,
+                            message_text=stop_reply_text,
+                            sender_user="Compliance Bot",
+                            db=db,
+                            bypass_policy=True
+                        )
+                        stop_msg_id = res.get("message_id")
+                        stop_status = "SENT" if res.get("status") in ["success", "success_simulated"] else "FAILED"
+                        db.add(models.ChatMessage(
+                            customer_phone=sender_phone,
+                            sender_type="AGENT",
+                            message_type="text",
+                            text=stop_reply_text,
+                            meta_message_id=stop_msg_id,
+                            status=stop_status,
+                            is_read=True
+                        ))
+                    except Exception as stop_err:
+                        logger.warning(f"Could not send stop confirmation: {stop_err}")
                 else:
                     words = [w.strip() for w in raw_body.lower().replace(",", " ").replace(".", " ").replace("!", " ").split()]
                     is_opt_in = any(keyword in words or keyword == raw_body.strip().lower() for keyword in OPT_IN_KEYWORDS)
@@ -1279,6 +1303,31 @@ async def receive_inbound_whatsapp_message(
                             proof_details=f"Inbound affirmative double opt-in reply: {raw_body[:60]}"
                         )
                         logger.info(f"[DOUBLE OPT-IN] Customer {sender_phone} confirmed consent via reply '{raw_body}'. Cleared from DND.")
+
+                        # Send Start confirmation message
+                        start_reply_text = "Welcome back! You have opted back in and will now receive marketing updates, offers, and announcements from JWL Billion.\n\nReply STOP at any time to unsubscribe."
+                        try:
+                            res = send_whatsapp_free_text(
+                                recipient_phone=sender_phone,
+                                message_text=start_reply_text,
+                                sender_user="Compliance Bot",
+                                db=db,
+                                bypass_policy=True
+                            )
+                            start_msg_id = res.get("message_id")
+                            start_status = "SENT" if res.get("status") in ["success", "success_simulated"] else "FAILED"
+                            db.add(models.ChatMessage(
+                                customer_phone=sender_phone,
+                                sender_type="AGENT",
+                                message_type="text",
+                                text=start_reply_text,
+                                meta_message_id=start_msg_id,
+                                status=start_status,
+                                is_read=True
+                            ))
+                        except Exception as start_err:
+                            logger.warning(f"Could not send start confirmation: {start_err}")
+
                         # Advance any waiting double opt-in workflow sessions
                         waiting_sessions = db.query(models.WorkflowSession).filter(
                             models.WorkflowSession.status.in_(["ACTIVE", "WAITING_DELAY", "WAITING_CONDITION"])

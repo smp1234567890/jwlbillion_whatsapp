@@ -623,7 +623,13 @@ def create_meta_template(
         return {"error": str(e), "status": "FAILED"}
 
 
-def send_whatsapp_free_text(recipient_phone: str, message_text: str, sender_user: str = "Agent", db: Optional[Session] = None) -> dict:
+def send_whatsapp_free_text(
+    recipient_phone: str,
+    message_text: str,
+    sender_user: str = "Agent",
+    db: Optional[Session] = None,
+    bypass_policy: bool = False
+) -> dict:
     """
     Sends a free-form customer service text message (used within Meta's 24-hour service window).
     Falls back to simulation mode if API credentials are not set.
@@ -633,27 +639,28 @@ def send_whatsapp_free_text(recipient_phone: str, message_text: str, sender_user
         db = SessionLocal()
         owns_db = True
     try:
-        is_auth, auth_reason = authorize_outbound_message(
-            db=db,
-            recipient_phone=recipient_phone,
-            message_type="free_text",
-            sender_user=sender_user
-        )
-        if not is_auth:
-            logger.warning(f"[Policy Blocked] Free-text to {mask_phone(recipient_phone)} blocked: {auth_reason}")
-            try:
-                log_entry = models.MessageLog(
-                    recipient_phone=recipient_phone,
-                    template_name="free_text_reply",
-                    sender_user=sender_user,
-                    status="FAILED",
-                    error_message=auth_reason
-                )
-                db.add(log_entry)
-                db.commit()
-            except Exception:
-                db.rollback()
-            return {"status": "blocked", "reason": auth_reason}
+        if not bypass_policy:
+            is_auth, auth_reason = authorize_outbound_message(
+                db=db,
+                recipient_phone=recipient_phone,
+                message_type="free_text",
+                sender_user=sender_user
+            )
+            if not is_auth:
+                logger.warning(f"[Policy Blocked] Free-text to {mask_phone(recipient_phone)} blocked: {auth_reason}")
+                try:
+                    log_entry = models.MessageLog(
+                        recipient_phone=recipient_phone,
+                        template_name="free_text_reply",
+                        sender_user=sender_user,
+                        status="FAILED",
+                        error_message=auth_reason
+                    )
+                    db.add(log_entry)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                return {"status": "blocked", "reason": auth_reason}
 
         clean_phone = normalize_phone(recipient_phone)
 
