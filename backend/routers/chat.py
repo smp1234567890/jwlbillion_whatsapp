@@ -15,6 +15,7 @@ import auth
 from whatsapp_service import (
     send_whatsapp_free_text,
     send_whatsapp_media,
+    send_whatsapp_reaction,
     upload_media_to_meta,
     check_daily_limit,
     get_effective_daily_limit
@@ -407,6 +408,49 @@ async def send_chat_media_message(
     db.refresh(chat_entry)
 
     return chat_entry
+
+
+@router.post("/reaction")
+def react_to_chat_message(
+    payload: schemas.ChatReactionRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Applies or removes a reaction (thumbs up 👍 / thumbs down 👎) on a message in the chat.
+    If the message has a Meta message ID, sends the reaction to WhatsApp via Meta Cloud API.
+    """
+    msg = db.query(models.ChatMessage).filter(models.ChatMessage.id == payload.message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    target_emoji = (payload.emoji or "").strip()
+    # Toggle off if same emoji was already clicked
+    if msg.reaction == target_emoji:
+        target_emoji = ""
+
+    msg.reaction = target_emoji or None
+    db.commit()
+    db.refresh(msg)
+
+    # If the message has an active WhatsApp wamid, send reaction to Meta API
+    meta_result = None
+    if msg.meta_message_id:
+        try:
+            meta_result = send_whatsapp_reaction(
+                recipient_phone=msg.customer_phone,
+                target_meta_message_id=msg.meta_message_id,
+                emoji=target_emoji
+            )
+        except Exception as e:
+            logger.warning(f"Failed to sync reaction to Meta for message {msg.id}: {e}")
+
+    return {
+        "status": "success",
+        "message_id": msg.id,
+        "reaction": msg.reaction,
+        "meta_result": meta_result
+    }
 
 
 @router.delete("/conversations/{phone}")

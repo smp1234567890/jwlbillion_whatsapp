@@ -998,6 +998,52 @@ def send_whatsapp_media(
             db.close()
 
 
+def send_whatsapp_reaction(
+    recipient_phone: str,
+    target_meta_message_id: str,
+    emoji: str = "👍",
+    db: Optional[Session] = None
+) -> dict:
+    """
+    Sends a WhatsApp message reaction (e.g. 👍 or 👎) via Meta Cloud API.
+    To remove a reaction, pass emoji="".
+    """
+    clean_phone = normalize_phone(recipient_phone)
+    if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+        return {"status": "success_simulated", "message_id": f"sim_react_{int(datetime.utcnow().timestamp())}"}
+
+    url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": clean_phone.replace("+", ""),
+        "type": "reaction",
+        "reaction": {
+            "message_id": target_meta_message_id,
+            "emoji": emoji or ""
+        }
+    }
+
+    try:
+        with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            data = resp.json()
+            if resp.status_code == 200:
+                msg_id = data.get("messages", [{}])[0].get("id", "")
+                return {"status": "success", "message_id": msg_id}
+            else:
+                err_msg = str(data.get("error", resp.text))
+                logger.error(f"[Meta Reaction Error] {err_msg}")
+                return {"status": "failed", "error": err_msg}
+    except Exception as e:
+        logger.error(f"[Meta Reaction Exception] {e}")
+        return {"status": "error", "error": str(e)}
+
+
 def download_meta_media(media_id: str, output_dir: str = "uploads") -> Optional[dict]:
     """
     Retrieves and downloads an inbound media attachment from Meta Cloud API by media_id.

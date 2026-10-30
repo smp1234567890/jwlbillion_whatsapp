@@ -1238,8 +1238,20 @@ async def receive_inbound_whatsapp_message(
                     else:
                         raw_body = "👤 Contact Card"
                 elif msg_type == "reaction":
-                    emoji = msg.get("reaction", {}).get("emoji", "👍")
-                    raw_body = f"Reacted {emoji}"
+                    react_data = msg.get("reaction", {})
+                    emoji = react_data.get("emoji", "")
+                    target_wamid = react_data.get("message_id")
+                    if target_wamid:
+                        target_msg = db.query(models.ChatMessage).filter(models.ChatMessage.meta_message_id == target_wamid).first()
+                        if target_msg:
+                            target_msg.reaction = emoji or None
+                            try:
+                                db.commit()
+                            except Exception as _re_err:
+                                db.rollback()
+                                logger.warning(f"Error saving customer reaction: {_re_err}")
+                            continue
+                    raw_body = f"Reacted {emoji}" if emoji else "Removed reaction"
                 elif msg_type == "unsupported":
                     err_list = msg.get("errors", [])
                     err_detail = ""

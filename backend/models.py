@@ -238,6 +238,7 @@ class ChatMessage(Base):
     media_url = Column(String(1000), nullable=True)
     filename = Column(String(255), nullable=True)
     meta_message_id = Column(String(100), nullable=True, unique=True, index=True)
+    reaction = Column(String(20), nullable=True)  # E.g. "👍", "👎", or empty
     status = Column(String(30), default="DELIVERED")      # RECEIVED, SENT, DELIVERED, READ, FAILED
     is_read = Column(Boolean, default=False, index=True)
     assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)

@@ -429,12 +429,18 @@ class ChatMessageResponse(BaseModel):
     media_url: Optional[str] = None
     filename: Optional[str] = None
     meta_message_id: Optional[str] = None
+    reaction: Optional[str] = None
     status: str
     is_read: bool
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class ChatReactionRequest(BaseModel):
+    message_id: int
+    emoji: str = Field(..., description="Reaction emoji e.g. 👍 or 👎, or empty string to remove")
 
 
 class ChatConversationSummary(BaseModel):

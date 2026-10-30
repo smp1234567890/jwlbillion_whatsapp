@@ -27,7 +27,9 @@ import {
   Download,
   ExternalLink,
   User,
-  Smile
+  Smile,
+  ThumbsUp,
+  ThumbsDown
 } from "lucide-react";
 import { formatToISTTime } from "../utils/dateUtils";
 import { getApiBaseUrl } from "../api";
@@ -54,6 +56,7 @@ export default function LiveChatPage({
   fetchChatMessages,
   handleSendChatMessage,
   handleSendChatMedia,
+  handleReactToMessage,
   handleDeleteConversation
 }) {
   const messagesEndRef = useRef(null);
@@ -504,15 +507,44 @@ export default function LiveChatPage({
                     return (
                       <div
                         key={msg.id || index}
-                        className={`flex ${isAgent ? "justify-end" : "justify-start"}`}
+                        className={`flex group/msg ${isAgent ? "justify-end" : "justify-start"} mb-1.5`}
                       >
                         <div
-                          className={`max-w-[85%] md:max-w-lg break-words rounded-2xl px-4 py-2.5 shadow-xs text-sm relative ${
+                          className={`max-w-[85%] md:max-w-lg break-words rounded-2xl px-4 py-2.5 shadow-xs text-sm relative group ${
                             isAgent
                               ? "bg-[#D9FDD3] text-gray-900 rounded-tr-xs border border-emerald-200/60"
                               : "bg-white text-gray-900 rounded-tl-xs border border-gray-200/80"
                           }`}
                         >
+                          {/* Quick Reaction Toolbar (visible on hover or tap) */}
+                          {handleReactToMessage && typeof msg.id === "number" && (
+                            <div
+                              className={`absolute -top-3.5 ${
+                                isAgent ? "left-2" : "right-2"
+                              } opacity-0 group-hover/msg:opacity-100 transition-all duration-150 flex items-center gap-1 bg-white border border-gray-200 shadow-md rounded-full px-2 py-0.5 z-10`}
+                            >
+                              <button
+                                type="button"
+                                title="Thumbs Up"
+                                onClick={() => handleReactToMessage(msg.id, "👍")}
+                                className={`p-1 rounded-full hover:bg-emerald-50 transition transform hover:scale-125 ${
+                                  msg.reaction === "👍" ? "text-emerald-600 bg-emerald-100" : "text-gray-500 hover:text-emerald-600"
+                                }`}
+                              >
+                                <ThumbsUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                title="Thumbs Down"
+                                onClick={() => handleReactToMessage(msg.id, "👎")}
+                                className={`p-1 rounded-full hover:bg-rose-50 transition transform hover:scale-125 ${
+                                  msg.reaction === "👎" ? "text-rose-600 bg-rose-100" : "text-gray-500 hover:text-rose-600"
+                                }`}
+                              >
+                                <ThumbsDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
                           {isAgent && msg.message_type === "template" && (
                             <div className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded inline-block mb-1">
                                WhatsApp Template Broadcast
@@ -655,6 +687,20 @@ export default function LiveChatPage({
                               {msg.text}
                             </p>
                           )}
+
+                          {/* Render Attached Reaction Badge if active */}
+                          {msg.reaction && (
+                            <div
+                              onClick={() => handleReactToMessage && typeof msg.id === "number" && handleReactToMessage(msg.id, msg.reaction)}
+                              title="Click to remove reaction"
+                              className={`absolute -bottom-2.5 ${
+                                isAgent ? "left-3" : "right-3"
+                              } bg-white border border-gray-200/90 shadow-xs rounded-full px-1.5 py-0.5 text-xs flex items-center gap-0.5 cursor-pointer hover:scale-110 transition z-10`}
+                            >
+                              <span>{msg.reaction}</span>
+                            </div>
+                          )}
+
                           <div
                             className={`flex items-center gap-1.5 justify-end mt-1 text-[10px] ${
                               isAgent ? "text-emerald-800/70" : "text-gray-400"

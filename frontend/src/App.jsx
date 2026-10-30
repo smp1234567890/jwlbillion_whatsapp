@@ -1207,6 +1207,41 @@ export default function App() {
     }
   };
 
+  const handleReactToMessage = async (messageId, emoji) => {
+    // Optimistically update message reaction in local state
+    setChatMessages((prev) =>
+      prev.map((m) => {
+        if (m.id === messageId) {
+          const currentReaction = m.reaction;
+          return {
+            ...m,
+            reaction: currentReaction === emoji ? null : emoji
+          };
+        }
+        return m;
+      })
+    );
+
+    try {
+      const res = await axios.post(
+        "/api/chat/reaction",
+        { message_id: messageId, emoji },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data?.reaction !== undefined) {
+        setChatMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, reaction: res.data.reaction } : m))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to react to message:", err);
+      // Revert if fetchChatMessages is available
+      if (selectedChatPhone) {
+        fetchChatMessages(selectedChatPhone);
+      }
+    }
+  };
+
   const handleImportCsv = async (e) => {
     e.preventDefault();
     if (!csvFile) return;
@@ -2218,6 +2253,7 @@ export default function App() {
               fetchChatMessages={fetchChatMessages}
               handleSendChatMessage={handleSendChatMessage}
               handleSendChatMedia={handleSendChatMedia}
+              handleReactToMessage={handleReactToMessage}
               handleDeleteConversation={handleDeleteConversation}
             />
           )}
