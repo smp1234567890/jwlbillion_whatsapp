@@ -302,33 +302,62 @@ def send_whatsapp_template(
             if raw_url and raw_url.startswith("/uploads/"):
                 raw_url = f"https://130-210-12-142.sslip.io{raw_url}"
 
+            # Helper to get or upload Meta media_id if an upload path or raw_url is provided
+            def _resolve_meta_id(mime: str, default_name: str) -> Optional[str]:
+                if media_info.get("media_id"):
+                    return media_info["media_id"]
+                path_or_url = media_info.get("url")
+                if not path_or_url:
+                    return None
+                # Check if it points to a local file in uploads/
+                local_fpath = None
+                if path_or_url.startswith("https://130-210-12-142.sslip.io/uploads/"):
+                    local_fpath = os.path.join("uploads", path_or_url.split("/uploads/")[-1])
+                elif path_or_url.startswith("/uploads/"):
+                    local_fpath = os.path.join("uploads", path_or_url[len("/uploads/"):])
+                elif os.path.exists(path_or_url):
+                    local_fpath = path_or_url
+
+                if local_fpath and os.path.exists(local_fpath):
+                    try:
+                        with open(local_fpath, "rb") as f_in:
+                            b = f_in.read()
+                        up_res = upload_media_to_meta(b, mime, os.path.basename(local_fpath) or default_name)
+                        if up_res.get("status") == "success" and up_res.get("media_id"):
+                            return up_res["media_id"]
+                    except Exception as e:
+                        logger.warning(f"Failed to auto-upload media to Meta: {e}")
+                return None
+
             if expected_header_type == "IMAGE":
                 img_obj = {}
-                if raw_url:
+                meta_id = _resolve_meta_id("image/jpeg", "image.jpg")
+                if meta_id:
+                    img_obj["id"] = meta_id
+                elif raw_url:
                     img_obj["link"] = raw_url
-                elif media_info.get("media_id"):
-                    img_obj["id"] = media_info["media_id"]
                 else:
-                    # Default high-res fallback image if none specified
                     img_obj["link"] = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&q=80"
                 header_param = {"type": "image", "image": img_obj}
 
             elif expected_header_type == "VIDEO":
                 vid_obj = {}
-                if raw_url:
+                meta_id = _resolve_meta_id("video/mp4", "video.mp4")
+                if meta_id:
+                    vid_obj["id"] = meta_id
+                elif raw_url:
                     vid_obj["link"] = raw_url
-                elif media_info.get("media_id"):
-                    vid_obj["id"] = media_info["media_id"]
                 else:
                     vid_obj["link"] = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
                 header_param = {"type": "video", "video": vid_obj}
 
             elif expected_header_type == "DOCUMENT":
                 doc_obj = {}
-                if raw_url:
+                meta_id = _resolve_meta_id("application/pdf", "document.pdf")
+                if meta_id:
+                    doc_obj["id"] = meta_id
+                elif raw_url:
                     doc_obj["link"] = raw_url
-                elif media_info.get("media_id"):
-                    doc_obj["id"] = media_info["media_id"]
                 else:
                     doc_obj["link"] = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
                 if media_info.get("filename"):

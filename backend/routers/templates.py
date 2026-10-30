@@ -354,10 +354,15 @@ async def upload_template_media(
     sample_upload = upload_template_sample_to_meta(file_bytes, mime_type, orig_filename)
     header_handle = sample_upload.get("header_handle")
 
+    # Also upload to standard Meta media API so it's instantly cached and ready for messaging
+    meta_media = upload_media_to_meta(file_bytes, mime_type, orig_filename)
+    media_id = meta_media.get("media_id")
+
     return {
         "status": "success",
         "filename": orig_filename,
         "url": relative_url,
         "mime_type": mime_type,
-        "header_handle": header_handle
+        "header_handle": header_handle,
+        "media_id": media_id
     }
