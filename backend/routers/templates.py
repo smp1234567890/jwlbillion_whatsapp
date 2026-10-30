@@ -8,8 +8,10 @@ from datetime import datetime
 import logging
 from typing import Optional
 
+import os
+import uuid
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -18,7 +20,7 @@ import config
 import models
 import schemas
 from database import get_db
-from whatsapp_service import create_meta_template
+from whatsapp_service import create_meta_template, upload_media_to_meta
 
 logger = logging.getLogger("templates_router")
 
@@ -323,3 +325,39 @@ def update_template_mappings(
     db.commit()
     db.refresh(tmpl)
     return {"status": "updated", "id": tmpl.id, "variable_mappings": tmpl.variable_mappings}
+
+
+@router.post("/upload-media")
+async def upload_template_media(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
+    db: Session = Depends(get_db)
+):
+    """
+    Uploads a template header sample file (image, video, document), stores it locally,
+    and uploads to Meta to obtain a media_id / handle for template approval.
+    """
+    file_bytes = await file.read()
+    orig_filename = file.filename or f"upload_{uuid.uuid4().hex}"
+    mime_type = file.content_type or "application/octet-stream"
+
+    upload_dir = "uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    saved_filename = f"template_{uuid.uuid4().hex[:8]}_{orig_filename}"
+    local_path = os.path.join(upload_dir, saved_filename)
+    with open(local_path, "wb") as f_out:
+        f_out.write(file_bytes)
+
+    relative_url = f"/uploads/{saved_filename}"
+
+    # Upload to Meta to get media handle/id if credentials exist
+    meta_upload = upload_media_to_meta(file_bytes, mime_type, orig_filename)
+    meta_media_id = meta_upload.get("media_id")
+
+    return {
+        "status": "success",
+        "filename": orig_filename,
+        "url": relative_url,
+        "mime_type": mime_type,
+        "meta_media_id": meta_media_id
+    }
