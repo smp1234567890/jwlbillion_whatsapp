@@ -42,6 +42,7 @@ export default function TemplateModal({
   // Wizard state: 1 = Set up template, 2 = Edit template, 3 = Review & Submit
   const [step, setStep] = useState(1);
   const [buttonDropdownOpen, setButtonDropdownOpen] = useState(false);
+  const [showGuidelines, setShowGuidelines] = useState(false);
 
   // Initialize defaults if missing
   useEffect(() => {
@@ -72,9 +73,31 @@ export default function TemplateModal({
   const subType = newTemplate.sub_type || "DEFAULT";
 
   // Parse {{1}}, {{2}}... variables from body
-  const bodyVariables = [
-    ...new Set([...(newTemplate.body_text || "").matchAll(/\{\{([a-zA-Z0-9_-]+)\}\}/g)].map((m) => m[1]))
-  ];
+  const rawMatches = [...(newTemplate.body_text || "").matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1].trim());
+  const bodyVariables = [...new Set(rawMatches)];
+
+  // Validation rules based on Meta Guidelines
+  const nonNumericVariables = bodyVariables.filter((v) => !/^\d+$/ .test(v));
+  const numericIds = bodyVariables.filter((v) => /^\d+$/ .test(v)).map((n) => parseInt(n, 10)).sort((a, b) => a - b);
+  
+  // Check sequence starting at 1: [1, 2, 3...]
+  const isSequenceValid = numericIds.length === 0 || (
+    numericIds[0] === 1 && numericIds.every((val, idx) => val === idx + 1)
+  );
+
+  const missingSamples = (newTemplate.sample_values?.body || []).length < bodyVariables.length ||
+    bodyVariables.some((_, idx) => !(newTemplate.sample_values?.body?.[idx] || "").trim());
+
+  const validationErrors = [];
+  if (nonNumericVariables.length > 0) {
+    validationErrors.push(`Named variables detected: ${nonNumericVariables.map(v => `{{${v}}}`).join(", ")}. Meta requires numbered variables e.g. {{1}}, {{2}}.`);
+  }
+  if (!isSequenceValid) {
+    validationErrors.push(`Variables must start at {{1}} and be sequential without skipping numbers. Found: ${numericIds.map(n => `{{${n}}}`).join(", ")}.`);
+  }
+  if (missingSamples && bodyVariables.length > 0) {
+    validationErrors.push(`Meta requires sample text for all ${bodyVariables.length} variable(s) before submission.`);
+  }
 
   // Helper to insert markdown or variables into body textarea
   const insertIntoBody = (textToInsert) => {
@@ -231,10 +254,56 @@ export default function TemplateModal({
             </button>
           </div>
 
-          <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowGuidelines(!showGuidelines)}
+              className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg font-bold transition"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+              Meta Rules & Tips
+            </button>
+            <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
+        {/* Collapsible Meta Guidelines Drawer */}
+        {showGuidelines && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 text-xs text-amber-900 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-2">
+            <div>
+              <p className="font-bold uppercase tracking-wider text-amber-800 text-[10px] mb-1">
+                Variable Placeholders
+              </p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-950">
+                <li>Must use sequential numbers: <code className="bg-white/80 px-1 rounded">{"{{1}}"}</code>, <code className="bg-white/80 px-1 rounded">{"{{2}}"}</code>.</li>
+                <li>Do NOT use named tags like <code className="bg-red-100 px-1 rounded">{"{{name}}"}</code>.</li>
+                <li>Never start or end a message with a variable alone.</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-bold uppercase tracking-wider text-amber-800 text-[10px] mb-1">
+                Review Sample Values
+              </p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-950">
+                <li>Meta requires real sample text for every variable.</li>
+                <li>Never submit empty sample inputs in Step 3.</li>
+                <li>Do not use sensitive customer information.</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-bold uppercase tracking-wider text-amber-800 text-[10px] mb-1">
+                Categories & Buttons
+              </p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-950">
+                <li>Promotional texts must use <code className="bg-white/80 px-1 rounded">MARKETING</code>.</li>
+                <li>Order notifications must use <code className="bg-white/80 px-1 rounded">UTILITY</code>.</li>
+                <li>Max 10 buttons. Button label max 25 chars.</li>
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Modal Main Content Area (Form on Left, Live Phone on Right) */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-white">
@@ -744,6 +813,21 @@ export default function TemplateModal({
                     Meta requires sample values for every placeholder to test approval. You can also bind variables to your CRM fields.
                   </p>
                 </div>
+
+                {/* Inline Validation Warnings */}
+                {validationErrors.length > 0 && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
+                    <div className="flex items-center gap-2 text-red-800 font-bold text-xs">
+                      <Info className="w-4 h-4 text-red-600 shrink-0" />
+                      Meta Template Rejection Warnings:
+                    </div>
+                    <ul className="list-disc list-inside space-y-1 text-xs text-red-700 pl-1">
+                      {validationErrors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {bodyVariables.length === 0 ? (
                   <div className="p-6 bg-gray-50 rounded-xl border border-gray-200 text-center text-gray-500 text-xs">

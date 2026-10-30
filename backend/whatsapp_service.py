@@ -605,8 +605,19 @@ def create_meta_template(
                     "category": data.get("category", category_clean)
                 }
             else:
-                error_msg = data.get("error", {}).get("message", "Meta template submission failed")
-                return {"error": error_msg, "status": "FAILED"}
+                err_obj = data.get("error", {})
+                err_msg = err_obj.get("error_user_msg") or err_obj.get("message") or "Meta template submission failed"
+                err_title = err_obj.get("error_user_title")
+                err_subcode = err_obj.get("error_subcode")
+                
+                full_detail = err_msg
+                if err_title:
+                    full_detail = f"{err_title}: {err_msg}"
+                if err_subcode:
+                    full_detail += f" (Meta Subcode: {err_subcode})"
+                
+                logger.error(f"[Meta Template Rejected] {data}")
+                return {"error": full_detail, "status": "FAILED", "raw_error": err_obj}
     except Exception as e:
         logger.error(f"Error submitting template to Meta: {e}")
         return {"error": str(e), "status": "FAILED"}
