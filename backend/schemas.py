@@ -443,6 +443,28 @@ class ChatReactionRequest(BaseModel):
     emoji: str = Field(..., description="Reaction emoji e.g. 👍 or 👎, or empty string to remove")
 
 
+class ContactSegmentCreate(BaseModel):
+    name: str = Field(..., max_length=150)
+    description: Optional[str] = None
+    icon: Optional[str] = "Users"
+    criteria: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ContactSegmentResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = "Users"
+    criteria: Dict[str, Any] = Field(default_factory=dict)
+    is_predefined: bool = False
+    matching_contacts_count: int = 0
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ChatConversationSummary(BaseModel):
     customer_phone: str
     customer_name: Optional[str] = "Customer"

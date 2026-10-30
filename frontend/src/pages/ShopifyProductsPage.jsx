@@ -367,3 +367,4 @@ export default function ShopifyProductsPage() {
     </div>
   );
 }
+

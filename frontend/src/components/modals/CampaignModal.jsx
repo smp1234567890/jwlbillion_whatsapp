@@ -31,7 +31,16 @@ export default function CampaignModal({
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [templateSearch, setTemplateSearch] = useState("");
   const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
+  const [segmentsList, setSegmentsList] = useState([]);
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      api.get("/api/segments")
+        .then(res => setSegmentsList(res.data || []))
+        .catch(err => console.error("Failed to load segments in CampaignModal:", err));
+    }
+  }, [isOpen]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -471,6 +480,11 @@ export default function CampaignModal({
                 className="w-full px-3.5 py-2.5 bg-gray-50/70 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               >
                 <option value="ALL">All Active Contacts ({contacts.length})</option>
+                {segmentsList.filter(s => s.name !== "All Active Customers").map(s => (
+                  <option key={s.id} value={`SEGMENT:${s.id}`}>
+                    {s.name} ({s.matching_contacts_count})
+                  </option>
+                ))}
                 <option value="INACTIVE_30_DAYS">30-Day Inactive Only</option>
               </select>
             </div>

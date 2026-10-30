@@ -533,6 +533,7 @@ from routers import (
     settings as settings_router,
     analytics as analytics_router,
     products as products_router,
+    segments as segments_router,
 )
 
 app.include_router(auth_router.router)
@@ -547,6 +548,7 @@ app.include_router(workflows_router.router)
 app.include_router(settings_router.router)
 app.include_router(analytics_router.router)
 app.include_router(products_router.router)
+app.include_router(segments_router.router)
 
 from fastapi.staticfiles import StaticFiles
 os.makedirs("uploads", exist_ok=True)

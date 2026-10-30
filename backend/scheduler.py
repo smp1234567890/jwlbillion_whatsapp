@@ -419,16 +419,29 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
 
         phones = recipient_phones or []
         if not phones:
-            if campaign.target_filter == "ALL":
-                contacts = db.query(models.Contact).filter(models.Contact.is_active == True).all()
-                phones = [c.phone for c in contacts]
-            elif campaign.target_filter == "INACTIVE_30_DAYS":
-                cutoff_date = datetime.utcnow() - timedelta(days=30)
-                contacts = db.query(models.Contact).filter(
-                    models.Contact.is_active == True,
-                    (models.Contact.last_order_date <= cutoff_date) | (models.Contact.last_order_date == None)
-                ).all()
-                phones = [c.phone for c in contacts]
+            # Check if target_filter is a dynamic segment ID (e.g. "SEGMENT:3")
+            if campaign.target_filter and campaign.target_filter.startswith("SEGMENT:"):
+                try:
+                    seg_id = int(campaign.target_filter.split("SEGMENT:")[-1])
+                    seg = db.query(models.ContactSegment).filter(models.ContactSegment.id == seg_id).first()
+                    if seg:
+                        from routers.segments import query_contacts_by_criteria
+                        contacts = query_contacts_by_criteria(db, seg.criteria or {}).all()
+                        phones = [c.phone for c in contacts]
+                except Exception as _seg_err:
+                    logger.warning(f"[Campaign {campaign_id}] Segment lookup failed: {_seg_err}")
+
+            if not phones:
+                if campaign.target_filter == "INACTIVE_30_DAYS":
+                    cutoff_date = datetime.utcnow() - timedelta(days=30)
+                    contacts = db.query(models.Contact).filter(
+                        models.Contact.is_active == True,
+                        (models.Contact.last_order_date <= cutoff_date) | (models.Contact.last_order_date == None)
+                    ).all()
+                    phones = [c.phone for c in contacts]
+                else: # Default ALL
+                    contacts = db.query(models.Contact).filter(models.Contact.is_active == True).all()
+                    phones = [c.phone for c in contacts]
 
         # Honor Per Day Message Limit: Cap list to per_day_limit if specified
         if campaign.per_day_limit and campaign.per_day_limit > 0:

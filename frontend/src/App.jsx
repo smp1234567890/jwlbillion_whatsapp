@@ -63,7 +63,8 @@ import {
   Volume2,
   VolumeX,
   UserCheck,
-  ShoppingBag
+  ShoppingBag,
+  Layers
 } from "lucide-react";
 import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache } from "./api";
 import FlowchartCanvas from "./components/FlowchartCanvas";
@@ -80,6 +81,7 @@ import LiveChatPage from "./pages/LiveChatPage";
 import ProfileDetailsPage from "./pages/ProfileDetailsPage";
 import PerformanceNocPage from "./pages/PerformanceNocPage";
 import ShopifyProductsPage from "./pages/ShopifyProductsPage";
+import SegmentsPage from "./pages/SegmentsPage";
 
 const INITIAL_API_BASE_URL = getApiBaseUrl();
 setApiBaseUrl(INITIAL_API_BASE_URL);
@@ -1914,6 +1916,7 @@ export default function App() {
               { id: "analytics", label: "Analytics", icon: BarChart3 },
               { id: "templates", label: "Templates", icon: BookOpen, badge: templates.length },
               { id: "contacts", label: "Contacts", icon: Users },
+              { id: "segments", label: "Segmentation", icon: Layers },
               { id: "logs", label: "Message Logs", icon: FileText },
               { id: "opt_out", label: "Opt-Out (DND)", icon: ShieldBan, badge: optOuts.length },
               { id: "profile", label: "Profile Details", icon: UserCheck },
@@ -2024,6 +2027,8 @@ export default function App() {
                 ? "WhatsApp Business Profile & Contact Card"
                 : activeTab === "products"
                 ? "Shopify Live Products Catalog"
+                : activeTab === "segments"
+                ? "Contact Segmentation & Smart Cohorts"
                 : activeTab === "automations"
                 ? "Automation Triggers & Rules"
                 : activeTab.replace("_", " ")}
@@ -2237,6 +2242,10 @@ export default function App() {
 
           {activeTab === "products" && (
             <ShopifyProductsPage />
+          )}
+
+          {activeTab === "segments" && (
+            <SegmentsPage />
           )}
 
           {activeTab === "chat" && (

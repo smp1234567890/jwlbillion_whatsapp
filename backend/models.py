@@ -22,6 +22,19 @@ class Contact(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class ContactSegment(Base):
+    __tablename__ = "contact_segments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(50), default="Users")
+    criteria = Column(JSON, nullable=False, default=dict)  # {"min_orders": int, "max_orders": int, "tag": str, "city": str, "inactivity_days": int}
+    is_predefined = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class DiscountCode(Base):
     __tablename__ = "discount_codes"
 
