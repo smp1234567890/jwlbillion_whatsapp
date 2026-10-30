@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import api, { getApiBaseUrl } from "../../api";
+import axios from "axios";
 import {
   X,
   ChevronRight,
@@ -54,14 +56,14 @@ export default function TemplateModal({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const token = localStorage.getItem("access_token");
-      const res = await fetch("/api/templates/upload-media", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+      const res = await api.post("/api/templates/upload-media", formData, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "multipart/form-data"
+        }
       });
-      if (!res.ok) throw new Error("Failed to upload media sample");
-      const data = await res.json();
+      const data = res.data;
       setNewTemplate((prev) => ({
         ...prev,
         sample_values: {
@@ -72,7 +74,7 @@ export default function TemplateModal({
         }
       }));
     } catch (err) {
-      alert("Error uploading media: " + err.message);
+      alert("Error uploading media: " + (err.response?.data?.detail || err.message));
     } finally {
       setUploadingMedia(false);
     }
