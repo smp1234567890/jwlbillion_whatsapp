@@ -583,6 +583,25 @@ def run_all_active_automation_rules():
         db.close()
 
 
+def run_scheduled_meta_template_sync():
+    """
+    Periodic job that automatically synchronizes approved message templates
+    and read analytics from Meta Graph API every 10 minutes.
+    """
+    from database import SessionLocal
+    from routers.templates import execute_sync_meta_templates
+
+    db = SessionLocal()
+    try:
+        logger.info("[Scheduler Auto-Sync] Syncing WhatsApp templates from Meta...")
+        res = execute_sync_meta_templates(db=db)
+        logger.info(f"[Scheduler Auto-Sync Complete] {res.get('message', 'Done')}")
+    except Exception as e:
+        logger.warning(f"[Scheduler Auto-Sync Failed] {e}")
+    finally:
+        db.close()
+
+
 def start_scheduler():
     if not config.SCHEDULER_ENABLED:
         logger.info("Scheduler is disabled for this application instance.")
@@ -602,8 +621,15 @@ def start_scheduler():
             id="continuous_workflow_engine_sweep",
             replace_existing=True
         )
+        # 3. Automatic Meta Template & Analytics Sync every 10 minutes
+        scheduler.add_job(
+            func=run_scheduled_meta_template_sync,
+            trigger=IntervalTrigger(minutes=10),
+            id="auto_sync_meta_templates_sweep",
+            replace_existing=True
+        )
         scheduler.start()
-        logger.info("APScheduler started successfully with daily sweep and continuous workflow engine.")
+        logger.info("APScheduler started successfully with daily sweep, continuous workflow engine, and 10-minute Meta template auto-sync.")
 
 def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
     """

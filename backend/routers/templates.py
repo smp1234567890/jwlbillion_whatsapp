@@ -25,23 +25,17 @@ logger = logging.getLogger("templates_router")
 router = APIRouter(prefix="/api/templates", tags=["templates"])
 
 
-@router.post("/sync-from-meta")
-def sync_templates_from_meta(
-    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
-    db: Session = Depends(get_db)
-):
+def execute_sync_meta_templates(db: Session) -> dict:
     """
-    Connects to live Meta Graph API using your WABA_ID & ACCESS_TOKEN,
-    fetches all approved message templates, and syncs them into your database.
+    Core function that connects to live Meta Graph API using WABA_ID & ACCESS_TOKEN,
+    fetches all approved message templates, buttons, and formats, and syncs into the DB.
     """
     waba_id = config.WHATSAPP_BUSINESS_ACCOUNT_ID
     access_token = config.WHATSAPP_API_TOKEN
 
     if not waba_id or not access_token:
-        raise HTTPException(
-            status_code=400,
-            detail="Meta WABA ID or Access Token is missing from environment configuration"
-        )
+        logger.warning("Meta WABA ID or Access Token is missing; template sync skipped.")
+        return {"status": "skipped", "reason": "Missing credentials"}
 
     try:
         url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{waba_id}/message_templates?limit=100"
@@ -171,6 +165,18 @@ def sync_templates_from_meta(
     except Exception as e:
         logger.error(f"Error syncing templates from Meta: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/sync-from-meta")
+def sync_templates_from_meta(
+    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
+    db: Session = Depends(get_db)
+):
+    """
+    Connects to live Meta Graph API using your WABA_ID & ACCESS_TOKEN,
+    fetches all approved message templates, and syncs them into your database.
+    """
+    return execute_sync_meta_templates(db=db)
 
 
 @router.get("")
