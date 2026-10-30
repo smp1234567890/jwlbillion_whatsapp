@@ -376,10 +376,31 @@ export default function TemplateModal({
                       onChange={(e) => setNewTemplate({ ...newTemplate, language: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                     >
-                      <option value="en">English (en)</option>
-                      <option value="en_US">English (US)</option>
-                      <option value="gu">ગુજરાતી (gu)</option>
-                      <option value="hi">हिंदी (hi)</option>
+                      <optgroup label="English">
+                        <option value="en">English (en)</option>
+                        <option value="en_IN">English (IND) (en_IN)</option>
+                        <option value="en_US">English (US) (en_US)</option>
+                        <option value="en_GB">English (UK) (en_GB)</option>
+                      </optgroup>
+                      <optgroup label="Indian Regional">
+                        <option value="gu">ગુજરાતી (gu)</option>
+                        <option value="hi">हिंदी (hi)</option>
+                        <option value="mr">मराठी (mr)</option>
+                        <option value="ta">தமிழ் (ta)</option>
+                        <option value="te">తెలుగు (te)</option>
+                        <option value="bn">বাংলা (bn)</option>
+                        <option value="kn">ಕನ್ನಡ (kn)</option>
+                        <option value="ml">മലയാളം (ml)</option>
+                        <option value="pa">ਪੰਜਾਬੀ (pa)</option>
+                      </optgroup>
+                      <optgroup label="International">
+                        <option value="ar">العربية (ar)</option>
+                        <option value="es">Español (es)</option>
+                        <option value="pt_BR">Português (BR) (pt_BR)</option>
+                        <option value="fr">Français (fr)</option>
+                        <option value="de">Deutsch (de)</option>
+                        <option value="id">Bahasa Indonesia (id)</option>
+                      </optgroup>
                     </select>
                   </div>
                 </div>

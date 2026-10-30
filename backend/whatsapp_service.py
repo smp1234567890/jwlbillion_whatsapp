@@ -468,7 +468,7 @@ def create_meta_template(
             "category": category_clean
         }
 
-    url = f"{config.META_API_BASE_URL}/{waba_id}/message_templates"
+    url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{waba_id}/message_templates"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
