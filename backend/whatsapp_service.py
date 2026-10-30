@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import re
 from dotenv import load_dotenv
 import httpx
