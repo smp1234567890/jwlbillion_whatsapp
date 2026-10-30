@@ -68,7 +68,7 @@ export default function TemplateModal({
         ...prev,
         sample_values: {
           ...(prev.sample_values || {}),
-          header_handle: data.meta_media_id || data.url,
+          header_handle: data.header_handle || data.url,
           header_url: data.url,
           header_filename: data.filename
         }

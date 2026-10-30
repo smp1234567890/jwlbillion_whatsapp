@@ -20,7 +20,7 @@ import config
 import models
 import schemas
 from database import get_db
-from whatsapp_service import create_meta_template, upload_media_to_meta
+from whatsapp_service import create_meta_template, upload_media_to_meta, upload_template_sample_to_meta
 
 logger = logging.getLogger("templates_router")
 
@@ -350,14 +350,14 @@ async def upload_template_media(
 
     relative_url = f"/uploads/{saved_filename}"
 
-    # Upload to Meta to get media handle/id if credentials exist
-    meta_upload = upload_media_to_meta(file_bytes, mime_type, orig_filename)
-    meta_media_id = meta_upload.get("media_id")
+    # Upload to Meta Resumable Upload API to obtain valid template header_handle 'h'
+    sample_upload = upload_template_sample_to_meta(file_bytes, mime_type, orig_filename)
+    header_handle = sample_upload.get("header_handle")
 
     return {
         "status": "success",
         "filename": orig_filename,
         "url": relative_url,
         "mime_type": mime_type,
-        "meta_media_id": meta_media_id
+        "header_handle": header_handle
     }

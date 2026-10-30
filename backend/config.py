@@ -110,6 +110,7 @@ WHATSAPP_WEBHOOK_URL = os.getenv("WHATSAPP_WEBHOOK_URL", "")
 
 META_GRAPH_BASE_URL = os.getenv("META_GRAPH_BASE_URL", "https://graph.facebook.com").rstrip("/")
 META_GRAPH_VERSION = os.getenv("META_GRAPH_VERSION", "v19.0")
+META_APP_ID = os.getenv("META_APP_ID", "1128037383522327")
 
 # ── Store Integration & Feeds ──
 STORE_INACTIVE_FEED_URL = os.getenv("STORE_INACTIVE_FEED_URL", "")

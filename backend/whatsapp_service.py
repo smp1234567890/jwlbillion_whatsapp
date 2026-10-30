@@ -708,6 +708,58 @@ def send_whatsapp_free_text(
             db.close()
 
 
+def upload_template_sample_to_meta(file_bytes: bytes, mime_type: str, filename: str) -> dict:
+    """
+    Uploads a template header sample file to Meta using the Resumable Upload API:
+    1. POST /{APP_ID}/uploads -> get upload session ID
+    2. POST /upload:{SESSION_ID} -> upload binary data and retrieve file handle 'h'
+    Returns {"status": "success", "header_handle": "4:..."}
+    """
+    if not WHATSAPP_API_TOKEN or not getattr(config, "META_APP_ID", None):
+        mock_handle = f"4:sim_handle_{int(datetime.utcnow().timestamp())}"
+        return {"status": "success_simulated", "header_handle": mock_handle}
+
+    app_id = config.META_APP_ID
+    headers = {"Authorization": f"Bearer {WHATSAPP_API_TOKEN}"}
+    params = {
+        "file_length": len(file_bytes),
+        "file_type": mime_type,
+        "file_name": filename
+    }
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            # Step 1: Start upload session
+            init_url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{app_id}/uploads"
+            init_res = client.post(init_url, headers=headers, params=params)
+            init_data = init_res.json()
+            if init_res.status_code != 200 or "id" not in init_data:
+                err = str(init_data.get("error", init_res.text))
+                logger.error(f"[Meta Resumable Upload Init Error] {err}")
+                return {"status": "failed", "error": err}
+
+            upload_session_id = init_data["id"]
+
+            # Step 2: Upload binary bytes to obtain handle 'h'
+            binary_url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{upload_session_id}"
+            binary_headers = {
+                "Authorization": f"OAuth {WHATSAPP_API_TOKEN}",
+                "file_offset": "0",
+                "Content-Type": mime_type
+            }
+            bin_res = client.post(binary_url, headers=binary_headers, content=file_bytes)
+            bin_data = bin_res.json()
+            if bin_res.status_code == 200 and "h" in bin_data:
+                return {"status": "success", "header_handle": bin_data["h"]}
+            else:
+                err = str(bin_data.get("error", bin_res.text))
+                logger.error(f"[Meta Resumable Upload Binary Error] {err}")
+                return {"status": "failed", "error": err}
+    except Exception as e:
+        logger.error(f"[Meta Resumable Upload Exception] {e}")
+        return {"status": "error", "error": str(e)}
+
+
 def upload_media_to_meta(file_bytes: bytes, mime_type: str, filename: str) -> dict:
     """
     Uploads a file directly to Meta's Cloud API media endpoint:
