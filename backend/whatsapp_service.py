@@ -438,21 +438,34 @@ def create_meta_template(
     language: str,
     body_text: str,
     header_text: str = None,
-    footer_text: str = None
+    footer_text: str = None,
+    sub_type: str = "DEFAULT",
+    header_type: str = "NONE",
+    buttons: Optional[List[dict]] = None,
+    sample_values: Optional[dict] = None,
+    validity_period_minutes: Optional[int] = None,
+    auth_config: Optional[dict] = None
 ) -> dict:
     """
-    Submits a new WhatsApp message template to Meta Graph API.
-    If Meta API credentials are not set, records in local simulation mode.
+    Submits a rich WhatsApp message template to Meta Graph API.
+    Handles Marketing, Utility, and Authentication categories,
+    Header formats (TEXT, IMAGE, VIDEO, DOCUMENT, LOCATION),
+    Review samples (Meta required when variables are present),
+    Buttons (Quick reply, URL, Phone, Copy Code, Flows),
+    and TTL validity period.
+    Falls back to simulation mode if API credentials are not set.
     """
     waba_id = config.WHATSAPP_BUSINESS_ACCOUNT_ID
     token = config.WHATSAPP_API_TOKEN
 
+    category_clean = (category or "MARKETING").upper()
+
     if not waba_id or not token:
-        logger.info(f"[SIMULATION] Created template '{template_name}'locally (no Meta credentials).")
+        logger.info(f"[SIMULATION] Created template '{template_name}' locally ({category_clean} - {sub_type}).")
         return {
             "status": "APPROVED",
             "id": f"sim_template_{int(datetime.utcnow().timestamp())}",
-            "category": category
+            "category": category_clean
         }
 
     url = f"{config.META_API_BASE_URL}/{waba_id}/message_templates"
@@ -461,32 +474,125 @@ def create_meta_template(
         "Content-Type": "application/json"
     }
 
-    components = [
-        {
-            "type": "BODY",
-            "text": body_text
-        }
-    ]
+    components = []
 
-    if header_text:
+    # 1. HEADER Component
+    norm_header_type = (header_type or "NONE").upper()
+    if norm_header_type == "TEXT" and header_text:
+        header_comp = {
+            "type": "HEADER",
+            "format": "TEXT",
+            "text": header_text
+        }
+        # If header contains variables, add sample
+        header_matches = re.findall(r"\{\{(\d+)\}\}", header_text)
+        if header_matches:
+            samples = []
+            if sample_values and "header" in sample_values:
+                samples = sample_values["header"]
+            if not samples:
+                samples = ["Sample Header"]
+            header_comp["example"] = {"header_text": samples}
+        components.append(header_comp)
+    elif norm_header_type in ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]:
+        header_comp = {
+            "type": "HEADER",
+            "format": norm_header_type
+        }
+        if sample_values and "header_handle" in sample_values:
+            header_comp["example"] = {"header_handle": [sample_values["header_handle"]]}
+        components.append(header_comp)
+    elif header_text and norm_header_type == "NONE":
+        # Backward compatibility for plain header text
         components.append({
             "type": "HEADER",
             "format": "TEXT",
             "text": header_text
         })
 
+    # 2. BODY Component
+    body_comp = {
+        "type": "BODY",
+        "text": body_text
+    }
+    # Check for body variable placeholders {{1}}, {{2}}...
+    body_matches = sorted(list(set(re.findall(r"\{\{(\d+)\}\}", body_text or ""))), key=lambda x: int(x))
+    if body_matches:
+        samples = []
+        if sample_values and "body" in sample_values:
+            samples = sample_values["body"]
+        if not samples or len(samples) < len(body_matches):
+            # Fallback default samples if none provided so Meta doesn't reject
+            samples = [f"sample_{i}" for i in range(1, len(body_matches) + 1)]
+        body_comp["example"] = {"body_text": [samples]}
+    components.append(body_comp)
+
+    # 3. FOOTER Component
     if footer_text:
         components.append({
             "type": "FOOTER",
             "text": footer_text
         })
 
+    # 4. BUTTONS Component
+    if buttons and isinstance(buttons, list) and len(buttons) > 0:
+        meta_buttons = []
+        for btn in buttons[:10]:
+            b_type = (btn.get("type") or "QUICK_REPLY").upper()
+            text_val = btn.get("text") or "Button"
+
+            if b_type in ["QUICK_REPLY", "CUSTOM"]:
+                meta_buttons.append({
+                    "type": "QUICK_REPLY",
+                    "text": text_val
+                })
+            elif b_type in ["URL", "VISIT_WEBSITE"]:
+                url_btn = {
+                    "type": "URL",
+                    "text": text_val,
+                    "url": btn.get("url", "https://example.com")
+                }
+                if "{{" in btn.get("url", ""):
+                    url_sample = btn.get("example") or ["order123"]
+                    url_btn["example"] = url_sample if isinstance(url_sample, list) else [url_sample]
+                meta_buttons.append(url_btn)
+            elif b_type in ["PHONE_NUMBER", "CALL_PHONE"]:
+                meta_buttons.append({
+                    "type": "PHONE_NUMBER",
+                    "text": text_val,
+                    "phone_number": btn.get("phone_number", "+919876543210")
+                })
+            elif b_type in ["COPY_CODE", "OTP"]:
+                meta_buttons.append({
+                    "type": "COPY_CODE",
+                    "example": btn.get("example") or "OFFER20"
+                })
+            elif b_type in ["FLOW", "COMPLETE_FLOW"]:
+                flow_btn = {
+                    "type": "FLOW",
+                    "text": text_val,
+                    "navigate_screen": btn.get("navigate_screen", "START")
+                }
+                if btn.get("flow_id"):
+                    flow_btn["flow_id"] = btn.get("flow_id")
+                meta_buttons.append(flow_btn)
+
+        if meta_buttons:
+            components.append({
+                "type": "BUTTONS",
+                "buttons": meta_buttons
+            })
+
     payload = {
         "name": template_name.lower().replace(" ", "_"),
-        "category": category.upper(),
+        "category": category_clean,
         "language": language,
         "components": components
     }
+
+    # TTL Validity Period (Utility & Authentication)
+    if validity_period_minutes and validity_period_minutes > 0:
+        payload["message_send_ttl_seconds"] = int(validity_period_minutes) * 60
 
     try:
         with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
@@ -496,7 +602,7 @@ def create_meta_template(
                 return {
                     "status": data.get("status", "PENDING"),
                     "id": data.get("id"),
-                    "category": data.get("category")
+                    "category": data.get("category", category_clean)
                 }
             else:
                 error_msg = data.get("error", {}).get("message", "Meta template submission failed")

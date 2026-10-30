@@ -63,18 +63,24 @@ def sync_templates_from_meta(
             language = item.get("language", "en")
             tmpl_status = item.get("status", "APPROVED")
 
-            # Extract header, body, footer from components
+            # Extract header, body, footer, buttons from components
             header_text = ""
+            header_type = "NONE"
             body_text = ""
             footer_text = ""
+            buttons = []
             for comp in item.get("components", []):
                 ctype = comp.get("type")
                 if ctype == "HEADER":
+                    header_type = comp.get("format", "TEXT")
                     header_text = comp.get("text", "")
                 elif ctype == "BODY":
                     body_text = comp.get("text", "")
                 elif ctype == "FOOTER":
                     footer_text = comp.get("text", "")
+                elif ctype == "BUTTONS":
+                    for btn in comp.get("buttons", []):
+                        buttons.append(btn)
 
             # Check existing
             existing = db.query(models.Template).filter(
@@ -84,18 +90,23 @@ def sync_templates_from_meta(
 
             if existing:
                 existing.header_text = header_text
+                existing.header_type = header_type
                 existing.body_text = body_text
                 existing.footer_text = footer_text
                 existing.category = category
                 existing.status = tmpl_status
+                if buttons:
+                    existing.buttons = buttons
             else:
                 new_tmpl = models.Template(
                     template_name=name,
                     category=category,
                     language=language,
+                    header_type=header_type,
                     header_text=header_text,
                     body_text=body_text,
                     footer_text=footer_text,
+                    buttons=buttons if buttons else None,
                     status=tmpl_status
                 )
                 db.add(new_tmpl)
@@ -190,7 +201,13 @@ def create_template(
         language=payload.language,
         body_text=payload.body_text,
         header_text=payload.header_text,
-        footer_text=payload.footer_text
+        footer_text=payload.footer_text,
+        sub_type=payload.sub_type or "DEFAULT",
+        header_type=payload.header_type or "NONE",
+        buttons=payload.buttons,
+        sample_values=payload.sample_values,
+        validity_period_minutes=payload.validity_period_minutes,
+        auth_config=payload.auth_config
     )
 
     if "error" in meta_result and meta_result.get("status") == "FAILED":
@@ -204,9 +221,15 @@ def create_template(
     status_val = meta_result.get("status", "APPROVED")
     if existing:
         existing.category = payload.category
+        existing.sub_type = payload.sub_type or "DEFAULT"
+        existing.header_type = payload.header_type or "NONE"
         existing.body_text = payload.body_text
         existing.header_text = payload.header_text
         existing.footer_text = payload.footer_text
+        existing.buttons = payload.buttons
+        existing.sample_values = payload.sample_values
+        existing.validity_period_minutes = payload.validity_period_minutes
+        existing.auth_config = payload.auth_config
         existing.status = status_val
         if payload.variable_mappings is not None:
             existing.variable_mappings = payload.variable_mappings
@@ -217,10 +240,16 @@ def create_template(
     new_tmpl = models.Template(
         template_name=clean_name,
         category=payload.category,
+        sub_type=payload.sub_type or "DEFAULT",
         language=payload.language,
+        header_type=payload.header_type or "NONE",
         body_text=payload.body_text,
         header_text=payload.header_text,
         footer_text=payload.footer_text,
+        buttons=payload.buttons,
+        sample_values=payload.sample_values,
+        validity_period_minutes=payload.validity_period_minutes,
+        auth_config=payload.auth_config,
         status=status_val,
         variable_mappings=payload.variable_mappings or {}
     )

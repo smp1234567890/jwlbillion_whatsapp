@@ -296,10 +296,16 @@ class CampaignResponse(BaseModel):
 class TemplateCreate(BaseModel):
     template_name: str = Field(..., min_length=2, max_length=100)
     category: str = Field(default="MARKETING")
+    sub_type: Optional[str] = Field(default="DEFAULT")
     language: str = Field(default="en")
-    body_text: str = Field(..., min_length=5)
+    header_type: Optional[str] = Field(default="NONE")
     header_text: Optional[str] = None
+    body_text: str = Field(..., min_length=1)
     footer_text: Optional[str] = None
+    buttons: Optional[List[Dict[str, Any]]] = None
+    sample_values: Optional[Dict[str, Any]] = None
+    validity_period_minutes: Optional[int] = None
+    auth_config: Optional[Dict[str, Any]] = None
     variable_mappings: Optional[Dict[str, Any]] = None  # {"1": {"type": "contact_field", "value": "name"}, ...}
 
 

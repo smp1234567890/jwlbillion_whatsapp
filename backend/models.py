@@ -190,11 +190,17 @@ class Template(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     template_name = Column(String(100), index=True, nullable=False)
-    category = Column(String(50), default="MARKETING")  # MARKETING or UTILITY
-    language = Column(String(10), default="en")        # en, gu, hi
+    category = Column(String(50), default="MARKETING")  # MARKETING, UTILITY, AUTHENTICATION
+    sub_type = Column(String(50), default="DEFAULT", nullable=True)  # DEFAULT, CATALOGUE, FLOWS, ORDER_DETAILS, CALLING_PERMISSION, OTP
+    language = Column(String(10), default="en")        # en, gu, hi, etc.
+    header_type = Column(String(20), default="NONE", nullable=True)  # NONE, TEXT, IMAGE, VIDEO, DOCUMENT, LOCATION
     header_text = Column(String(150), nullable=True)
     body_text = Column(Text, nullable=False)
     footer_text = Column(String(100), nullable=True)
+    buttons = Column(JSON, nullable=True)               # list of button definitions
+    sample_values = Column(JSON, nullable=True)         # samples for Meta review {body: [...], header: [...]}
+    validity_period_minutes = Column(Integer, nullable=True)  # TTL for utility/auth
+    auth_config = Column(JSON, nullable=True)           # package_name, app_signature_hash, otp_type
     status = Column(String(50), default="APPROVED")     # APPROVED, PENDING, REJECTED
     # Configure-Once-Use-Everywhere: maps {{1}}, {{2}} ... to contact/cart/coupon/static fields
     variable_mappings = Column(JSON, nullable=True)     # e.g. {"1": {"type": "contact_field", "value": "name"}, "2": {...}}
