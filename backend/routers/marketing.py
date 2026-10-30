@@ -361,8 +361,18 @@ def remove_opt_out(
     if not record:
         raise HTTPException(status_code=404, detail="Opt-out record not found")
     db.delete(record)
+
+    # Reactivate consent records so the contact is restored to good standing
+    consents = db.query(models.ConsentRecord).filter(models.ConsentRecord.phone == clean_phone).all()
+    if consents:
+        for c in consents:
+            c.status = "ACTIVE"
+            c.revoked_at = None
+    else:
+        record_consent(db, clean_phone, source="admin_dnd_removal", proof_details="Admin removed from DND")
+
     db.commit()
-    return {"status": "success", "message": f"{clean_phone} removed from DND list. Note: affirmative marketing consent must be separately collected."}
+    return {"status": "success", "message": f"{clean_phone} removed from DND list and consent restored."}
 
 
 # ==========================================

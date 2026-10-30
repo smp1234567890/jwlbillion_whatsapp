@@ -1264,13 +1264,21 @@ async def receive_inbound_whatsapp_message(
                     words = [w.strip() for w in raw_body.lower().replace(",", " ").replace(".", " ").replace("!", " ").split()]
                     is_opt_in = any(keyword in words or keyword == raw_body.strip().lower() for keyword in OPT_IN_KEYWORDS)
                     if is_opt_in:
+                        # Clear any existing DND block
+                        db.query(models.OptOut).filter(models.OptOut.phone == sender_phone).delete()
+                        # Reactivate / record active consent
+                        consents = db.query(models.ConsentRecord).filter(models.ConsentRecord.phone == sender_phone).all()
+                        if consents:
+                            for c in consents:
+                                c.status = "ACTIVE"
+                                c.revoked_at = None
                         record_consent(
                             db=db,
                             phone=sender_phone,
                             source="inbound_message",
                             proof_details=f"Inbound affirmative double opt-in reply: {raw_body[:60]}"
                         )
-                        logger.info(f"[DOUBLE OPT-IN] Customer {sender_phone} confirmed consent via reply '{raw_body}'.")
+                        logger.info(f"[DOUBLE OPT-IN] Customer {sender_phone} confirmed consent via reply '{raw_body}'. Cleared from DND.")
                         # Advance any waiting double opt-in workflow sessions
                         waiting_sessions = db.query(models.WorkflowSession).filter(
                             models.WorkflowSession.status.in_(["ACTIVE", "WAITING_DELAY", "WAITING_CONDITION"])

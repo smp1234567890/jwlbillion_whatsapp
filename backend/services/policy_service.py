@@ -212,25 +212,24 @@ def authorize_outbound_message(
         return False, "Customer opted out / on DND list"
 
     # 3. Consent check
-    # Check if consent was explicitly revoked
-    revoked_consent = (
-        db.query(models.ConsentRecord)
-        .filter(models.ConsentRecord.phone == clean_phone, models.ConsentRecord.status == "REVOKED")
-        .order_by(models.ConsentRecord.id.desc())
-        .first()
-    )
-    active_consent = (
-        db.query(models.ConsentRecord)
-        .filter(models.ConsentRecord.phone == clean_phone, models.ConsentRecord.status == "ACTIVE")
-        .order_by(models.ConsentRecord.id.desc())
-        .first()
-    )
-    if revoked_consent and (not active_consent or revoked_consent.id > active_consent.id):
-        return False, "Customer consent revoked"
-
-    # For promotional (marketing) broadcasts, active consent is MANDATORY (deny-by-default).
-    # Utility campaigns (transactional alerts, address updates, etc.) are exempt.
+    # Promotional (marketing) broadcasts strictly require active marketing consent.
+    # Utility & transactional messages (order tracking, address updates, cart alerts) are exempt
+    # from marketing opt-out blocks and are delivered unless the phone is explicitly on DND.
     if purpose == "marketing":
+        revoked_consent = (
+            db.query(models.ConsentRecord)
+            .filter(models.ConsentRecord.phone == clean_phone, models.ConsentRecord.status == "REVOKED")
+            .order_by(models.ConsentRecord.id.desc())
+            .first()
+        )
+        active_consent = (
+            db.query(models.ConsentRecord)
+            .filter(models.ConsentRecord.phone == clean_phone, models.ConsentRecord.status == "ACTIVE")
+            .order_by(models.ConsentRecord.id.desc())
+            .first()
+        )
+        if revoked_consent and (not active_consent or revoked_consent.id > active_consent.id):
+            return False, "Customer marketing consent revoked"
         if not active_consent:
             return False, "No active marketing consent on file for campaign recipient — send denied"
 

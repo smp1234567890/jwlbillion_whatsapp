@@ -143,3 +143,4 @@ def format_order_summary(order: Dict[str, Any]) -> Dict[str, Any]:
         "currency": currency,
         "created_at": order.get("created_at")
     }
+
