@@ -154,7 +154,34 @@ def handle_inbound_auto_reply(
             sender_user="AI Assistant",
             db=db
         )
-        logger.info(f"[Bot Auto-Reply] Sent to {sender_phone}: {reply_text[:60]}...")
+        msg_id = res.get("message_id")
+        status_str = "SENT" if res.get("status") in ["success", "success_simulated"] else "FAILED"
+
+        # Persist bot reply to ChatMessage so it immediately shows up in Live Chat
+        if db:
+            chat_entry = models.ChatMessage(
+                customer_phone=sender_phone,
+                sender_type="AGENT",
+                message_type="text",
+                text=reply_text,
+                meta_message_id=msg_id,
+                status=status_str,
+                is_read=True
+            )
+            db.add(chat_entry)
+
+            log_entry = models.MessageLog(
+                recipient_phone=sender_phone,
+                template_name="auto_reply_bot",
+                language="en",
+                sender_user="AI Assistant",
+                status=status_str,
+                meta_message_id=msg_id
+            )
+            db.add(log_entry)
+            db.commit()
+
+        logger.info(f"[Bot Auto-Reply] Sent and recorded for {sender_phone}: {reply_text[:60]}...")
         return reply_text
     except Exception as e:
         logger.error(f"[Bot Auto-Reply] Failed sending reply to {sender_phone}: {e}")
