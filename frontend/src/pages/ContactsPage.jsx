@@ -111,14 +111,6 @@ export default function ContactsPage({
                     <Upload className="w-3.5 h-3.5 text-gray-600" />
                     Import CSV
                   </button>
-                  <button
-                    onClick={() => setIsSyncModalOpen(true)}
-                    className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3.5 py-1.5 rounded-lg font-bold text-xs shadow-xs transition"
-                    title="Get webhook endpoint link and API credentials to sync contacts from other software"
-                  >
-                    <Link2 className="w-3.5 h-3.5 text-emerald-600" />
-                    API / Webhook Sync
-                  </button>
                 </div>
               </div>
               {(() => {

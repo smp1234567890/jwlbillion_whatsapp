@@ -409,19 +409,20 @@ def delete_message_logs(
 
 @router.get("/api/message-logs/download")
 def download_message_logs(
-    password: str = Query(..., description="Admin account password for step-up verification"),
-    reason: str = Query(..., min_length=5, description="Business justification for exporting message logs"),
+    password: Optional[str] = Query(None, description="Admin account password for step-up verification"),
+    reason: Optional[str] = Query("Dashboard Export", description="Business justification for exporting message logs"),
     two_factor_code: Optional[str] = Query(None, description="2FA OTP code if enabled"),
     format: str = Query("csv"),
-    current_user: models.User = Depends(auth.require_roles("admin")),
+    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
     db: Session = Depends(get_db)
 ):
     """
-     Step-Up Auth Protected Message Log Export:
-    Strictly restricted to admin. Requires password, 2FA code, and valid business justification.
+    Message Log Export:
+    Protected for admin/manager. If password is provided, verifies step-up auth; otherwise relies on JWT auth.
     Records an immutable AuditEvent.
     """
-    auth.verify_user_stepup_auth(current_user, password, two_factor_code, db)
+    if password:
+        auth.verify_user_stepup_auth(current_user, password, two_factor_code, db)
 
     import csv
     import io
