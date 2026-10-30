@@ -310,6 +310,7 @@ def test_external_data_source(
 # ==========================================
 
 @router.post("/api/opt-out")
+@router.post("/api/opt-outs")
 @limiter.limit("30/minute")
 def register_opt_out(
     request: Request,
@@ -329,6 +330,20 @@ def list_opt_outs(
     db: Session = Depends(get_db)
 ):
     return db.query(models.OptOut).order_by(models.OptOut.created_at.desc()).limit(limit).all()
+
+
+@router.delete("/api/campaigns/{campaign_id}")
+def delete_campaign(
+    campaign_id: int,
+    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
+    db: Session = Depends(get_db)
+):
+    campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    db.delete(campaign)
+    db.commit()
+    return {"status": "success", "message": f"Campaign #{campaign_id} deleted"}
 
 
 @router.delete("/api/opt-outs/{phone}")

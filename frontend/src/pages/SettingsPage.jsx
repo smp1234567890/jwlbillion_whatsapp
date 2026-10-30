@@ -97,7 +97,7 @@ export default function SettingsPage({
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-base text-[#10B981] bg-white px-3 py-1 rounded-lg border border-gray-200 shadow-xs">
-                        200 / Day
+                        2000 / Day
                       </span>
                       <span className="text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-md border border-gray-300/60">
                         Fixed

@@ -387,7 +387,7 @@ export default function AnalyticsPage({
                         <div className="flex items-center justify-between text-[11px] mb-1">
                           <span className="text-gray-500 font-medium">Daily Outbound Capacity</span>
                           <span className="font-bold text-gray-900">
-                            {analyticsData?.meta_health?.used_today ?? 0} / {analyticsData?.meta_health?.daily_limit ?? 200} sent
+                            {analyticsData?.meta_health?.used_today ?? 0} / {analyticsData?.meta_health?.daily_limit ?? 2000} sent
                           </span>
                         </div>
                         <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
@@ -398,7 +398,7 @@ export default function AnalyticsPage({
                                 100,
                                 Math.round(
                                   ((analyticsData?.meta_health?.used_today ?? 0) /
-                                    (analyticsData?.meta_health?.daily_limit ?? 200)) *
+                                    (analyticsData?.meta_health?.daily_limit ?? 2000)) *
                                     100
                                 )
                               )}%`

@@ -1745,16 +1745,16 @@ export default function App() {
   };
 
   const handleCancelCampaign = async (campaignId) => {
-    if (!window.confirm(`Cancel scheduled broadcast #${campaignId}? It will not be sent.`)) return;
+    if (!window.confirm(`Delete broadcast campaign #${campaignId}?`)) return;
     try {
       await axios.delete(`/api/campaigns/${campaignId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setActionSuccessMsg(`Scheduled campaign #${campaignId} has been cancelled.`);
+      setActionSuccessMsg(`Campaign #${campaignId} has been deleted.`);
       fetchData();
       setTimeout(() => setActionSuccessMsg(""), 5000);
     } catch (err) {
-      alert("Failed to cancel campaign: " + (err.response?.data?.detail || err.message));
+      alert("Failed to delete campaign: " + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -1767,6 +1767,21 @@ export default function App() {
       fetchData();
     } catch (err) {
       alert("Error removing opt-out: " + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  const handleAddOptOut = async (phone, reason) => {
+    try {
+      await axios.post(
+        "/api/opt-outs",
+        { phone, reason: reason || "Manual Request" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setActionSuccessMsg(`${phone} added to Opt-Out (DND) list.`);
+      fetchData();
+      setTimeout(() => setActionSuccessMsg(""), 5000);
+    } catch (err) {
+      alert("Error adding opt-out: " + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -2165,6 +2180,7 @@ export default function App() {
             <OptOutPage
               optOuts={optOuts}
               handleRemoveOptOut={handleRemoveOptOut}
+              handleAddOptOut={handleAddOptOut}
             />
           )}
 

@@ -175,16 +175,14 @@ export default function CampaignsPage({
                           <BarChart2 className="w-3.5 h-3.5 text-emerald-600" />
                           <span>View Report</span>
                         </button>
-                        {c.status === "SCHEDULED" && (
-                          <button
-                            onClick={() => handleCancelScheduledCampaign(c.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition"
-                            title="Cancel this scheduled broadcast"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            Cancel
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleCancelScheduledCampaign(c.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition"
+                          title="Delete this campaign record"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>

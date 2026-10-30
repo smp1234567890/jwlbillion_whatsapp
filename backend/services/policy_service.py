@@ -15,7 +15,7 @@ from services.phone_service import normalize_phone, InvalidPhoneNumberError
 
 logger = logging.getLogger("policy_service")
 
-FIXED_DAILY_LIMIT = 200
+FIXED_DAILY_LIMIT = 2000
 
 # Transactional templates exempt from promotional quiet hours
 TRANSACTIONAL_TEMPLATES = {
