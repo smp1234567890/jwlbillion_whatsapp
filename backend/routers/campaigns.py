@@ -97,7 +97,7 @@ def get_campaign(
 
 
 @router.delete("/{campaign_id}")
-def cancel_campaign(
+def delete_campaign(
     campaign_id: int,
     current_user: models.User = Depends(auth.require_roles("admin", "manager")),
     db: Session = Depends(get_db)
@@ -115,14 +115,20 @@ def cancel_campaign(
         except Exception as sj_err:
             logger.warning(f"Note on removing scheduler job {job_id}: {sj_err}")
 
-        campaign.status = "CANCELLED"
+        # Disassociate message_logs and outbound_messages so foreign key constraints are not violated
+        from sqlalchemy import text
+        db.execute(text("UPDATE message_logs SET campaign_id = NULL WHERE campaign_id = :cid"), {"cid": campaign_id})
+        db.execute(text("UPDATE outbound_messages SET campaign_id = NULL WHERE campaign_id = :cid"), {"cid": campaign_id})
+        
+        db.delete(campaign)
         db.commit()
-        return {"message": f"Campaign #{campaign_id} cancelled", "id": campaign_id, "status": "CANCELLED"}
+        return {"status": "success", "message": f"Campaign #{campaign_id} deleted", "id": campaign_id}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error cancelling campaign {campaign_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to cancel campaign")
+        logger.error(f"Error deleting campaign {campaign_id}: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete campaign")
 
 
 @router.get("/{campaign_id}/logs")
