@@ -30,8 +30,47 @@ export default function TemplateMappingModal({
 
           {/* Template body preview */}
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 text-xs text-gray-700 leading-relaxed font-sans">
+            {editMappingTemplate.header_type && editMappingTemplate.header_type !== "NONE" && (
+              <div className="mb-2 pb-2 border-b border-gray-200 flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+                  Header Format: {editMappingTemplate.header_type}
+                </span>
+                {editMappingTemplate.sample_values?.header_url && (
+                  <span className="text-[10px] text-gray-500 truncate max-w-[200px]" title={editMappingTemplate.sample_values.header_url}>
+                    Sample: {editMappingTemplate.sample_values.header_url}
+                  </span>
+                )}
+              </div>
+            )}
             {editMappingTemplate.body_text}
           </div>
+
+          {/* Dynamic Media Header Mapping if template expects IMAGE, VIDEO, or DOCUMENT */}
+          {["IMAGE", "VIDEO", "DOCUMENT"].includes(editMappingTemplate.header_type) && (
+            <div className="space-y-1.5 p-3 rounded-xl bg-purple-50/60 border border-purple-200">
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-purple-900 bg-purple-200 px-2.5 py-1 rounded border border-purple-300 text-xs">
+                  Header {editMappingTemplate.header_type} Media URL
+                </span>
+                <span className="text-[10px] text-purple-700 font-semibold">Broadcast & Automation Media Source</span>
+              </div>
+              <p className="text-[11px] text-purple-800">
+                Provide a default image/video/document URL or mapping for this template so broadcasts and messages deliver smoothly:
+              </p>
+              <input
+                type="url"
+                placeholder={editMappingTemplate.sample_values?.header_url || `https://example.com/assets/${editMappingTemplate.header_type.toLowerCase()}-file`}
+                value={((editMappings || {})["header"] || {}).value || ""}
+                onChange={(e) =>
+                  setEditMappings((prev) => ({
+                    ...prev,
+                    header: { type: "static", value: e.target.value }
+                  }))
+                }
+                className="w-full px-3 py-2 border border-purple-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 font-mono"
+              />
+            </div>
+          )}
 
           {params.length === 0 ? (
             <p className="text-xs text-center text-gray-400 py-4">No placeholders found in this template body text.</p>

@@ -110,21 +110,110 @@ export default function CampaignModal({
               const currentTmpl = templates.find((t) => t.template_name === newCampaign.template_name);
               if (!currentTmpl) return null;
               const isApproved = currentTmpl.status === "APPROVED";
+              const headerType = (currentTmpl.header_type || "NONE").toUpperCase();
+              const needsMedia = ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"].includes(headerType);
+
               return (
-                <div className={`mt-2 p-2.5 rounded-lg text-xs flex items-center justify-between border ${
-                  isApproved 
-                    ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
-                    : "bg-amber-50 text-amber-800 border-amber-200"
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${isApproved ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}></span>
-                    <span className="font-semibold">
-                      {isApproved ? "Approved by Meta • Ready for broadcast" : "Pending Meta Review • WhatsApp may reject broadcast"}
-                    </span>
+                <div className="space-y-2 mt-2">
+                  <div className={`p-2.5 rounded-lg text-xs flex items-center justify-between border ${
+                    isApproved 
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
+                      : "bg-amber-50 text-amber-800 border-amber-200"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${isApproved ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}></span>
+                      <span className="font-semibold">
+                        {isApproved ? "Approved by Meta • Ready for broadcast" : "Pending Meta Review • WhatsApp may reject broadcast"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {headerType !== "NONE" && (
+                        <span className="font-mono text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded border border-purple-200 font-bold">
+                          {headerType}
+                        </span>
+                      )}
+                      <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 font-bold text-gray-700">
+                        {currentTmpl.language}
+                      </span>
+                    </div>
                   </div>
-                  <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 font-bold text-gray-700">
-                    {currentTmpl.language}
-                  </span>
+
+                  {needsMedia && (
+                    <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-purple-900 uppercase">
+                          Campaign {headerType} Header Media
+                        </label>
+                        <span className="text-[10px] text-purple-600 font-semibold">Required by Template</span>
+                      </div>
+                      {headerType === "LOCATION" ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Latitude (e.g. 21.1702)"
+                            value={newCampaign.header_media?.latitude || ""}
+                            onChange={(e) =>
+                              setNewCampaign({
+                                ...newCampaign,
+                                header_media: {
+                                  ...(newCampaign.header_media || {}),
+                                  latitude: e.target.value
+                                }
+                              })
+                            }
+                            className="px-2.5 py-1.5 border border-purple-200 rounded-lg text-xs bg-white font-mono"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Longitude (e.g. 72.8311)"
+                            value={newCampaign.header_media?.longitude || ""}
+                            onChange={(e) =>
+                              setNewCampaign({
+                                ...newCampaign,
+                                header_media: {
+                                  ...(newCampaign.header_media || {}),
+                                  longitude: e.target.value
+                                }
+                              })
+                            }
+                            className="px-2.5 py-1.5 border border-purple-200 rounded-lg text-xs bg-white font-mono"
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <input
+                            type="url"
+                            placeholder={
+                              currentTmpl.sample_values?.header_url ||
+                              (headerType === "IMAGE"
+                                ? "https://yourcdn.com/jewelry-banner.jpg"
+                                : headerType === "VIDEO"
+                                ? "https://yourcdn.com/product-video.mp4"
+                                : "https://yourcdn.com/brochure.pdf")
+                            }
+                            value={newCampaign.header_media?.url || ""}
+                            onChange={(e) =>
+                              setNewCampaign({
+                                ...newCampaign,
+                                header_media: {
+                                  ...(newCampaign.header_media || {}),
+                                  url: e.target.value
+                                }
+                              })
+                            }
+                            className="w-full px-3 py-2 border border-purple-200 rounded-lg text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-purple-400"
+                          />
+                          <p className="text-[10px] text-purple-700 mt-1">
+                            {newCampaign.header_media?.url
+                              ? "Custom campaign media attached."
+                              : currentTmpl.sample_values?.header_url
+                              ? `Will use template default sample: ${currentTmpl.sample_values.header_url}`
+                              : `Enter a direct public URL for the broadcast ${headerType.toLowerCase()}.`}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })()}

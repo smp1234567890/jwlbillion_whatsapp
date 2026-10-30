@@ -79,6 +79,8 @@ def get_template_spec(template_name: str, db: Optional[Session] = None) -> dict:
             spec = {
                 "language": tmpl_rec.language,
                 "body_param_count": len(placeholders),
+                "header_type": (tmpl_rec.header_type or "NONE").upper(),
+                "sample_values": tmpl_rec.sample_values or {},
                 "source": "db"
             }
             _TEMPLATE_META_SPECS[template_name] = spec
@@ -97,15 +99,18 @@ def get_template_spec(template_name: str, db: Optional[Session] = None) -> dict:
                     target = approved[0] if approved else (data[0] if data else None)
                     if target:
                         meta_lang = target.get("language")
-                        body_text = ""
+                        header_type = "NONE"
                         for comp in target.get("components", []):
-                            if comp.get("type") == "BODY":
+                            if comp.get("type") == "HEADER":
+                                header_type = (comp.get("format") or "TEXT").upper()
+                            elif comp.get("type") == "BODY":
                                 body_text = comp.get("text", "")
-                                break
+
                         placeholders = set(re.findall(r"\{\{(\d+)\}\}", body_text))
                         spec = {
                             "language": meta_lang,
                             "body_param_count": len(placeholders),
+                            "header_type": header_type,
                             "source": "meta_api"
                         }
                         _TEMPLATE_META_SPECS[template_name] = spec
@@ -147,6 +152,7 @@ def send_whatsapp_template(
     parameters: dict = None,
     coupon_code: str = None,
     button_parameters: list = None,
+    header_media: dict = None,
     campaign_id: int = None,
     sender_user: str = "System",
     idempotency_key: str = None,
@@ -274,6 +280,72 @@ def send_whatsapp_template(
         }
         
         components = []
+
+        # 1. Header Media Component (IMAGE, VIDEO, DOCUMENT, LOCATION)
+        expected_header_type = (tmpl_spec.get("header_type") or "NONE").upper()
+        if expected_header_type in ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]:
+            media_info = header_media or {}
+            # Fall back to template sample values if not passed directly in call
+            if not media_info and tmpl_spec.get("sample_values"):
+                sv = tmpl_spec["sample_values"]
+                media_info = {
+                    "url": sv.get("header_url"),
+                    "media_id": sv.get("header_handle") if not sv.get("header_url") else None,
+                    "latitude": sv.get("latitude"),
+                    "longitude": sv.get("longitude"),
+                    "name": sv.get("location_name")
+                }
+
+            header_param = None
+            if expected_header_type == "IMAGE":
+                img_obj = {}
+                if media_info.get("url"):
+                    img_obj["link"] = media_info["url"]
+                elif media_info.get("media_id"):
+                    img_obj["id"] = media_info["media_id"]
+                else:
+                    # Default high-res fallback image if none specified
+                    img_obj["link"] = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&q=80"
+                header_param = {"type": "image", "image": img_obj}
+
+            elif expected_header_type == "VIDEO":
+                vid_obj = {}
+                if media_info.get("url"):
+                    vid_obj["link"] = media_info["url"]
+                elif media_info.get("media_id"):
+                    vid_obj["id"] = media_info["media_id"]
+                else:
+                    vid_obj["link"] = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                header_param = {"type": "video", "video": vid_obj}
+
+            elif expected_header_type == "DOCUMENT":
+                doc_obj = {}
+                if media_info.get("url"):
+                    doc_obj["link"] = media_info["url"]
+                elif media_info.get("media_id"):
+                    doc_obj["id"] = media_info["media_id"]
+                else:
+                    doc_obj["link"] = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+                if media_info.get("filename"):
+                    doc_obj["filename"] = media_info["filename"]
+                header_param = {"type": "document", "document": doc_obj}
+
+            elif expected_header_type == "LOCATION":
+                loc_obj = {
+                    "latitude": str(media_info.get("latitude") or "21.1702"),
+                    "longitude": str(media_info.get("longitude") or "72.8311"),
+                    "name": str(media_info.get("name") or config.BRAND_NAME),
+                    "address": str(media_info.get("address") or (config.STORE_LOCATION or "Surat, Gujarat"))
+                }
+                header_param = {"type": "location", "location": loc_obj}
+
+            if header_param:
+                components.append({
+                    "type": "header",
+                    "parameters": [header_param]
+                })
+
+        # 2. Body Component
         if parameters:
             # Sort by key (param_1, param_2 ...) to guarantee correct positional order
             sorted_params = sorted(parameters.items(), key=lambda x: x[0])

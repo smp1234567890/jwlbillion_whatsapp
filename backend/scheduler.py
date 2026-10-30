@@ -508,11 +508,40 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
                         for idx in range(1, placeholder_count + 1):
                             params[f"param_{idx}"] = fallback_values[(idx - 1) % len(fallback_values)]
 
+                    # Build header media if campaign or template has configured media
+                    campaign_header_media = None
+                    if tmpl and (tmpl.header_type or "NONE").upper() in ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]:
+                        # 0. Check if campaign has explicit header_media set
+                        if campaign.header_media and isinstance(campaign.header_media, dict):
+                            campaign_header_media = campaign.header_media
+
+                        # 1. Check if template has column mapping for header
+                        if not campaign_header_media:
+                            h_map = (tmpl.variable_mappings or {}).get("header")
+                            if h_map and isinstance(h_map, dict):
+                                m_type = h_map.get("type")
+                                m_val = h_map.get("value")
+                                if m_type == "static" and m_val:
+                                    campaign_header_media = {"url": m_val}
+                        
+                        # 2. Check if template sample_values has header_url or location
+                        if not campaign_header_media and tmpl.sample_values:
+                            sv = tmpl.sample_values
+                            if sv.get("header_url"):
+                                campaign_header_media = {"url": sv.get("header_url")}
+                            elif sv.get("latitude") and sv.get("longitude"):
+                                campaign_header_media = {
+                                    "latitude": sv.get("latitude"),
+                                    "longitude": sv.get("longitude"),
+                                    "name": sv.get("location_name")
+                                }
+
                     res = send_whatsapp_template(
                         recipient_phone=phone,
                         template_name=campaign.template_name,
                         language=campaign.language,
                         parameters=params,
+                        header_media=campaign_header_media,
                         campaign_id=campaign.id,
                         sender_user=f"Campaign: {campaign.title}",
                         idempotency_key=f"campaign_{campaign.id}_{phone}",
