@@ -297,10 +297,15 @@ def send_whatsapp_template(
                 }
 
             header_param = None
+            raw_url = media_info.get("url")
+            # Automatically prefix relative server upload paths with the public server domain
+            if raw_url and raw_url.startswith("/uploads/"):
+                raw_url = f"https://130-210-12-142.sslip.io{raw_url}"
+
             if expected_header_type == "IMAGE":
                 img_obj = {}
-                if media_info.get("url"):
-                    img_obj["link"] = media_info["url"]
+                if raw_url:
+                    img_obj["link"] = raw_url
                 elif media_info.get("media_id"):
                     img_obj["id"] = media_info["media_id"]
                 else:
@@ -310,8 +315,8 @@ def send_whatsapp_template(
 
             elif expected_header_type == "VIDEO":
                 vid_obj = {}
-                if media_info.get("url"):
-                    vid_obj["link"] = media_info["url"]
+                if raw_url:
+                    vid_obj["link"] = raw_url
                 elif media_info.get("media_id"):
                     vid_obj["id"] = media_info["media_id"]
                 else:
@@ -320,8 +325,8 @@ def send_whatsapp_template(
 
             elif expected_header_type == "DOCUMENT":
                 doc_obj = {}
-                if media_info.get("url"):
-                    doc_obj["link"] = media_info["url"]
+                if raw_url:
+                    doc_obj["link"] = raw_url
                 elif media_info.get("media_id"):
                     doc_obj["id"] = media_info["media_id"]
                 else:

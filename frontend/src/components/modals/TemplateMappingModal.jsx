@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import { Upload, Link as LinkIcon, Loader2 } from "lucide-react";
+import api from "../../api";
 import { TEMPLATE_FIELD_OPTIONS } from "../../constants/fieldOptions";
 
 export default function TemplateMappingModal({
@@ -8,7 +10,35 @@ export default function TemplateMappingModal({
   onClose,
   onSave
 }) {
+  const [uploadingHeader, setUploadingHeader] = useState(false);
   if (!editMappingTemplate) return null;
+
+  const handleUploadHeaderMedia = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingHeader(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+      const res = await api.post("/api/templates/upload-media", formData, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      if (res.data?.url) {
+        setEditMappings((prev) => ({
+          ...prev,
+          header: { type: "static", value: res.data.url }
+        }));
+      }
+    } catch (err) {
+      alert("Error uploading media file: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setUploadingHeader(false);
+    }
+  };
 
   const params = [...new Set([...(editMappingTemplate.body_text || "").matchAll(/\{\{([a-zA-Z0-9_-]+)\}\}/g)].map((m) => m[1]))];
 
@@ -47,28 +77,59 @@ export default function TemplateMappingModal({
 
           {/* Dynamic Media Header Mapping if template expects IMAGE, VIDEO, or DOCUMENT */}
           {["IMAGE", "VIDEO", "DOCUMENT"].includes(editMappingTemplate.header_type) && (
-            <div className="space-y-1.5 p-3 rounded-xl bg-purple-50/60 border border-purple-200">
+            <div className="space-y-2 p-3 rounded-xl bg-purple-50/60 border border-purple-200">
               <div className="flex items-center justify-between">
                 <span className="font-mono font-bold text-purple-900 bg-purple-200 px-2.5 py-1 rounded border border-purple-300 text-xs">
-                  Header {editMappingTemplate.header_type} Media URL
+                  Header {editMappingTemplate.header_type} Media File
                 </span>
                 <span className="text-[10px] text-purple-700 font-semibold">Broadcast & Automation Media Source</span>
               </div>
               <p className="text-[11px] text-purple-800">
-                Provide a default image/video/document URL or mapping for this template so broadcasts and messages deliver smoothly:
+                Upload a file directly or paste a public link. This will automatically attach to every broadcast and message using this template:
               </p>
-              <input
-                type="url"
-                placeholder={editMappingTemplate.sample_values?.header_url || `https://example.com/assets/${editMappingTemplate.header_type.toLowerCase()}-file`}
-                value={((editMappings || {})["header"] || {}).value || ""}
-                onChange={(e) =>
-                  setEditMappings((prev) => ({
-                    ...prev,
-                    header: { type: "static", value: e.target.value }
-                  }))
-                }
-                className="w-full px-3 py-2 border border-purple-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 font-mono"
-              />
+
+              {/* Upload Button */}
+              <div className="flex items-center gap-2">
+                <label className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs border ${
+                  uploadingHeader
+                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                    : "bg-white text-purple-800 border-purple-300 hover:bg-purple-100/50"
+                }`}>
+                  {uploadingHeader ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                  ) : (
+                    <Upload className="w-3.5 h-3.5 text-purple-600" />
+                  )}
+                  <span>{uploadingHeader ? "Uploading to Server..." : `Upload ${editMappingTemplate.header_type} File`}</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    disabled={uploadingHeader}
+                    accept={
+                      editMappingTemplate.header_type === "IMAGE" ? "image/*" :
+                      editMappingTemplate.header_type === "VIDEO" ? "video/*" : ".pdf,.doc,.docx"
+                    }
+                    onChange={handleUploadHeaderMedia}
+                  />
+                </label>
+                <span className="text-xs text-gray-400 font-semibold">OR paste URL</span>
+              </div>
+
+              {/* URL Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={editMappingTemplate.sample_values?.header_url || `https://example.com/assets/${editMappingTemplate.header_type.toLowerCase()}-file`}
+                  value={((editMappings || {})["header"] || {}).value || ""}
+                  onChange={(e) =>
+                    setEditMappings((prev) => ({
+                      ...prev,
+                      header: { type: "static", value: e.target.value }
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 font-mono"
+                />
+              </div>
             </div>
           )}
 

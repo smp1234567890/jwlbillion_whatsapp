@@ -1,6 +1,7 @@
-import React from "react";
-import { Send, Calendar, Clock } from "lucide-react";
+import React, { useState } from "react";
+import { Send, Calendar, Clock, Upload, Loader2 } from "lucide-react";
 import { formatScheduleDisplay } from "../../utils/dateUtils";
+import api from "../../api";
 
 export default function CampaignModal({
   isOpen,
@@ -11,7 +12,38 @@ export default function CampaignModal({
   contacts = [],
   onSubmit
 }) {
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   if (!isOpen) return null;
+
+  const handleCampaignMediaUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+      const res = await api.post("/api/templates/upload-media", formData, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      if (res.data?.url) {
+        setNewCampaign((prev) => ({
+          ...prev,
+          header_media: {
+            ...(prev.header_media || {}),
+            url: res.data.url
+          }
+        }));
+      }
+    } catch (err) {
+      alert("Error uploading media file: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
@@ -180,9 +212,36 @@ export default function CampaignModal({
                           />
                         </div>
                       ) : (
-                        <div>
+                        <div className="space-y-2">
+                          {/* File Upload Button */}
+                          <div className="flex items-center gap-2">
+                            <label className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs border ${
+                              uploadingMedia
+                                ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                : "bg-white text-purple-800 border-purple-300 hover:bg-purple-100/50"
+                            }`}>
+                              {uploadingMedia ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                              ) : (
+                                <Upload className="w-3.5 h-3.5 text-purple-600" />
+                              )}
+                              <span>{uploadingMedia ? "Uploading..." : `Upload Campaign ${headerType}`}</span>
+                              <input
+                                type="file"
+                                className="hidden"
+                                disabled={uploadingMedia}
+                                accept={
+                                  headerType === "IMAGE" ? "image/*" :
+                                  headerType === "VIDEO" ? "video/*" : ".pdf,.doc,.docx"
+                                }
+                                onChange={handleCampaignMediaUpload}
+                              />
+                            </label>
+                            <span className="text-xs text-gray-400 font-semibold">OR paste URL</span>
+                          </div>
+
                           <input
-                            type="url"
+                            type="text"
                             placeholder={
                               currentTmpl.sample_values?.header_url ||
                               (headerType === "IMAGE"
@@ -208,7 +267,7 @@ export default function CampaignModal({
                               ? "Custom campaign media attached."
                               : currentTmpl.sample_values?.header_url
                               ? `Will use template default sample: ${currentTmpl.sample_values.header_url}`
-                              : `Enter a direct public URL for the broadcast ${headerType.toLowerCase()}.`}
+                              : `Upload or enter a direct public URL for the broadcast ${headerType.toLowerCase()}.`}
                           </p>
                         </div>
                       )}
