@@ -380,9 +380,9 @@ def send_whatsapp_template(
                 })
 
         # 2. Body Component
-        if parameters:
-            # Sort by key (param_1, param_2 ...) to guarantee correct positional order
-            sorted_params = sorted(parameters.items(), key=lambda x: x[0])
+        expected_count = tmpl_spec.get("body_param_count", 0)
+        if expected_count > 0:
+            sorted_params = sorted((parameters or {}).items(), key=lambda x: x[0])
             body_params = []
             for k, v in sorted_params:
                 text_val = str(v).strip() if v is not None else ""
@@ -391,15 +391,13 @@ def send_whatsapp_template(
                 body_params.append({"type": "text", "text": text_val})
 
             # Strictly align with Meta expected parameter count to eliminate #132000 errors
-            expected_count = tmpl_spec.get("body_param_count", 0)
-            if expected_count > 0:
-                if len(body_params) > expected_count:
-                    logger.info(f"Trimming {len(body_params)} body params to {expected_count} for template '{template_name}'")
-                    body_params = body_params[:expected_count]
-                elif len(body_params) < expected_count:
-                    diff = expected_count - len(body_params)
-                    for _ in range(diff):
-                        body_params.append({"type": "text", "text": "-"})
+            if len(body_params) > expected_count:
+                logger.info(f"Trimming {len(body_params)} body params to {expected_count} for template '{template_name}'")
+                body_params = body_params[:expected_count]
+            elif len(body_params) < expected_count:
+                diff = expected_count - len(body_params)
+                for _ in range(diff):
+                    body_params.append({"type": "text", "text": "-"})
 
             if body_params:
                 components.append({

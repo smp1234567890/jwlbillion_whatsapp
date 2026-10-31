@@ -458,7 +458,7 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
 
         import re
         tmpl = db.query(models.Template).filter(models.Template.template_name == campaign.template_name).first()
-        placeholder_count = 2
+        placeholder_count = 0
         if tmpl and tmpl.body_text:
             matches = re.findall(r"\{\{(\d+)\}\}", tmpl.body_text)
             if matches:
@@ -480,10 +480,15 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
 
                     # Build parameters: use template-level mappings first, then positional fallback
                     params = {}
-                    if tmpl and tmpl.variable_mappings and isinstance(tmpl.variable_mappings, dict):
+                    body_mappings = {
+                        k: v for k, v in (tmpl.variable_mappings or {}).items()
+                        if k != "header" and isinstance(v, dict)
+                    } if tmpl and isinstance(tmpl.variable_mappings, dict) else {}
+
+                    if body_mappings:
                         cart_val_str = str(getattr(contact, "total_spent", 0) or 0)
                         items_summary = campaign.title
-                        for idx_str, m_def in tmpl.variable_mappings.items():
+                        for idx_str, m_def in body_mappings.items():
                             if not isinstance(m_def, dict):
                                 continue
                             m_type = m_def.get("type")
@@ -508,8 +513,8 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
                             else:
                                 val_str = customer_name
                             params[f"param_{idx_str}"] = val_str
-                    else:
-                        # Positional fallback if template has no configured mappings
+                    elif placeholder_count > 0:
+                        # Positional fallback if template has placeholders but no configured mappings
                         fallback_values = [
                             customer_name,
                             campaign.title,
