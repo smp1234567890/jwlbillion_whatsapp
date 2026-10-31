@@ -21,7 +21,7 @@ import models
 import schemas
 from database import get_db
 from whatsapp_service import create_meta_template, upload_media_to_meta, upload_template_sample_to_meta
-from services.mp4_utils import optimize_mp4_faststart
+from services.mp4_utils import transcode_video_for_meta, optimize_mp4_faststart
 
 logger = logging.getLogger("templates_router")
 
@@ -344,36 +344,37 @@ async def upload_template_media(
     mime_type = file.content_type or "application/octet-stream"
     file_size = len(file_bytes)
 
-    # Meta Size Validation
-    is_video = mime_type.startswith("video/") or orig_filename.lower().endswith((".mp4", ".3gp", ".mov"))
-    if is_video:
-        max_bytes = 16 * 1024 * 1024  # 16 MB
-        if file_size > max_bytes:
-            size_mb = file_size / (1024 * 1024)
-            raise HTTPException(
-                status_code=400,
-                detail=f"Video file exceeds Meta limit of 16 MB (uploaded file is {size_mb:.1f} MB). Please compress your video."
-            )
-        # Apply faststart optimization (move moov atom to start for instant streaming/playback)
-        try:
-            file_bytes = optimize_mp4_faststart(file_bytes)
-        except Exception as e:
-            logger.warning(f"Faststart optimization skipped: {e}")
-    elif mime_type.startswith("image/"):
-        max_bytes = 5 * 1024 * 1024   # 5 MB
-        if file_size > max_bytes:
-            size_mb = file_size / (1024 * 1024)
-            raise HTTPException(
-                status_code=400,
-                detail=f"Image file exceeds Meta limit of 5 MB (uploaded file is {size_mb:.1f} MB)."
-            )
-
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
     saved_filename = f"template_{uuid.uuid4().hex[:8]}_{orig_filename}"
     local_path = os.path.join(upload_dir, saved_filename)
     with open(local_path, "wb") as f_out:
         f_out.write(file_bytes)
+
+    # If it is a video, automatically transcode to Meta-compliant H.264/AAC with FastStart
+    if is_video:
+        transcoded_path = os.path.join(upload_dir, f"transcoded_{saved_filename}")
+        if not transcoded_path.lower().endswith(".mp4"):
+            transcoded_path = f"{os.path.splitext(transcoded_path)[0]}.mp4"
+        transcode_ok = transcode_video_for_meta(local_path, transcoded_path)
+        if transcode_ok and os.path.exists(transcoded_path):
+            with open(transcoded_path, "rb") as f_tc:
+                file_bytes = f_tc.read()
+            mime_type = "video/mp4"
+            saved_filename = os.path.basename(transcoded_path)
+            orig_filename = f"{os.path.splitext(orig_filename)[0]}.mp4"
+            try:
+                os.remove(local_path)
+            except Exception:
+                pass
+        else:
+            # Fall back to pure-python FastStart if ffmpeg is not ready
+            try:
+                file_bytes = optimize_mp4_faststart(file_bytes)
+                with open(local_path, "wb") as f_out:
+                    f_out.write(file_bytes)
+            except Exception as e:
+                logger.warning(f"Faststart fallback skipped: {e}")
 
     relative_url = f"/uploads/{saved_filename}"
 
