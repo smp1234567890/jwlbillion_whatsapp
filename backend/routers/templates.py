@@ -336,10 +336,30 @@ async def upload_template_media(
     """
     Uploads a template header sample file (image, video, document), stores it locally,
     and uploads to Meta to obtain a media_id / handle for template approval.
+    Enforces Meta size limits: Videos <= 16MB, Images <= 5MB, Documents <= 100MB.
     """
     file_bytes = await file.read()
     orig_filename = file.filename or f"upload_{uuid.uuid4().hex}"
     mime_type = file.content_type or "application/octet-stream"
+    file_size = len(file_bytes)
+
+    # Meta Size Validation
+    if mime_type.startswith("video/") or orig_filename.lower().endswith((".mp4", ".3gp", ".mov")):
+        max_bytes = 16 * 1024 * 1024  # 16 MB
+        if file_size > max_bytes:
+            size_mb = file_size / (1024 * 1024)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Video file exceeds Meta limit of 16 MB (uploaded file is {size_mb:.1f} MB). Please compress your video."
+            )
+    elif mime_type.startswith("image/"):
+        max_bytes = 5 * 1024 * 1024   # 5 MB
+        if file_size > max_bytes:
+            size_mb = file_size / (1024 * 1024)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image file exceeds Meta limit of 5 MB (uploaded file is {size_mb:.1f} MB)."
+            )
 
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)

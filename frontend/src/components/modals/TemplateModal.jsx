@@ -52,6 +52,25 @@ export default function TemplateModal({
   const handleMediaFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Validate size limits per Meta requirements
+    const type = newTemplate.header_type;
+    const maxVideoSize = 16 * 1024 * 1024; // 16 MB
+    const maxImageSize = 5 * 1024 * 1024;  // 5 MB
+
+    if (type === "VIDEO" && file.size > maxVideoSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      alert(`⚠️ Video is too large (${sizeMB} MB).\n\nMeta limits WhatsApp template videos to a maximum of 16 MB. Please compress or trim your video to under 16 MB before uploading.`);
+      e.target.value = "";
+      return;
+    }
+    if (type === "IMAGE" && file.size > maxImageSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      alert(`⚠️ Image is too large (${sizeMB} MB).\n\nMeta limits WhatsApp template images to a maximum of 5 MB.`);
+      e.target.value = "";
+      return;
+    }
+
     setUploadingMedia(true);
     try {
       const formData = new FormData();
@@ -77,6 +96,7 @@ export default function TemplateModal({
       alert("Error uploading media: " + (err.response?.data?.detail || err.message));
     } finally {
       setUploadingMedia(false);
+      e.target.value = "";
     }
   };
 
@@ -597,7 +617,9 @@ export default function TemplateModal({
                             Upload or Map Sample {newTemplate.header_type}
                           </p>
                           <p className="text-[11px] text-gray-500">
-                            Required by Meta for template review approval and saved for campaign broadcasts.
+                            {newTemplate.header_type === "VIDEO" && "Max size 16 MB (.mp4 recommended). Required by Meta for template review approval."}
+                            {newTemplate.header_type === "IMAGE" && "Max size 5 MB (.jpg, .png). Required by Meta for template review approval."}
+                            {newTemplate.header_type === "DOCUMENT" && "Max size 100 MB (.pdf). Required by Meta for template review approval."}
                           </p>
                         </div>
 
