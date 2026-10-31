@@ -367,7 +367,7 @@ export default function ContactsPage({
                               return (
                                 <tr key={c.id} className="hover:bg-gray-50/80 transition">
                                   <td className="px-6 py-4 font-semibold text-gray-900">
-                                    {c.name || "Customer"}
+                                    {c.name ? c.name : <span className="text-gray-400 font-normal italic">—</span>}
                                     {c.email && <div className="text-xs text-gray-400 font-normal">{c.email}</div>}
                                   </td>
                                   <td className="px-6 py-4 font-mono font-medium text-gray-900">{c.phone}</td>

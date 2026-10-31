@@ -349,7 +349,7 @@ async def import_contacts_csv(
                 norm_row.get("name")
                 or norm_row.get("full_name")
                 or f"{norm_row.get('first_name', '')} {norm_row.get('last_name', '')}".strip()
-                or "Valued Customer"
+                or None
             )
 
         # 3. Resolve Email
