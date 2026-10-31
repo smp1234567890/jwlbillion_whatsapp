@@ -45,7 +45,13 @@ def is_quiet_hours_enabled(db: Optional[Session] = None) -> bool:
     Can be toggled via Settings UI. Defaults to True if no setting record is found.
     """
     if db is None:
-        return True
+        try:
+            from database import SessionLocal
+            with SessionLocal() as session:
+                return is_quiet_hours_enabled(session)
+        except Exception:
+            return True
+
     try:
         setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "quiet_hours_enabled").first()
         if setting is not None:
