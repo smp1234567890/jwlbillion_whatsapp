@@ -2143,6 +2143,7 @@ export default function App() {
           {activeTab === "templates" && (
             <TemplatesPage
               templates={templates}
+              contacts={contacts}
               setIsTemplateModalOpen={setIsTemplateModalOpen}
               handleDeleteTemplate={handleDeleteTemplate}
               handleSyncMetaTemplates={handleSyncMetaTemplates}

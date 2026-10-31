@@ -1,13 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Plus,
   BookOpen,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Send
 } from "lucide-react";
+import TemplateTestModal from "../components/modals/TemplateTestModal";
 
 export default function TemplatesPage({
   templates = [],
+  contacts = [],
   setIsTemplateModalOpen,
   handleDeleteTemplate,
   handleSyncMetaTemplates,
@@ -19,6 +22,7 @@ export default function TemplatesPage({
   setEditMappingTemplate,
   setEditMappings
 }) {
+  const [testModalTemplate, setTestModalTemplate] = useState(null);
 
   return (
             <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
@@ -178,6 +182,13 @@ export default function TemplatesPage({
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-gray-500">{t.footer_text}</span>
                               <button
+                                onClick={() => setTestModalTemplate(t)}
+                                className="text-xs text-emerald-600 hover:text-emerald-800 font-semibold hover:underline flex items-center gap-1 transition"
+                                title="Send a test message for this template"
+                              >
+                                <Send className="w-3 h-3 text-emerald-600" /> Test
+                              </button>
+                              <button
                                 onClick={() => {
                                   setEditMappingTemplate(t);
                                   setEditMappings(t.variable_mappings || {});
@@ -243,6 +254,13 @@ export default function TemplatesPage({
                   </>
                 );
               })()}
+
+              <TemplateTestModal
+                isOpen={!!testModalTemplate}
+                onClose={() => setTestModalTemplate(null)}
+                template={testModalTemplate}
+                contacts={contacts}
+              />
             </div>
   );
 }
