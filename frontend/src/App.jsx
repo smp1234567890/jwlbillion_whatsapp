@@ -1246,12 +1246,15 @@ export default function App() {
     }
   };
 
-  const handleImportCsv = async (e) => {
+  const handleImportCsv = async (e, columnMappings = {}) => {
     e.preventDefault();
     if (!csvFile) return;
     setCsvImporting(true);
     const formData = new FormData();
     formData.append("file", csvFile);
+    if (columnMappings && Object.keys(columnMappings).length > 0) {
+      formData.append("column_mapping", JSON.stringify(columnMappings));
+    }
 
     try {
       const res = await axios.post("/api/contacts/import-csv", formData, {
