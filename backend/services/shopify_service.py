@@ -403,7 +403,7 @@ def sync_shopify_customers_and_orders(db) -> Dict[str, Any]:
                         except InvalidPhoneNumberError:
                             pass
 
-                if not clean_phone:
+                if not clean_phone or clean_phone in processed_phones:
                     continue
 
                 processed_phones.add(clean_phone)
