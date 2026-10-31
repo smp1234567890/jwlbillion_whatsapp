@@ -243,8 +243,12 @@ def fetch_shopify_products(limit: int = 250) -> Dict[str, Any]:
     Fetches all live products directly from Shopify without storing them in the DB.
     First tries public storefront products.json (always available for the configured domain),
     and falls back to Admin API if credentials exist.
+    Product URLs use the public custom domain (e.g. jwlbillion.com) instead of the myshopify backend domain.
     """
     domain = config.SHOPIFY_STORE_DOMAIN or "jewellers-fashion.myshopify.com"
+    public_domain = getattr(config, "SHOPIFY_PUBLIC_DOMAIN", None) or "jwlbillion.com"
+    public_domain = public_domain.replace("https://", "").replace("http://", "").rstrip("/")
+
     url = f"https://{domain}/products.json?limit={min(limit, 250)}"
 
     try:
@@ -264,7 +268,7 @@ def fetch_shopify_products(limit: int = 250) -> Dict[str, Any]:
                     available = first_var.get("available", True)
                     
                     product_handle = p.get("handle") or ""
-                    shop_url = f"https://{domain}/products/{product_handle}" if product_handle else None
+                    shop_url = f"https://{public_domain}/products/{product_handle}" if product_handle else None
 
                     formatted.append({
                         "id": p.get("id"),
