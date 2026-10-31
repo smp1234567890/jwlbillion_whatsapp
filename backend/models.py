@@ -13,6 +13,7 @@ class Contact(Base):
     total_orders = Column(Integer, default=0)
     last_order_date = Column(DateTime, nullable=True)
     city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
     tags = Column(String(255), nullable=True)  # Comma-separated tags e.g. "VIP, wholesale, regular"
     birth_day = Column(Integer, nullable=True)  # 1-31
     birth_month = Column(Integer, nullable=True)  # 1-12

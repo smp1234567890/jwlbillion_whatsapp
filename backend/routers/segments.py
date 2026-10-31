@@ -57,6 +57,10 @@ def query_contacts_by_criteria(db: Session, criteria: Dict[str, Any]):
         city_term = str(criteria["city"]).strip()
         q = q.filter(models.Contact.city.ilike(f"%{city_term}%"))
 
+    if "state" in criteria and criteria["state"]:
+        state_term = str(criteria["state"]).strip()
+        q = q.filter(models.Contact.state.ilike(f"%{state_term}%"))
+
     if "tag" in criteria and criteria["tag"]:
         tag_term = str(criteria["tag"]).strip()
         q = q.filter(models.Contact.tags.ilike(f"%{tag_term}%"))

@@ -41,6 +41,7 @@ export default function SegmentsPage() {
     max_orders: "",
     inactivity_days: "",
     city: "",
+    state: "",
     tag: ""
   });
   const [creating, setCreating] = useState(false);
@@ -108,6 +109,8 @@ export default function SegmentsPage() {
       if (newSegment.inactivity_days !== "") criteria.inactivity_days = parseInt(newSegment.inactivity_days);
     } else if (newSegment.criteriaType === "city") {
       if (newSegment.city.trim()) criteria.city = newSegment.city.trim();
+    } else if (newSegment.criteriaType === "state") {
+      if (newSegment.state.trim()) criteria.state = newSegment.state.trim();
     } else if (newSegment.criteriaType === "tag") {
       if (newSegment.tag.trim()) criteria.tag = newSegment.tag.trim();
     }
@@ -134,6 +137,7 @@ export default function SegmentsPage() {
         max_orders: "",
         inactivity_days: "",
         city: "",
+        state: "",
         tag: ""
       });
       fetchSegments(res.data.id);
@@ -381,9 +385,10 @@ export default function SegmentsPage() {
                   onChange={(e) => setNewSegment({ ...newSegment, criteriaType: e.target.value })}
                   className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                 >
+                  <option value="city">Customer City / Location</option>
+                  <option value="state">Customer State / Region</option>
                   <option value="orders">Total Orders Range (Purchase Volume)</option>
                   <option value="inactivity">Days Since Last Order (Inactivity)</option>
-                  <option value="city">Customer City / Location</option>
                   <option value="tag">Customer Tag / Label</option>
                 </select>
               </div>
@@ -443,9 +448,26 @@ export default function SegmentsPage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Surat, Mumbai, Ahmedabad"
+                    required
+                    placeholder="e.g. Surat, Mumbai, Bhavnagar, Ahmedabad"
                     value={newSegment.city}
                     onChange={(e) => setNewSegment({ ...newSegment, city: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                  />
+                </div>
+              )}
+
+              {newSegment.criteriaType === "state" && (
+                <div className="p-3.5 bg-gray-50 rounded-lg border border-gray-200">
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    State / Region Name (Contains)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Gujarat, Maharashtra, Rajasthan"
+                    value={newSegment.state}
+                    onChange={(e) => setNewSegment({ ...newSegment, state: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                   />
                 </div>
