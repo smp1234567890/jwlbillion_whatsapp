@@ -343,6 +343,7 @@ async def upload_template_media(
     orig_filename = file.filename or f"upload_{uuid.uuid4().hex}"
     mime_type = file.content_type or "application/octet-stream"
     file_size = len(file_bytes)
+    is_video = mime_type.startswith("video/") or orig_filename.lower().endswith((".mp4", ".3gp", ".mov", ".mkv", ".avi"))
 
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
