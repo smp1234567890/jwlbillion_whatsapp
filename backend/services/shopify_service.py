@@ -28,11 +28,62 @@ def verify_shopify_hmac(body: bytes, hmac_header: str) -> bool:
     return hmac.compare_digest(computed.strip(), hmac_header.strip())
 
 
+_cached_access_token: Optional[str] = None
+_token_expires_at: Optional[float] = None
+
+
+def get_shopify_access_token() -> Optional[str]:
+    """
+    Returns a valid Shopify access token.
+    If SHOPIFY_ACCESS_TOKEN is directly provided, returns it.
+    Otherwise, if client_id and client_secret are provided, obtains a token via OAuth client_credentials grant
+    and caches it until expiration.
+    """
+    global _cached_access_token, _token_expires_at
+    import time
+
+    if config.SHOPIFY_ACCESS_TOKEN:
+        return config.SHOPIFY_ACCESS_TOKEN
+
+    now = time.time()
+    if _cached_access_token and _token_expires_at and (now < _token_expires_at - 60):
+        return _cached_access_token
+
+    domain = config.SHOPIFY_STORE_DOMAIN
+    client_id = config.SHOPIFY_CLIENT_ID
+    client_secret = config.SHOPIFY_CLIENT_SECRET
+
+    if domain and client_id and client_secret:
+        url = f"https://{domain}/admin/oauth/access_token"
+        try:
+            with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
+                resp = client.post(url, json={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "grant_type": "client_credentials"
+                })
+                if resp.status_code == 200:
+                    data = resp.json()
+                    token = data.get("access_token")
+                    expires_in = data.get("expires_in", 86400)
+                    if token:
+                        _cached_access_token = token
+                        _token_expires_at = now + float(expires_in)
+                        return _cached_access_token
+                else:
+                    logger.error(f"[Shopify OAuth] Failed getting access token: {resp.status_code} - {resp.text}")
+        except Exception as e:
+            logger.error(f"[Shopify OAuth] Exception during token retrieval: {e}")
+
+    # Fallback to secret or None
+    return client_secret or None
+
+
 def get_shopify_headers() -> Dict[str, str]:
     """
     Builds authorization headers for Shopify Admin REST API.
     """
-    token = config.SHOPIFY_ACCESS_TOKEN or config.SHOPIFY_CLIENT_SECRET
+    token = get_shopify_access_token()
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
@@ -70,32 +121,74 @@ def find_order_by_name_or_id(order_query: str) -> Optional[Dict[str, Any]]:
 
 def find_recent_orders_by_phone(phone: str) -> List[Dict[str, Any]]:
     """
-    Looks up recent orders for a customer's normalized phone number.
+    Looks up recent orders for a customer's phone number.
+    Uses Shopify Customer Search API first to get customer history,
+    then queries recent orders by phone or shipping phone.
+    Returns orders sorted newest first.
     """
     domain = config.SHOPIFY_STORE_DOMAIN
     if not domain:
         return []
 
-    # Clean phone: +919876543210 -> check both raw and with +
     clean_phone = phone.strip()
     digits_only = "".join(filter(str.isdigit, clean_phone))
-    
-    url = f"https://{domain}/admin/api/2024-10/orders.json?status=any&limit=5"
-    
+    last_10 = digits_only[-10:] if len(digits_only) >= 10 else digits_only
+    if not last_10:
+        return []
+
+    headers = get_shopify_headers()
+    matched_orders = []
+    seen_order_ids = set()
+
     try:
         with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
-            resp = client.get(url, headers=get_shopify_headers())
-            if resp.status_code == 200:
-                all_orders = resp.json().get("orders", [])
-                matched = []
-                for o in all_orders:
-                    o_phone = "".join(filter(str.isdigit, str(o.get("phone") or o.get("customer", {}).get("phone") or "")))
-                    if digits_only and digits_only in o_phone:
-                        matched.append(format_order_summary(o))
-                return matched
+            # 1. Search customer by phone number in Shopify
+            cust_url = f"https://{domain}/admin/api/2024-10/customers/search.json?query={last_10}"
+            cust_resp = client.get(cust_url, headers=headers)
+            if cust_resp.status_code == 200:
+                customers = cust_resp.json().get("customers", [])
+                for cust in customers:
+                    cid = cust.get("id")
+                    if not cid:
+                        continue
+                    # Fetch orders for this customer (up to 5, status=any)
+                    c_orders_url = f"https://{domain}/admin/api/2024-10/customers/{cid}/orders.json?status=any&limit=5"
+                    co_resp = client.get(c_orders_url, headers=headers)
+                    if co_resp.status_code == 200:
+                        for o in co_resp.json().get("orders", []):
+                            oid = o.get("id")
+                            if oid and oid not in seen_order_ids:
+                                seen_order_ids.add(oid)
+                                matched_orders.append(format_order_summary(o))
+
+            # 2. If no orders found via customer search, fallback to direct recent orders scan
+            if not matched_orders:
+                orders_url = f"https://{domain}/admin/api/2024-10/orders.json?status=any&limit=20"
+                orders_resp = client.get(orders_url, headers=headers)
+                if orders_resp.status_code == 200:
+                    for o in orders_resp.json().get("orders", []):
+                        oid = o.get("id")
+                        if oid in seen_order_ids:
+                            continue
+                        phones_to_check = [
+                            o.get("phone") or "",
+                            (o.get("customer") or {}).get("phone") or "",
+                            (o.get("shipping_address") or {}).get("phone") or "",
+                            (o.get("billing_address") or {}).get("phone") or ""
+                        ]
+                        for p in phones_to_check:
+                            p_digits = "".join(filter(str.isdigit, str(p)))
+                            if last_10 in p_digits:
+                                seen_order_ids.add(oid)
+                                matched_orders.append(format_order_summary(o))
+                                break
+
     except Exception as e:
         logger.error(f"[Shopify] Error searching orders by phone {phone}: {e}")
-    return []
+
+    # Sort newest first based on created_at or id
+    matched_orders.sort(key=lambda x: str(x.get("created_at") or ""), reverse=True)
+    return matched_orders
 
 
 def format_order_summary(order: Dict[str, Any]) -> Dict[str, Any]:

@@ -212,6 +212,17 @@ export default function TemplateModal({
     return text;
   };
 
+  // Helper to resolve media URL for preview
+  const getPreviewMediaUrl = () => {
+    const raw = newTemplate.sample_values?.header_url || "";
+    if (!raw) return "";
+    if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("blob:") || raw.startsWith("data:")) {
+      return raw;
+    }
+    const base = getApiBaseUrl().replace(/\/+$/, "");
+    return `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
+  };
+
   // Sub-type presets per category
   const getSubtypesForCategory = (cat) => {
     if (cat === "MARKETING") {
@@ -1112,11 +1123,48 @@ export default function TemplateModal({
                   </div>
                 )}
 
-                {["IMAGE", "VIDEO"].includes(newTemplate.header_type) && (
-                  <div className="w-full h-36 bg-gray-200 flex flex-col items-center justify-center text-gray-500 gap-1 border-b border-gray-100">
-                    <ImageIcon className="w-8 h-8 text-gray-400" />
-                    <span className="text-[11px] font-semibold">[{newTemplate.header_type} Media Header]</span>
-                  </div>
+                {newTemplate.header_type === "IMAGE" && (
+                  getPreviewMediaUrl() ? (
+                    <div className="w-full max-h-48 bg-black/5 overflow-hidden border-b border-gray-100 flex items-center justify-center">
+                      <img
+                        src={getPreviewMediaUrl()}
+                        alt="Header preview"
+                        className="w-full h-auto max-h-48 object-cover"
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                          e.target.parentElement.innerHTML = `
+                            <div class="w-full h-36 bg-gray-200 flex flex-col items-center justify-center text-gray-500 gap-1">
+                              <span class="text-[11px] font-semibold">[IMAGE Media Header]</span>
+                            </div>
+                          `;
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-36 bg-gray-200 flex flex-col items-center justify-center text-gray-500 gap-1 border-b border-gray-100">
+                      <ImageIcon className="w-8 h-8 text-gray-400" />
+                      <span className="text-[11px] font-semibold">[IMAGE Media Header]</span>
+                    </div>
+                  )
+                )}
+
+                {newTemplate.header_type === "VIDEO" && (
+                  getPreviewMediaUrl() ? (
+                    <div className="w-full bg-black border-b border-gray-100 overflow-hidden flex items-center justify-center">
+                      <video
+                        src={getPreviewMediaUrl()}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="w-full max-h-52 object-contain bg-black"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-36 bg-gray-200 flex flex-col items-center justify-center text-gray-500 gap-1 border-b border-gray-100">
+                      <Video className="w-8 h-8 text-gray-400" />
+                      <span className="text-[11px] font-semibold">[VIDEO Media Header]</span>
+                    </div>
+                  )
                 )}
 
                 {newTemplate.header_type === "DOCUMENT" && (

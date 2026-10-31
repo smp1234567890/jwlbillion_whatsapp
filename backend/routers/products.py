@@ -22,3 +22,4 @@ def get_live_shopify_products(
     Zero database persistence as per architectural requirement.
     """
     return fetch_shopify_products(limit=limit)
+

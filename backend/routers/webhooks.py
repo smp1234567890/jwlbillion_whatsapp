@@ -1196,14 +1196,19 @@ async def receive_inbound_whatsapp_message(
                 raw_body = ""
                 inbound_media_url = None
                 inbound_filename = None
+                interactive_id = None
 
                 if msg_type == "text":
                     raw_body = msg.get("text", {}).get("body", "").strip()
                 elif msg_type == "button":
                     raw_body = msg.get("button", {}).get("text", "")
+                    interactive_id = msg.get("button", {}).get("payload")
                 elif msg_type == "interactive":
                     interactive = msg.get("interactive", {})
-                    raw_body = interactive.get("button_reply", {}).get("title") or interactive.get("list_reply", {}).get("title") or "Interactive Response"
+                    btn_reply = interactive.get("button_reply", {})
+                    list_reply = interactive.get("list_reply", {})
+                    raw_body = btn_reply.get("title") or list_reply.get("title") or "Interactive Response"
+                    interactive_id = btn_reply.get("id") or list_reply.get("id")
                 elif msg_type in ["image", "document", "video", "audio", "voice", "sticker"]:
                     media_payload = msg.get(msg_type, {})
                     media_id = media_payload.get("id")
@@ -1419,14 +1424,15 @@ async def receive_inbound_whatsapp_message(
                     db.rollback()
                     logger.info(f"Duplicate ChatMessage skipped on commit: {meta_id}")
 
-                # Conversational AI / Bot Auto-Reply (e.g. Order Tracking, Greetings)
-                if not is_opt_out and raw_body:
+                # Conversational AI / Bot Auto-Reply (e.g. Order Tracking, Greetings, Interactive Menus)
+                if not is_opt_out and (raw_body or interactive_id):
                     try:
                         cust_name = existing_contact.name if existing_contact else profile_name
                         handle_inbound_auto_reply(
                             sender_phone=sender_phone,
                             message_text=raw_body,
                             customer_name=cust_name,
+                            interactive_id=interactive_id,
                             db=db
                         )
                     except Exception as bot_err:

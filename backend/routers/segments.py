@@ -254,3 +254,4 @@ def delete_segment(
     db.delete(seg)
     db.commit()
     return {"status": "success", "message": f"Segment '{seg.name}' deleted."}
+

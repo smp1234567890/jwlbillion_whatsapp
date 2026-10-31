@@ -814,6 +814,50 @@ def send_whatsapp_free_text(
             db.close()
 
 
+def send_whatsapp_interactive(
+    recipient_phone: str,
+    interactive_payload: dict,
+    sender_user: str = "Assistant",
+    db: Optional[Session] = None
+) -> dict:
+    """
+    Sends a native WhatsApp interactive message (list menu or action buttons) via Meta Cloud API.
+    """
+    clean_phone = normalize_phone(recipient_phone)
+
+    if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+        mock_id = f"sim_interactive_{int(datetime.utcnow().timestamp())}"
+        return {"status": "success_simulated", "message_id": mock_id}
+
+    url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": clean_phone.replace("+", ""),
+        "type": "interactive",
+        "interactive": interactive_payload
+    }
+
+    try:
+        with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            data = resp.json()
+            if resp.status_code == 200:
+                msg_id = data.get("messages", [{}])[0].get("id", "")
+                return {"status": "success", "message_id": msg_id}
+            else:
+                err_msg = str(data.get("error", resp.text))
+                logger.error(f"[Meta Interactive Send Error] {err_msg}")
+                return {"status": "failed", "error": err_msg}
+    except Exception as e:
+        logger.error(f"[Meta Interactive Send Exception] {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def upload_template_sample_to_meta(file_bytes: bytes, mime_type: str, filename: str) -> dict:
     """
     Uploads a template header sample file to Meta using the Resumable Upload API:
