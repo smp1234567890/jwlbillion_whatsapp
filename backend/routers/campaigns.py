@@ -272,12 +272,33 @@ def send_test_campaign_message(
     # Resolve header media if not explicitly provided
     tmpl = db.query(models.Template).filter(models.Template.template_name == template_name).first()
     if not header_media and tmpl:
-        if isinstance(tmpl.variable_mappings, dict) and tmpl.variable_mappings.get("header"):
+        if tmpl.header_text and (tmpl.header_text.startswith("http") or tmpl.header_text.startswith("/uploads/")):
+            media_url = tmpl.header_text
+            if media_url.startswith("/uploads/"):
+                media_url = f"https://130-210-23-25.sslip.io{media_url}"
+            header_media = {"url": media_url}
+        elif isinstance(tmpl.variable_mappings, dict) and tmpl.variable_mappings.get("header"):
             h_map = tmpl.variable_mappings["header"]
             if isinstance(h_map, dict) and h_map.get("type") == "static" and h_map.get("value"):
                 header_media = {"url": h_map["value"]}
         elif isinstance(tmpl.sample_values, dict) and tmpl.sample_values.get("header_url"):
             header_media = {"url": tmpl.sample_values["header_url"]}
+
+    # For explicit single-contact test sends, auto-record active test consent if not revoked
+    revoked = db.query(models.ConsentRecord).filter(models.ConsentRecord.phone == clean_phone, models.ConsentRecord.status == "REVOKED").first()
+    if not revoked:
+        active = db.query(models.ConsentRecord).filter(models.ConsentRecord.phone == clean_phone, models.ConsentRecord.status == "ACTIVE").first()
+        if not active:
+            now = datetime.utcnow()
+            new_c = models.ConsentRecord(
+                phone=clean_phone,
+                status="ACTIVE",
+                source="TEST_SEND",
+                consent_timestamp=now,
+                created_at=now
+            )
+            db.add(new_c)
+            db.commit()
 
     idempotency_key = f"test_campaign_{template_name}_{clean_phone}_{int(datetime.utcnow().timestamp())}"
     res = send_whatsapp_template(
