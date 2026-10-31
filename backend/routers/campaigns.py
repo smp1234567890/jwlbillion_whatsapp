@@ -286,7 +286,7 @@ def send_test_campaign_message(
         language=language,
         parameters={},
         header_media=header_media,
-        sender_user=f"Test Send ({current_user.name})",
+        sender_user=f"Test Send ({getattr(current_user, 'username', 'admin')})",
         idempotency_key=idempotency_key,
         purpose="marketing",
         db=db
