@@ -1,55 +1,42 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import {
   Users,
-  UserCheck,
   Plus,
   Trash2,
   RefreshCw,
   Search,
   Filter,
-  Sparkles,
-  Crown,
-  ShoppingBag,
-  Clock,
-  ArrowRight,
-  UserPlus,
-  CheckCircle2,
   Layers,
-  ChevronRight,
-  ExternalLink,
+  ArrowRight,
   X,
   Phone,
   Mail,
   MapPin,
-  Calendar
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  ShoppingBag,
+  UserPlus,
+  Crown
 } from "lucide-react";
 import { formatToISTDate } from "../utils/dateUtils";
 
-const ICON_MAP = {
-  Users: Users,
-  Crown: Crown,
-  Sparkles: Sparkles,
-  ShoppingBag: ShoppingBag,
-  UserPlus: UserPlus,
-  Clock: Clock,
-  Layers: Layers
-};
-
-export default function SegmentsPage({ onSelectSegmentForCampaign }) {
+export default function SegmentsPage() {
   const [segments, setSegments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSegment, setSelectedSegment] = useState(null);
+  const [selectedSegmentId, setSelectedSegmentId] = useState(null);
   const [segmentContacts, setSegmentContacts] = useState([]);
   const [contactsLoading, setContactsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Form state for creating a new custom segment
+  // Form state for creating a custom segment
   const [newSegment, setNewSegment] = useState({
     name: "",
     description: "",
-    icon: "Users",
-    criteriaType: "orders", // orders, inactivity, city, tag
+    criteriaType: "orders",
     min_orders: "",
     max_orders: "",
     inactivity_days: "",
@@ -59,17 +46,20 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  const fetchSegments = async () => {
+  const fetchSegments = async (preserveSelectedId = null) => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get("/api/segments", {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      setSegments(res.data || []);
-      // If none selected or selected was updated, select first
-      if (res.data && res.data.length > 0 && !selectedSegment) {
-        handleSelectSegment(res.data[0]);
+      const data = res.data || [];
+      setSegments(data);
+      if (data.length > 0) {
+        const idToSelect = preserveSelectedId || selectedSegmentId || data[0].id;
+        const target = data.find((s) => s.id === idToSelect) || data[0];
+        setSelectedSegmentId(target.id);
+        fetchSegmentContacts(target.id);
       }
     } catch (err) {
       console.error("Failed to load segments:", err);
@@ -78,16 +68,11 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
     }
   };
 
-  useEffect(() => {
-    fetchSegments();
-  }, []);
-
-  const handleSelectSegment = async (seg) => {
-    setSelectedSegment(seg);
+  const fetchSegmentContacts = async (segId) => {
     setContactsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`/api/segments/${seg.id}/contacts`, {
+      const res = await axios.get(`/api/segments/${segId}/contacts`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       setSegmentContacts(res.data?.contacts || []);
@@ -97,6 +82,15 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
     } finally {
       setContactsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchSegments();
+  }, []);
+
+  const handleSelectSegment = (segId) => {
+    setSelectedSegmentId(segId);
+    fetchSegmentContacts(segId);
   };
 
   const handleCreateSegment = async (e) => {
@@ -125,7 +119,7 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
         {
           name: newSegment.name.trim(),
           description: newSegment.description.trim() || undefined,
-          icon: newSegment.icon || "Users",
+          icon: "Users",
           criteria
         },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
@@ -135,7 +129,6 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
       setNewSegment({
         name: "",
         description: "",
-        icon: "Users",
         criteriaType: "orders",
         min_orders: "",
         max_orders: "",
@@ -143,8 +136,7 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
         city: "",
         tag: ""
       });
-      await fetchSegments();
-      handleSelectSegment(res.data);
+      fetchSegments(res.data.id);
     } catch (err) {
       setCreateError(err.response?.data?.detail || err.message || "Failed to create segment.");
     } finally {
@@ -162,230 +154,181 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
       await axios.delete(`/api/segments/${segId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      if (selectedSegment?.id === segId) {
-        setSelectedSegment(null);
-      }
       fetchSegments();
     } catch (err) {
       alert("Error deleting segment: " + (err.response?.data?.detail || err.message));
     }
   };
 
+  const activeSegment = segments.find((s) => s.id === selectedSegmentId) || segments[0];
+
+  const filteredContacts = useMemo(() => {
+    if (!searchTerm.trim()) return segmentContacts;
+    const term = searchTerm.toLowerCase();
+    return segmentContacts.filter(
+      (c) =>
+        (c.name && c.name.toLowerCase().includes(term)) ||
+        (c.phone && c.phone.includes(term)) ||
+        (c.city && c.city.toLowerCase().includes(term)) ||
+        (c.tags && c.tags.toLowerCase().includes(term))
+    );
+  }, [segmentContacts, searchTerm]);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-sm">
-            <Layers className="w-6 h-6" />
-          </div>
+    <>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+        {/* Main Header Bar */}
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-gray-900">Contact Segmentation</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
-                Smart Cohorts
-              </span>
-            </div>
+            <h3 className="font-bold text-gray-900 text-base">Contact Segments</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              Segment your customers by order volume, purchase recency, city, or tags to target WhatsApp broadcasts with precision.
+              Targeted customer cohorts for promotional broadcasts, re-engagement, and VIP flows
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchSegments}
-            disabled={loading}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-indigo-600" : ""}`} />
-            <span>Refresh</span>
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Custom Segment</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Segments List */}
-        <div className="lg:col-span-5 space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
-              Active Segments ({segments.length})
-            </span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => fetchSegments(selectedSegmentId)}
+              disabled={loading}
+              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-gray-600 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-3.5 py-1.5 rounded-lg font-semibold text-xs shadow-sm transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New Segment
+            </button>
           </div>
+        </div>
 
-          <div className="space-y-2.5">
-            {segments.map((seg) => {
-              const IconComp = ICON_MAP[seg.icon] || Users;
-              const isSelected = selectedSegment?.id === seg.id;
-              return (
-                <div
-                  key={seg.id}
-                  onClick={() => handleSelectSegment(seg)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer relative group flex items-start justify-between gap-3 ${
-                    isSelected
-                      ? "bg-white border-indigo-500 ring-2 ring-indigo-500/10 shadow-sm"
-                      : "bg-white border-gray-100 hover:border-gray-200 hover:shadow-xs"
+        {/* Segments Pill Filter Row */}
+        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50/70 flex items-center gap-2 overflow-x-auto">
+          {segments.map((seg) => {
+            const isSelected = seg.id === selectedSegmentId;
+            return (
+              <button
+                key={seg.id}
+                onClick={() => handleSelectSegment(seg.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer border ${
+                  isSelected
+                    ? "bg-white text-gray-900 border-gray-300 shadow-xs ring-1 ring-gray-200"
+                    : "bg-transparent text-gray-600 border-transparent hover:bg-gray-200/60 hover:text-gray-900"
+                }`}
+              >
+                <span>{seg.name}</span>
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                    isSelected ? "bg-[#25D366]/20 text-emerald-800" : "bg-gray-200 text-gray-700"
                   }`}
                 >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition ${
-                        isSelected
-                          ? "bg-indigo-600 text-white"
-                          : "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100"
-                      }`}
-                    >
-                      <IconComp className="w-5 h-5" />
-                    </div>
+                  {seg.matching_contacts_count}
+                </span>
+                {!seg.is_predefined && (
+                  <span
+                    onClick={(e) => handleDeleteSegment(seg.id, seg.name, e)}
+                    className="ml-1 text-gray-400 hover:text-rose-600 p-0.5 rounded transition"
+                    title="Delete custom segment"
+                  >
+                    <X className="w-3 h-3" />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-gray-900 truncate">
-                          {seg.name}
-                        </h3>
-                        {seg.is_predefined && (
-                          <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded shrink-0">
-                            Predefined
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
-                        {seg.description || "Custom targeted filter rule"}
-                      </p>
-                    </div>
-                  </div>
+        {/* Sub-header: Current Segment Overview & Search */}
+        <div className="px-6 py-3.5 bg-white border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-900 text-sm">{activeSegment?.name || "Segment"}</span>
+            <span className="text-xs text-gray-400">•</span>
+            <span className="text-xs text-gray-500">{activeSegment?.description || "Dynamic customer cohort"}</span>
+          </div>
 
-                  <div className="flex flex-col items-end shrink-0 gap-2">
-                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full">
-                      {seg.matching_contacts_count} contacts
-                    </span>
-                    {!seg.is_predefined && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleDeleteSegment(seg.id, seg.name, e)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-rose-600 rounded-md transition"
-                        title="Delete segment"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="relative w-64">
+            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search in this segment..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+            />
           </div>
         </div>
 
-        {/* Right: Segment Details & Contact Roster */}
-        <div className="lg:col-span-7 space-y-4">
-          {selectedSegment ? (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
-              {/* Segment Banner */}
-              <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-gray-900">
-                      {selectedSegment.name}
-                    </h2>
-                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full">
-                      {selectedSegment.matching_contacts_count} matches
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {selectedSegment.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Contacts Table / List */}
-              <div className="p-4">
-                {contactsLoading ? (
-                  <div className="p-12 text-center text-gray-400 text-sm">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600 mb-2" />
-                    Filtering segment contacts...
-                  </div>
-                ) : segmentContacts.length === 0 ? (
-                  <div className="p-12 text-center text-gray-400 text-sm">
-                    <Users className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                    No contacts currently match this segment's criteria.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-gray-100 text-gray-400 uppercase font-semibold">
-                          <th className="pb-3 pl-2">Customer</th>
-                          <th className="pb-3">Phone</th>
-                          <th className="pb-3">Orders</th>
-                          <th className="pb-3">City</th>
-                          <th className="pb-3 pr-2">Tags</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {segmentContacts.map((c) => (
-                          <tr key={c.id} className="hover:bg-gray-50/60 transition">
-                            <td className="py-3 pl-2 font-bold text-gray-900">
-                              {c.name}
-                            </td>
-                            <td className="py-3 text-gray-700 font-mono">
-                              {c.phone}
-                            </td>
-                            <td className="py-3">
-                              <span className="font-bold text-gray-900">
-                                {c.total_orders || 0}
-                              </span>
-                            </td>
-                            <td className="py-3 text-gray-500">
-                              {c.city || "—"}
-                            </td>
-                            <td className="py-3 pr-2">
-                              {c.tags ? (
-                                <span className="inline-block bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[11px] font-medium">
-                                  {c.tags}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+        {/* Contacts Table */}
+        <div className="overflow-x-auto">
+          {contactsLoading ? (
+            <div className="py-16 text-center text-xs text-gray-400">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto text-gray-500 mb-2" />
+              Loading segment contacts...
+            </div>
+          ) : filteredContacts.length === 0 ? (
+            <div className="py-16 text-center text-gray-400 text-xs">
+              <Users className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+              No contacts found in this segment.
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400 shadow-xs">
-              <Layers className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <p className="text-sm font-semibold text-gray-700">Select a segment</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Choose a cohort on the left to view matching customer details.
-              </p>
-            </div>
+            <table className="w-full text-left text-sm text-gray-600">
+              <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500 border-b border-gray-200">
+                <tr>
+                  <th className="px-5 py-3">ID</th>
+                  <th className="px-5 py-3">Customer Name</th>
+                  <th className="px-5 py-3">Phone</th>
+                  <th className="px-5 py-3">Orders</th>
+                  <th className="px-5 py-3">City</th>
+                  <th className="px-5 py-3">Tags</th>
+                  <th className="px-5 py-3 text-right">Last Order</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-xs">
+                {filteredContacts.map((c) => (
+                  <tr key={c.id} className="hover:bg-gray-50/80 transition">
+                    <td className="px-5 py-3.5 font-mono text-gray-400">#{c.id}</td>
+                    <td className="px-5 py-3.5 font-bold text-gray-900">{c.name || "Customer"}</td>
+                    <td className="px-5 py-3.5 font-mono text-gray-700">{c.phone}</td>
+                    <td className="px-5 py-3.5 font-semibold text-gray-900">{c.total_orders || 0}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{c.city || "—"}</td>
+                    <td className="px-5 py-3.5">
+                      {c.tags ? (
+                        <span className="inline-block bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[11px] font-medium border border-gray-200/60">
+                          {c.tags}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5 text-right text-gray-500">
+                      {c.last_order_date ? formatToISTDate(c.last_order_date) : "No orders yet"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
+        </div>
+
+        {/* Table Footer */}
+        <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex items-center justify-between">
+          <span>
+            Showing <strong className="text-gray-800">{filteredContacts.length}</strong> matching contacts
+          </span>
+          <span className="text-[11px] text-gray-400">
+            Contacts update automatically based on order and engagement activity
+          </span>
         </div>
       </div>
 
-      {/* Create Custom Segment Modal */}
+      {/* Modal: Create Custom Segment */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <Layers className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-bold text-gray-900">Create Custom Segment</h3>
-              </div>
+          <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 text-base">Create Custom Segment</h3>
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
@@ -397,13 +340,13 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
 
             <form onSubmit={handleCreateSegment} className="p-6 space-y-4">
               {createError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
                   {createError}
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
                   Segment Name *
                 </label>
                 <input
@@ -412,12 +355,12 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                   placeholder="e.g. Surat High Value, Wholesale Club"
                   value={newSegment.name}
                   onChange={(e) => setNewSegment({ ...newSegment, name: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
                   Description
                 </label>
                 <input
@@ -425,18 +368,18 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                   placeholder="Short note about who this segment targets"
                   value={newSegment.description}
                   onChange={(e) => setNewSegment({ ...newSegment, description: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
                   Segmentation Rule Type
                 </label>
                 <select
                   value={newSegment.criteriaType}
                   onChange={(e) => setNewSegment({ ...newSegment, criteriaType: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white transition"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                 >
                   <option value="orders">Total Orders Range (Purchase Volume)</option>
                   <option value="inactivity">Days Since Last Order (Inactivity)</option>
@@ -445,9 +388,9 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                 </select>
               </div>
 
-              {/* Dynamic criteria fields */}
+              {/* Dynamic rule fields */}
               {newSegment.criteriaType === "orders" && (
-                <div className="grid grid-cols-2 gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-200/60">
+                <div className="grid grid-cols-2 gap-3 p-3.5 bg-gray-50 rounded-lg border border-gray-200">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-600 mb-1">
                       Min Orders (&ge;)
@@ -458,12 +401,12 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                       placeholder="e.g. 1 or 5"
                       value={newSegment.min_orders}
                       onChange={(e) => setNewSegment({ ...newSegment, min_orders: e.target.value })}
-                      className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                     />
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-gray-600 mb-1">
-                      Max Orders (&lt;=)
+                      Max Orders (&le;)
                     </label>
                     <input
                       type="number"
@@ -471,14 +414,14 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                       placeholder="e.g. 10 (optional)"
                       value={newSegment.max_orders}
                       onChange={(e) => setNewSegment({ ...newSegment, max_orders: e.target.value })}
-                      className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                     />
                   </div>
                 </div>
               )}
 
               {newSegment.criteriaType === "inactivity" && (
-                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/60">
+                <div className="p-3.5 bg-gray-50 rounded-lg border border-gray-200">
                   <label className="block text-[11px] font-bold text-gray-600 mb-1">
                     Inactive For At Least (Days)
                   </label>
@@ -488,13 +431,13 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                     placeholder="e.g. 30, 60, or 90 days"
                     value={newSegment.inactivity_days}
                     onChange={(e) => setNewSegment({ ...newSegment, inactivity_days: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                   />
                 </div>
               )}
 
               {newSegment.criteriaType === "city" && (
-                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/60">
+                <div className="p-3.5 bg-gray-50 rounded-lg border border-gray-200">
                   <label className="block text-[11px] font-bold text-gray-600 mb-1">
                     City Name (Contains)
                   </label>
@@ -503,13 +446,13 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                     placeholder="e.g. Surat, Mumbai, Ahmedabad"
                     value={newSegment.city}
                     onChange={(e) => setNewSegment({ ...newSegment, city: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                   />
                 </div>
               )}
 
               {newSegment.criteriaType === "tag" && (
-                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/60">
+                <div className="p-3.5 bg-gray-50 rounded-lg border border-gray-200">
                   <label className="block text-[11px] font-bold text-gray-600 mb-1">
                     Customer Tag (Contains)
                   </label>
@@ -518,7 +461,7 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                     placeholder="e.g. VIP, Wholesale, Lead"
                     value={newSegment.tag}
                     onChange={(e) => setNewSegment({ ...newSegment, tag: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                   />
                 </div>
               )}
@@ -527,14 +470,14 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition cursor-pointer"
+                  className="px-3.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-[#25D366] hover:bg-[#1EBE5D] rounded-lg shadow-sm transition cursor-pointer disabled:opacity-50"
                 >
                   {creating ? "Creating..." : "Save Segment"}
                 </button>
@@ -543,6 +486,6 @@ export default function SegmentsPage({ onSelectSegmentForCampaign }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
