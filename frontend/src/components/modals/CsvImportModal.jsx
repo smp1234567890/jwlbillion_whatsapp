@@ -148,8 +148,8 @@ export default function CsvImportModal({
                 id="csvFileInput"
                 onChange={(e) => {
                   const selected = e.target.files[0];
-                  if (selected && selected.size > 5 * 1024 * 1024) {
-                    alert(`File is too large (${(selected.size / (1024 * 1024)).toFixed(2)}MB). Max upload limit is 5MB.`);
+                  if (selected && selected.size > 100 * 1024 * 1024) {
+                    alert(`File is too large (${(selected.size / (1024 * 1024)).toFixed(2)}MB). Max upload limit is 100MB.`);
                     e.target.value = null;
                     setCsvFile(null);
                     return;
@@ -163,7 +163,7 @@ export default function CsvImportModal({
                 <span className="text-sm font-bold text-gray-800">
                   {csvFile ? csvFile.name : "Click to select a CSV file"}
                 </span>
-                <span className="text-xs text-gray-400 mt-1">Supports standard CSV files up to 5MB</span>
+                <span className="text-xs text-gray-400 mt-1">Supports standard CSV files up to 100MB (100,000+ contacts)</span>
               </label>
             </div>
           )}

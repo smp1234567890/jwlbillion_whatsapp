@@ -13,6 +13,7 @@ from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 import auth
 import models
@@ -284,12 +285,12 @@ async def import_contacts_csv(
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are supported")
 
-    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 Megabytes
+    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 Megabytes (supports 100,000+ contacts)
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=413,
-            detail=f"File size exceeds 5MB limit (File size: {len(content) / (1024 * 1024):.2f}MB). Please upload a smaller file."
+            detail=f"File size exceeds 100MB limit (File size: {len(content) / (1024 * 1024):.2f}MB). Please upload a smaller file."
         )
 
     try:
@@ -417,48 +418,43 @@ async def import_contacts_csv(
     for i in range(0, len(phone_keys), BATCH_SIZE):
         batch_chunk = phone_keys[i:i + BATCH_SIZE]
         
-        existing_contacts = {
-            c.phone: c for c in db.query(models.Contact).filter(models.Contact.phone.in_(batch_chunk)).all()
-        }
-
+        # Prepare bulk records for Postgres ON CONFLICT DO UPDATE
+        insert_values = []
         for phone in batch_chunk:
             item = queue_contacts[phone]
-            if phone in existing_contacts:
-                c = existing_contacts[phone]
-                if item["name"]:
-                    c.name = item["name"]
-                if item["email"]:
-                    c.email = item["email"]
-                if item["city"]:
-                    c.city = item["city"]
-                if item["tags"]:
-                    c.tags = item["tags"]
-                if item["total_orders"] > 0:
-                    c.total_orders = item["total_orders"]
-                if item["last_order_date"]:
-                    c.last_order_date = item["last_order_date"]
-                updated_count += 1
-            else:
-                new_c = models.Contact(
-                    phone=phone,
-                    name=item["name"],
-                    email=item["email"],
-                    city=item["city"],
-                    tags=item["tags"],
-                    total_orders=item["total_orders"],
-                    last_order_date=item["last_order_date"]
-                )
-                db.add(new_c)
-                imported_count += 1
+            insert_values.append({
+                "phone": phone,
+                "name": item["name"],
+                "email": item["email"],
+                "city": item["city"],
+                "tags": item["tags"],
+                "total_orders": item["total_orders"],
+                "last_order_date": item["last_order_date"]
+            })
 
-        db.commit()
+        if insert_values:
+            stmt = pg_insert(models.Contact).values(insert_values)
+            # On conflict on unique phone, update fields if provided
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["phone"],
+                set_={
+                    "name": stmt.excluded.name,
+                    "email": stmt.excluded.email,
+                    "city": stmt.excluded.city,
+                    "tags": stmt.excluded.tags,
+                    "total_orders": stmt.excluded.total_orders,
+                    "last_order_date": stmt.excluded.last_order_date
+                }
+            )
+            res = db.execute(stmt)
+            db.commit()
+            imported_count += len(insert_values)
 
     return {
         "status": "success",
         "imported": imported_count,
-        "updated": updated_count,
         "total_queued": len(queue_contacts),
-        "message": f"Queue batch processed: {imported_count} new contacts added, {updated_count} existing contacts updated ({len(queue_contacts)} unique)."
+        "message": f"Successfully processed {imported_count} contacts across {max(1, len(phone_keys)//BATCH_SIZE + (1 if len(phone_keys)%BATCH_SIZE else 0))} batches of 500."
     }
 
 
