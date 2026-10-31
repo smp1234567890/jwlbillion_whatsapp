@@ -7,9 +7,20 @@ from sqlalchemy.orm import Session
 import auth
 import models
 from database import get_db
-from services.shopify_service import fetch_shopify_products
+from services.shopify_service import fetch_shopify_products, sync_shopify_customers_and_orders
 
 router = APIRouter(prefix="/api/shopify", tags=["Shopify Products"])
+
+
+@router.post("/sync-customers")
+def sync_shopify_customers(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    On-demand synchronization of Shopify customers and orders into the CRM Contact directory.
+    """
+    return sync_shopify_customers_and_orders(db=db)
 
 
 @router.get("/products")

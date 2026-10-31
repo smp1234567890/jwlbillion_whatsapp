@@ -47,10 +47,40 @@ export default function ContactsPage({
   handleDeleteContact,
   handleOpenAddContact,
   handleOpenEditContact,
-  setIsCsvModalOpen
+  setIsCsvModalOpen,
+  onRefreshContacts
 }) {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [syncingShopify, setSyncingShopify] = useState(false);
+  const [shopifySyncResult, setShopifySyncResult] = useState(null);
   const [copiedKey, setCopiedKey] = useState("");
+
+  const handleSyncShopify = async () => {
+    setSyncingShopify(true);
+    setShopifySyncResult(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/shopify/sync-customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setShopifySyncResult(`Synced ${data.synced_new} new customers, updated ${data.updated_existing} orders!`);
+        if (onRefreshContacts) onRefreshContacts();
+      } else {
+        setShopifySyncResult(`Sync error: ${data.error || data.message || "Failed"}`);
+      }
+    } catch (err) {
+      setShopifySyncResult(`Error: ${err.message}`);
+    } finally {
+      setSyncingShopify(false);
+      setTimeout(() => setShopifySyncResult(null), 5000);
+    }
+  };
 
   const handleCopy = (text, key) => {
     navigator.clipboard.writeText(text);
@@ -111,8 +141,25 @@ export default function ContactsPage({
                     <Upload className="w-3.5 h-3.5 text-gray-600" />
                     Import CSV
                   </button>
+                  <button
+                    onClick={handleSyncShopify}
+                    disabled={syncingShopify}
+                    className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3.5 py-1.5 rounded-lg font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+                    title="Pull latest Shopify customers and order history into Contacts"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${syncingShopify ? "animate-spin" : ""}`} />
+                    <span>{syncingShopify ? "Syncing..." : "Sync Shopify"}</span>
+                  </button>
                 </div>
               </div>
+              {shopifySyncResult && (
+                <div className="mx-6 my-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-800 flex items-center justify-between">
+                  <span>{shopifySyncResult}</span>
+                  <button onClick={() => setShopifySyncResult(null)} className="text-emerald-600 hover:text-emerald-900">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
               {(() => {
                 // Unique cities and tags for filter dropdowns
                 const uniqueCities = Array.from(new Set(contacts.map((c) => c.city).filter(Boolean))).sort();

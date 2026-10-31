@@ -2217,6 +2217,7 @@ export default function App() {
               handleOpenAddContact={handleOpenAddContact}
               handleOpenEditContact={handleOpenEditContact}
               setIsCsvModalOpen={setIsCsvModalOpen}
+              onRefreshContacts={() => fetchData(true)}
             />
           )}
 

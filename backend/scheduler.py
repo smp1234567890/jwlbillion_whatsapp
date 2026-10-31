@@ -639,6 +639,25 @@ def run_all_active_automation_rules():
         db.close()
 
 
+def run_scheduled_shopify_sync():
+    """
+    Periodic job that automatically synchronizes customers and orders
+    from Shopify into the CRM Contact directory every 5 minutes.
+    """
+    from database import SessionLocal
+    from services.shopify_service import sync_shopify_customers_and_orders
+
+    db = SessionLocal()
+    try:
+        res = sync_shopify_customers_and_orders(db=db)
+        if res.get("status") == "success":
+            logger.info(f"[Scheduler Shopify Sync] New: {res.get('synced_new')}, Updated: {res.get('updated_existing')}")
+    except Exception as e:
+        logger.warning(f"[Scheduler Shopify Sync Failed] {e}")
+    finally:
+        db.close()
+
+
 def run_scheduled_meta_template_sync():
     """
     Periodic job that automatically synchronizes approved message templates
@@ -684,8 +703,15 @@ def start_scheduler():
             id="auto_sync_meta_templates_sweep",
             replace_existing=True
         )
+        # 4. Automatic Shopify Customers & Orders Sync every 5 minutes
+        scheduler.add_job(
+            func=run_scheduled_shopify_sync,
+            trigger=IntervalTrigger(minutes=5),
+            id="auto_sync_shopify_customers_sweep",
+            replace_existing=True
+        )
         scheduler.start()
-        logger.info("APScheduler started successfully with daily sweep, continuous workflow engine, and 10-minute Meta template auto-sync.")
+        logger.info("APScheduler started successfully with daily sweep, continuous workflow engine, Meta template sync, and Shopify customer sync.")
 
 def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
     """
