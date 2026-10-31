@@ -1201,14 +1201,21 @@ async def receive_inbound_whatsapp_message(
                 if msg_type == "text":
                     raw_body = msg.get("text", {}).get("body", "").strip()
                 elif msg_type == "button":
-                    raw_body = msg.get("button", {}).get("text", "")
+                    btn_text = msg.get("button", {}).get("text", "")
                     interactive_id = msg.get("button", {}).get("payload")
+                    raw_body = f"Selected: {btn_text}" if btn_text else "Selected a button option"
                 elif msg_type == "interactive":
                     interactive = msg.get("interactive", {})
                     btn_reply = interactive.get("button_reply", {})
                     list_reply = interactive.get("list_reply", {})
-                    raw_body = btn_reply.get("title") or list_reply.get("title") or "Interactive Response"
+                    title = btn_reply.get("title") or list_reply.get("title")
                     interactive_id = btn_reply.get("id") or list_reply.get("id")
+                    if title:
+                        raw_body = f"Selected: {title}"
+                    elif interactive_id:
+                        raw_body = f"Selected: {interactive_id.replace('menu_', '').replace('_', ' ').title()}"
+                    else:
+                        raw_body = "Selected an option from the menu"
                 elif msg_type in ["image", "document", "video", "audio", "voice", "sticker"]:
                     media_payload = msg.get(msg_type, {})
                     media_id = media_payload.get("id")
