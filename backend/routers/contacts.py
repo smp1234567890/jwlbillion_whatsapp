@@ -300,7 +300,12 @@ async def import_contacts_csv(
     queue_contacts = {}
     for row in reader:
         norm_row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
-        raw_phone = norm_row.get("phone") or norm_row.get("mobile") or norm_row.get("contact")
+        # Match phone from various common column names or any column containing 'phone', 'mobile', 'contact', 'number'
+        raw_phone = None
+        for key, val in norm_row.items():
+            if any(k in key for k in ["phone", "mobile", "contact", "number", "tel"]):
+                raw_phone = val
+                break
         if not raw_phone:
             continue
 
