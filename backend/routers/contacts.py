@@ -92,16 +92,16 @@ def list_contacts(
     search: Optional[str] = None,
     tag: Optional[str] = None,
     skip: int = 0,
-    limit: int = 50,
+    limit: int = 5000,
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Lists contacts with enforced pagination (max 100).
+    Lists contacts with enforced pagination (supports up to 10,000 for directory and broadcast campaigns).
     Non-admin list DTOs mask phones (+91******3210) and emails (m***@domain.com).
     Agents can only list contacts assigned to their account.
     """
-    effective_limit = min(max(1, limit), 100)
+    effective_limit = min(max(1, limit), 10000)
     query = db.query(models.Contact)
     
     # Enforce agent record scope
