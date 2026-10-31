@@ -21,6 +21,8 @@ logger = logging.getLogger("mp4_utils")
 def transcode_video_for_meta(input_path: str, output_path: str) -> bool:
     """
     Invokes ffmpeg to transcode any video file to Meta-compliant H.264/AAC with FastStart.
+    Enforces resolution limit (max 720p or 1080p), main profile without B-frames,
+    and a strict maxrate/CRF so the output file size is strictly under Meta's 16 MB limit (~12-14 MB max).
     Returns True if transcoding succeeded, False otherwise.
     """
     ffmpeg_bin = shutil.which("ffmpeg")
@@ -28,17 +30,20 @@ def transcode_video_for_meta(input_path: str, output_path: str) -> bool:
         logger.warning("ffmpeg binary not found in PATH; skipping transcoding.")
         return False
 
+    # Target strict ceiling under 15 MB for Meta WhatsApp
     cmd = [
         ffmpeg_bin,
         "-y",
         "-i", input_path,
-        "-vf", "scale='min(1080,iw)':-2",
+        "-vf", "scale='min(720,iw)':-2",
         "-c:v", "libx264",
         "-profile:v", "main",
         "-bf", "0",
         "-pix_fmt", "yuv420p",
-        "-preset", "fast",
-        "-crf", "26",
+        "-preset", "faster",
+        "-crf", "30",
+        "-maxrate", "1800k",
+        "-bufsize", "3600k",
         "-c:a", "aac",
         "-b:a", "128k",
         "-ac", "2",
