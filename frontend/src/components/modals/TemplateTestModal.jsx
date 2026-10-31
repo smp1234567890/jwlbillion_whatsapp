@@ -26,10 +26,9 @@ export default function TemplateTestModal({
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
 
-  if (!isOpen || !template) return null;
-
-  // Filter contacts by search query
+  // Filter contacts by search query (always call hooks unconditionally)
   const filteredContacts = useMemo(() => {
+    if (!isOpen || !template) return [];
     if (!searchQuery.trim()) return contacts.slice(0, 10);
     const q = searchQuery.toLowerCase().trim();
     return contacts.filter(
@@ -38,7 +37,9 @@ export default function TemplateTestModal({
         (c.phone && c.phone.includes(q)) ||
         (c.city && c.city.toLowerCase().includes(q))
     ).slice(0, 15);
-  }, [contacts, searchQuery]);
+  }, [contacts, searchQuery, isOpen, template]);
+
+  if (!isOpen || !template) return null;
 
   const activePhone = selectedContact ? selectedContact.phone : customPhone.trim();
 
@@ -257,3 +258,4 @@ export default function TemplateTestModal({
     </div>
   );
 }
+

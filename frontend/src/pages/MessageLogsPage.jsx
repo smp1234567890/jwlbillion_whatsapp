@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Search, Download, Trash2, AlertTriangle, RefreshCw, CheckCircle2,
-  FileSpreadsheet, FileCode, Filter, Clock, ShieldAlert, X
+  FileSpreadsheet, FileCode, Filter, Clock, ShieldAlert, X, Copy, Check
 } from "lucide-react";
 import { formatToIST } from "../utils/dateUtils";
 import axios from "../api";
@@ -21,6 +21,8 @@ export default function MessageLogsPage({
   const [customDays, setCustomDays] = useState("");
   const [deleteSuccess, setDeleteSuccess] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [selectedLogModal, setSelectedLogModal] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   // Filter logs by search (phone, template, meta ID, user) & status
   const filteredLogs = messageLogs.filter((log) => {
@@ -277,12 +279,18 @@ export default function MessageLogsPage({
                         {log.status}
                       </span>
                       {log.error_message && (
-                        <p
-                          className="text-[10px] text-red-600 font-mono mt-1 max-w-xs truncate"
-                          title={log.error_message}
+                        <div
+                          onClick={() => setSelectedLogModal(log)}
+                          className="mt-1 cursor-pointer group"
                         >
-                          {log.error_message}
-                        </p>
+                          <p
+                            className="text-[10px] text-red-600 font-mono max-w-xs truncate underline decoration-red-300 group-hover:text-red-800"
+                            title="Click to view full log details"
+                          >
+                            {log.error_message}
+                          </p>
+                          <span className="text-[9px] text-red-500 font-sans font-medium">Click to view full log</span>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -292,6 +300,100 @@ export default function MessageLogsPage({
           </table>
         </div>
       </div>
+
+      {/* Log Details Modal */}
+      {selectedLogModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-red-600" />
+                <h3 className="font-bold text-gray-900 text-base">Message Audit Detail</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedLogModal(null);
+                  setCopied(false);
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto text-xs">
+              <div className="grid grid-cols-2 gap-3 bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Recipient</span>
+                  <span className="font-mono font-bold text-gray-900">{selectedLogModal.recipient_phone}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Template</span>
+                  <span className="font-mono font-bold text-gray-900">{selectedLogModal.template_name}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Status</span>
+                  <span className="font-bold text-red-600">{selectedLogModal.status}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Timestamp</span>
+                  <span className="font-mono text-gray-700">{formatToIST(selectedLogModal.created_at)}</span>
+                </div>
+                {selectedLogModal.meta_message_id && (
+                  <div className="col-span-2">
+                    <span className="text-gray-400 block text-[10px] uppercase font-bold">Meta Message ID</span>
+                    <span className="font-mono text-gray-800 break-all select-all">{selectedLogModal.meta_message_id}</span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-bold text-gray-700 uppercase tracking-wider text-[11px]">
+                    Full Diagnostic Log / Error Payload
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedLogModal.error_message || "");
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-600" /> Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3 text-emerald-600" /> Copy Full Log
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="bg-gray-900 text-gray-100 p-4 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-60 border border-gray-800 select-all">
+                  {selectedLogModal.error_message || "No error details recorded."}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-3 bg-gray-50/80 border-t border-gray-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedLogModal(null);
+                  setCopied(false);
+                }}
+                className="px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-200 rounded-lg transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Retention / Delete Logs Modal */}
       {isDeleteModalOpen && (
