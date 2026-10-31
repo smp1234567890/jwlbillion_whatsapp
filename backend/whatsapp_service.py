@@ -300,7 +300,7 @@ def send_whatsapp_template(
             raw_url = media_info.get("url")
             # Automatically prefix relative server upload paths with the public server domain
             if raw_url and raw_url.startswith("/uploads/"):
-                raw_url = f"https://130-210-12-142.sslip.io{raw_url}"
+                raw_url = f"https://130-210-23-25.sslip.io{raw_url}"
 
             # Helper to get or upload Meta media_id if an upload path or raw_url is provided
             def _resolve_meta_id(mime: str, default_name: str) -> Optional[str]:
@@ -311,7 +311,7 @@ def send_whatsapp_template(
                     return None
                 # Check if it points to a local file in uploads/
                 local_fpath = None
-                if path_or_url.startswith("https://130-210-12-142.sslip.io/uploads/"):
+                if path_or_url.startswith("https://130-210-23-25.sslip.io/uploads/"):
                     local_fpath = os.path.join("uploads", path_or_url.split("/uploads/")[-1])
                 elif path_or_url.startswith("/uploads/"):
                     local_fpath = os.path.join("uploads", path_or_url[len("/uploads/"):])
