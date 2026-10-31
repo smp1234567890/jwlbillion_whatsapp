@@ -471,11 +471,24 @@ def send_whatsapp_template(
                     if parameters:
                         for i, (k, val) in enumerate(parameters.items(), 1):
                             body_content = body_content.replace(f"{{{{{i}}}}}", str(val))
+
+                    # Resolve media_url for chat bubble rendering
+                    header_media_url = None
+                    if header_media and isinstance(header_media, dict) and header_media.get("url"):
+                        header_media_url = header_media["url"]
+                    elif tmpl and isinstance(tmpl.variable_mappings, dict) and tmpl.variable_mappings.get("header"):
+                        h_map = tmpl.variable_mappings["header"]
+                        if isinstance(h_map, dict) and h_map.get("type") == "static" and h_map.get("value"):
+                            header_media_url = h_map["value"]
+                    elif tmpl and isinstance(tmpl.sample_values, dict) and tmpl.sample_values.get("header_url"):
+                        header_media_url = tmpl.sample_values["header_url"]
+
                     chat_entry = models.ChatMessage(
                         customer_phone=clean_recipient_phone,
                         sender_type="AGENT",
                         message_type="template",
                         text=body_content,
+                        media_url=header_media_url,
                         meta_message_id=msg_id,
                         status="SENT",
                         is_read=True

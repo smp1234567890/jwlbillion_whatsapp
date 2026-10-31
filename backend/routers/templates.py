@@ -21,6 +21,7 @@ import models
 import schemas
 from database import get_db
 from whatsapp_service import create_meta_template, upload_media_to_meta, upload_template_sample_to_meta
+from services.mp4_utils import optimize_mp4_faststart
 
 logger = logging.getLogger("templates_router")
 
@@ -344,7 +345,8 @@ async def upload_template_media(
     file_size = len(file_bytes)
 
     # Meta Size Validation
-    if mime_type.startswith("video/") or orig_filename.lower().endswith((".mp4", ".3gp", ".mov")):
+    is_video = mime_type.startswith("video/") or orig_filename.lower().endswith((".mp4", ".3gp", ".mov"))
+    if is_video:
         max_bytes = 16 * 1024 * 1024  # 16 MB
         if file_size > max_bytes:
             size_mb = file_size / (1024 * 1024)
@@ -352,6 +354,11 @@ async def upload_template_media(
                 status_code=400,
                 detail=f"Video file exceeds Meta limit of 16 MB (uploaded file is {size_mb:.1f} MB). Please compress your video."
             )
+        # Apply faststart optimization (move moov atom to start for instant streaming/playback)
+        try:
+            file_bytes = optimize_mp4_faststart(file_bytes)
+        except Exception as e:
+            logger.warning(f"Faststart optimization skipped: {e}")
     elif mime_type.startswith("image/"):
         max_bytes = 5 * 1024 * 1024   # 5 MB
         if file_size > max_bytes:

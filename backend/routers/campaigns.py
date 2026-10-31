@@ -19,6 +19,7 @@ import schemas
 from database import get_db
 from rate_limiter import limiter
 from scheduler import scheduler, execute_campaign_broadcast
+from whatsapp_service import send_whatsapp_template
 from services import pii_service
 
 logger = logging.getLogger("campaigns_router")
@@ -235,4 +236,70 @@ def get_campaign_logs(
     except Exception as e:
         logger.error(f"Error fetching campaign logs for {campaign_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error fetching campaign logs")
+
+
+@router.post("/test-send")
+def send_test_campaign_message(
+    payload: dict,
+    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
+    db: Session = Depends(get_db)
+):
+    """
+    Sends a single test message using the selected template and header media
+    to a specified phone number for instant quality and rendering verification.
+    """
+    test_phone = str(payload.get("phone", "")).strip()
+    template_name = str(payload.get("template_name", "")).strip()
+    language = str(payload.get("language", "en_IN")).strip() or "en_IN"
+    header_media = payload.get("header_media")
+
+    if not test_phone:
+        raise HTTPException(status_code=400, detail="Test phone number is required.")
+    if not template_name:
+        raise HTTPException(status_code=400, detail="Template name is required.")
+
+    # Clean phone to E164 format
+    digits = "".join(filter(str.isdigit, test_phone))
+    if len(digits) == 10:
+        clean_phone = f"+91{digits}"
+    elif digits.startswith("91") and len(digits) == 12:
+        clean_phone = f"+{digits}"
+    elif not test_phone.startswith("+"):
+        clean_phone = f"+{digits}"
+    else:
+        clean_phone = test_phone
+
+    # Resolve header media if not explicitly provided
+    tmpl = db.query(models.Template).filter(models.Template.template_name == template_name).first()
+    if not header_media and tmpl:
+        if isinstance(tmpl.variable_mappings, dict) and tmpl.variable_mappings.get("header"):
+            h_map = tmpl.variable_mappings["header"]
+            if isinstance(h_map, dict) and h_map.get("type") == "static" and h_map.get("value"):
+                header_media = {"url": h_map["value"]}
+        elif isinstance(tmpl.sample_values, dict) and tmpl.sample_values.get("header_url"):
+            header_media = {"url": tmpl.sample_values["header_url"]}
+
+    idempotency_key = f"test_campaign_{template_name}_{clean_phone}_{int(datetime.utcnow().timestamp())}"
+    res = send_whatsapp_template(
+        recipient_phone=clean_phone,
+        template_name=template_name,
+        language=language,
+        parameters={},
+        header_media=header_media,
+        sender_user=f"Test Send ({current_user.name})",
+        idempotency_key=idempotency_key,
+        purpose="marketing",
+        db=db
+    )
+
+    if res.get("status") in ["success", "success_simulated"]:
+        return {
+            "status": "success",
+            "message": f"Test message successfully dispatched to {clean_phone}!",
+            "message_id": res.get("message_id")
+        }
+    else:
+        err_msg = res.get("error") or res.get("reason") or res.get("message") or "Meta rejected test send"
+        raise HTTPException(status_code=400, detail=f"Meta Error: {err_msg}")
+
 

@@ -32,7 +32,38 @@ export default function CampaignModal({
   const [templateSearch, setTemplateSearch] = useState("");
   const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
   const [segmentsList, setSegmentsList] = useState([]);
+  const [testPhone, setTestPhone] = useState("");
+  const [showTestInput, setShowTestInput] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testStatus, setTestStatus] = useState(null);
   const dropdownRef = useRef(null);
+
+  const handleSendTestMessage = async () => {
+    if (!testPhone.trim()) {
+      alert("Please enter a WhatsApp phone number to test.");
+      return;
+    }
+    if (!newCampaign.template_name) {
+      alert("Please select a template first.");
+      return;
+    }
+    setSendingTest(true);
+    setTestStatus(null);
+    try {
+      const res = await api.post("/api/campaigns/test-send", {
+        phone: testPhone.trim(),
+        template_name: newCampaign.template_name,
+        language: newCampaign.language || "en_IN",
+        header_media: newCampaign.header_media
+      });
+      setTestStatus({ success: true, message: res.data.message || "Test message sent!" });
+    } catch (err) {
+      const errDetail = err.response?.data?.detail || err.message || "Failed to send test message";
+      setTestStatus({ success: false, message: errDetail });
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -534,6 +565,72 @@ export default function CampaignModal({
               </div>
             ) : (
               <p className="text-[11px] text-gray-400 mt-1">Leave empty to dispatch broadcast immediately.</p>
+            )}
+          </div>
+
+          {/* Test Send Section */}
+          <div className="p-3.5 bg-blue-50/60 border border-blue-200/70 rounded-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-bold text-blue-900">Send Test Message</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTestInput(!showTestInput);
+                  setTestStatus(null);
+                }}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
+              >
+                {showTestInput ? "Hide Test" : "Test Template Before Broadcast"}
+              </button>
+            </div>
+
+            {showTestInput && (
+              <div className="space-y-2 pt-1 border-t border-blue-200/40">
+                <p className="text-[11px] text-blue-800">
+                  Send a single preview message to your phone to verify video playback, text rendering, and links.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    placeholder="e.g. +919876543210"
+                    className="flex-1 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <button
+                    type="button"
+                    disabled={sendingTest || !testPhone.trim() || !newCampaign.template_name}
+                    onClick={handleSendTestMessage}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-xs rounded-lg transition shadow-xs"
+                  >
+                    {sendingTest ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Send Test</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                {testStatus && (
+                  <div
+                    className={`p-2 rounded-lg text-[11px] font-medium ${
+                      testStatus.success
+                        ? "bg-emerald-100/90 text-emerald-900 border border-emerald-300"
+                        : "bg-red-100/90 text-red-900 border border-red-300"
+                    }`}
+                  >
+                    {testStatus.message}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
