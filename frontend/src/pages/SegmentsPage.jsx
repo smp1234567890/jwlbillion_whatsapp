@@ -19,7 +19,9 @@ import {
   Sparkles,
   ShoppingBag,
   UserPlus,
-  Crown
+  Crown,
+  LayoutGrid,
+  Table as TableIcon
 } from "lucide-react";
 import { formatToISTDate } from "../utils/dateUtils";
 
@@ -30,6 +32,7 @@ export default function SegmentsPage() {
   const [segmentContacts, setSegmentContacts] = useState([]);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState("cards"); // "cards" or "table"
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Form state for creating a custom segment
@@ -184,12 +187,47 @@ export default function SegmentsPage() {
         {/* Main Header Bar */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h3 className="font-bold text-gray-900 text-base">Contact Segments</h3>
+            <div className="flex items-center gap-2.5">
+              <h3 className="font-bold text-gray-900 text-base">Contact Segments</h3>
+              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                {segments.length} Segments
+              </span>
+            </div>
             <p className="text-xs text-gray-500 mt-0.5">
               Targeted customer cohorts for promotional broadcasts, re-engagement, and VIP flows
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* View Mode Toggle: Cards Overview vs Detailed Contacts Table */}
+            <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setViewMode("cards")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                  viewMode === "cards"
+                    ? "bg-white text-gray-900 shadow-xs"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+                title="View All Segments as Cards"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Segment Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                  viewMode === "table"
+                    ? "bg-white text-gray-900 shadow-xs"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+                title="View Contacts Roster"
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                <span>Contacts Roster</span>
+              </button>
+            </div>
+
             <button
               onClick={() => fetchSegments(selectedSegmentId)}
               disabled={loading}
@@ -213,10 +251,10 @@ export default function SegmentsPage() {
           {segments.map((seg) => {
             const isSelected = seg.id === selectedSegmentId;
             return (
-              <button
+              <div
                 key={seg.id}
                 onClick={() => handleSelectSegment(seg.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer border ${
+                className={`group/pill flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer border ${
                   isSelected
                     ? "bg-white text-gray-900 border-gray-300 shadow-xs ring-1 ring-gray-200"
                     : "bg-transparent text-gray-600 border-transparent hover:bg-gray-200/60 hover:text-gray-900"
@@ -231,100 +269,234 @@ export default function SegmentsPage() {
                   {seg.matching_contacts_count}
                 </span>
                 {!seg.is_predefined && (
-                  <span
+                  <button
+                    type="button"
                     onClick={(e) => handleDeleteSegment(seg.id, seg.name, e)}
-                    className="ml-1 text-gray-400 hover:text-rose-600 p-0.5 rounded transition"
+                    className="ml-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-0.5 rounded transition cursor-pointer"
                     title="Delete custom segment"
                   >
-                    <X className="w-3 h-3" />
-                  </span>
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
 
-        {/* Sub-header: Current Segment Overview & Search */}
-        <div className="px-6 py-3.5 bg-white border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-900 text-sm">{activeSegment?.name || "Segment"}</span>
-            <span className="text-xs text-gray-400">•</span>
-            <span className="text-xs text-gray-500">{activeSegment?.description || "Dynamic customer cohort"}</span>
-          </div>
-
-          <div className="relative w-64">
-            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search in this segment..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#25D366]"
-            />
-          </div>
-        </div>
-
-        {/* Contacts Table */}
-        <div className="overflow-x-auto">
-          {contactsLoading ? (
-            <div className="py-16 text-center text-xs text-gray-400">
-              <RefreshCw className="w-5 h-5 animate-spin mx-auto text-gray-500 mb-2" />
-              Loading segment contacts...
+        {/* View 1: Segments Cards Directory View */}
+        {viewMode === "cards" && (
+          <div className="p-6 bg-gray-50/50">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">All Audiences & Segments</h4>
+                <p className="text-xs text-gray-500">
+                  Manage your dynamic contact segments, delete duplicates, or explore cohort members
+                </p>
+              </div>
+              <div className="text-xs font-semibold text-gray-500">
+                {segments.filter((s) => !s.is_predefined).length} Custom • {segments.filter((s) => s.is_predefined).length} System
+              </div>
             </div>
-          ) : filteredContacts.length === 0 ? (
-            <div className="py-16 text-center text-gray-400 text-xs">
-              <Users className="w-8 h-8 mx-auto text-gray-300 mb-2" />
-              No contacts found in this segment.
-            </div>
-          ) : (
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500 border-b border-gray-200">
-                <tr>
-                  <th className="px-5 py-3">ID</th>
-                  <th className="px-5 py-3">Customer Name</th>
-                  <th className="px-5 py-3">Phone</th>
-                  <th className="px-5 py-3">Orders</th>
-                  <th className="px-5 py-3">City</th>
-                  <th className="px-5 py-3">Tags</th>
-                  <th className="px-5 py-3 text-right">Last Order</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-xs">
-                {filteredContacts.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50/80 transition">
-                    <td className="px-5 py-3.5 font-mono text-gray-400">#{c.id}</td>
-                    <td className="px-5 py-3.5 font-bold text-gray-900">{c.name || "Customer"}</td>
-                    <td className="px-5 py-3.5 font-mono text-gray-700">{c.phone}</td>
-                    <td className="px-5 py-3.5 font-semibold text-gray-900">{c.total_orders || 0}</td>
-                    <td className="px-5 py-3.5 text-gray-600">{c.city || "—"}</td>
-                    <td className="px-5 py-3.5">
-                      {c.tags ? (
-                        <span className="inline-block bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[11px] font-medium border border-gray-200/60">
-                          {c.tags}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {segments.map((seg) => {
+                const isSelected = seg.id === selectedSegmentId;
+                const criteria = seg.criteria || {};
+                let ruleDesc = "All contacts with active opt-in status";
+                if (criteria.city) ruleDesc = `City contains: "${criteria.city}"`;
+                else if (criteria.state) ruleDesc = `State/Region: "${criteria.state}"`;
+                else if (criteria.min_orders !== undefined && criteria.max_orders !== undefined) ruleDesc = `Orders between ${criteria.min_orders} and ${criteria.max_orders}`;
+                else if (criteria.min_orders !== undefined) ruleDesc = `Orders: ${criteria.min_orders}+`;
+                else if (criteria.order_eq !== undefined) ruleDesc = `Exact orders: ${criteria.order_eq}`;
+                else if (criteria.inactivity_days) ruleDesc = `Inactive for ≥ ${criteria.inactivity_days} days`;
+                else if (criteria.tag) ruleDesc = `Tag contains: "${criteria.tag}"`;
+
+                return (
+                  <div
+                    key={seg.id}
+                    className={`bg-white rounded-xl border p-4.5 transition-all shadow-xs flex flex-col justify-between ${
+                      isSelected
+                        ? "border-[#25D366] ring-2 ring-[#25D366]/15 shadow-sm"
+                        : "border-gray-200 hover:border-gray-300 hover:shadow-md"
+                    }`}
+                  >
+                    <div>
+                      {/* Top Bar of Card */}
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                              seg.is_predefined
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-purple-50 text-purple-700"
+                            }`}
+                          >
+                            <Users className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-gray-900 text-sm leading-tight flex items-center gap-1.5">
+                              {seg.name}
+                            </h5>
+                            <span
+                              className={`inline-block text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded mt-0.5 ${
+                                seg.is_predefined
+                                  ? "bg-gray-100 text-gray-600"
+                                  : "bg-purple-100/70 text-purple-800"
+                              }`}
+                            >
+                              {seg.is_predefined ? "System Default" : "Custom Rule"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Direct Delete Button on Card for custom segments */}
+                        {!seg.is_predefined && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSegment(seg.id, seg.name, e)}
+                            className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-md transition cursor-pointer"
+                            title={`Delete segment "${seg.name}"`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Rule Description */}
+                      <div className="my-3 bg-gray-50 border border-gray-100 rounded-lg p-2.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">
+                          Filter Criteria
+                        </div>
+                        <div className="text-xs font-semibold text-gray-700 font-mono break-all">
+                          {ruleDesc}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom metrics and Action Bar */}
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-lg font-black text-gray-900">
+                          {seg.matching_contacts_count}
                         </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right text-gray-500">
-                      {c.last_order_date ? formatToISTDate(c.last_order_date) : "No orders yet"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                        <span className="text-xs text-gray-500 font-medium">contacts</span>
+                      </div>
 
-        {/* Table Footer */}
-        <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex items-center justify-between">
-          <span>
-            Showing <strong className="text-gray-800">{filteredContacts.length}</strong> matching contacts
-          </span>
-          <span className="text-[11px] text-gray-400">
-            Contacts update automatically based on order and engagement activity
-          </span>
-        </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSelectSegment(seg.id);
+                          setViewMode("table");
+                        }}
+                        className="flex items-center gap-1 text-xs font-bold text-[#25D366] hover:text-[#1EBE5D] hover:underline cursor-pointer"
+                      >
+                        <span>View Roster</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* View 2: Detailed Contacts Roster Table */}
+        {viewMode === "table" && (
+          <>
+            {/* Sub-header: Current Segment Overview & Search */}
+            <div className="px-6 py-3.5 bg-white border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-gray-900 text-sm">{activeSegment?.name || "Segment"}</span>
+                <span className="text-xs text-gray-400">•</span>
+                <span className="text-xs text-gray-500">{activeSegment?.description || "Dynamic customer cohort"}</span>
+                {!activeSegment?.is_predefined && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteSegment(activeSegment.id, activeSegment.name, e)}
+                    className="ml-2 flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Delete Segment</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="relative w-64">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search in this segment..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                />
+              </div>
+            </div>
+
+            {/* Contacts Table */}
+            <div className="overflow-x-auto">
+              {contactsLoading ? (
+                <div className="py-16 text-center text-xs text-gray-400">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto text-gray-500 mb-2" />
+                  Loading segment contacts...
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="py-16 text-center text-gray-400 text-xs">
+                  <Users className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                  No contacts found in this segment.
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm text-gray-600">
+                  <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500 border-b border-gray-200">
+                    <tr>
+                      <th className="px-5 py-3">ID</th>
+                      <th className="px-5 py-3">Customer Name</th>
+                      <th className="px-5 py-3">Phone</th>
+                      <th className="px-5 py-3">Orders</th>
+                      <th className="px-5 py-3">City</th>
+                      <th className="px-5 py-3">Tags</th>
+                      <th className="px-5 py-3 text-right">Last Order</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-xs">
+                    {filteredContacts.map((c) => (
+                      <tr key={c.id} className="hover:bg-gray-50/80 transition">
+                        <td className="px-5 py-3.5 font-mono text-gray-400">#{c.id}</td>
+                        <td className="px-5 py-3.5 font-bold text-gray-900">{c.name || "Customer"}</td>
+                        <td className="px-5 py-3.5 font-mono text-gray-700">{c.phone}</td>
+                        <td className="px-5 py-3.5 font-semibold text-gray-900">{c.total_orders || 0}</td>
+                        <td className="px-5 py-3.5 text-gray-600">{c.city || "—"}</td>
+                        <td className="px-5 py-3.5">
+                          {c.tags ? (
+                            <span className="inline-block bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[11px] font-medium border border-gray-200/60">
+                              {c.tags}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-right text-gray-500">
+                          {c.last_order_date ? formatToISTDate(c.last_order_date) : "No orders yet"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Table Footer */}
+            <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex items-center justify-between">
+              <span>
+                Showing <strong className="text-gray-800">{filteredContacts.length}</strong> matching contacts
+              </span>
+              <span className="text-[11px] text-gray-400">
+                Contacts update automatically based on order and engagement activity
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Modal: Create Custom Segment */}
