@@ -102,6 +102,35 @@ export default function CampaignModal({
     return templates.find((t) => t.template_name === newCampaign.template_name) || templates[0];
   }, [templates, newCampaign.template_name]);
 
+  // Pre-fill header media if template already has mapped header media
+  useEffect(() => {
+    if (currentTmpl && !newCampaign.header_media?.url) {
+      let mappedUrl = "";
+      if (currentTmpl.header_text && (currentTmpl.header_text.startsWith("http") || currentTmpl.header_text.startsWith("/uploads/"))) {
+        mappedUrl = currentTmpl.header_text.startsWith("/uploads/")
+          ? `https://130-210-23-25.sslip.io${currentTmpl.header_text}`
+          : currentTmpl.header_text;
+      } else if (currentTmpl.variable_mappings?.header?.value) {
+        const val = currentTmpl.variable_mappings.header.value;
+        mappedUrl = String(val).startsWith("/uploads/")
+          ? `https://130-210-23-25.sslip.io${val}`
+          : String(val);
+      } else if (currentTmpl.sample_values?.header_url) {
+        mappedUrl = currentTmpl.sample_values.header_url;
+      }
+
+      if (mappedUrl) {
+        setNewCampaign((prev) => ({
+          ...prev,
+          header_media: {
+            ...(prev.header_media || {}),
+            url: mappedUrl
+          }
+        }));
+      }
+    }
+  }, [currentTmpl]);
+
   if (!isOpen) return null;
 
   const handleCampaignMediaUpload = async (e) => {

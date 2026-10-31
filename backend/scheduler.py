@@ -535,12 +535,21 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
 
                         # 1. Check if template has column mapping for header
                         if not campaign_header_media:
-                            h_map = (tmpl.variable_mappings or {}).get("header")
-                            if h_map and isinstance(h_map, dict):
-                                m_type = h_map.get("type")
-                                m_val = h_map.get("value")
-                                if m_type == "static" and m_val:
-                                    campaign_header_media = {"url": m_val}
+                            if tmpl.header_text and (tmpl.header_text.startswith("http") or tmpl.header_text.startswith("/uploads/")):
+                                m_url = tmpl.header_text
+                                if m_url.startswith("/uploads/"):
+                                    m_url = f"https://130-210-23-25.sslip.io{m_url}"
+                                campaign_header_media = {"url": m_url}
+                            else:
+                                h_map = (tmpl.variable_mappings or {}).get("header")
+                                if h_map and isinstance(h_map, dict):
+                                    m_type = h_map.get("type")
+                                    m_val = h_map.get("value")
+                                    if m_type == "static" and m_val:
+                                        m_url = str(m_val)
+                                        if m_url.startswith("/uploads/"):
+                                            m_url = f"https://130-210-23-25.sslip.io{m_url}"
+                                        campaign_header_media = {"url": m_url}
                         
                         # 2. Check if template sample_values has header_url or location
                         if not campaign_header_media and tmpl.sample_values:
