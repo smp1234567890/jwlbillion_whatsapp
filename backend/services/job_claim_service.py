@@ -146,6 +146,55 @@ def claim_campaign(
         return False
 
 
+def release_campaign(db: Session, campaign_id: int) -> None:
+    """
+    Releases the campaign row lease upon completion or failure.
+    """
+    try:
+        db.execute(
+            text("""
+                UPDATE campaigns
+                SET claimed_by    = NULL,
+                    claimed_until = NULL
+                WHERE id = :campaign_id
+            """),
+            {"campaign_id": campaign_id}
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"Failed to release campaign {campaign_id}: {e}")
+
+
+def auto_recover_stuck_campaigns(db: Session) -> int:
+    """
+    Recovers campaigns whose lease has expired while still marked IN_PROGRESS.
+    Clears the stale lease so background workers or resumptions can take over.
+    """
+    now = datetime.utcnow()
+    try:
+        result = db.execute(
+            text("""
+                UPDATE campaigns
+                SET claimed_by = NULL,
+                    claimed_until = NULL
+                WHERE status = 'IN_PROGRESS'
+                  AND claimed_until IS NOT NULL
+                  AND claimed_until < :now
+            """),
+            {"now": now}
+        )
+        db.commit()
+        recovered = result.rowcount
+        if recovered > 0:
+            logger.info(f"Auto-recovered {recovered} stuck campaign(s) with expired leases.")
+        return recovered
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"Failed to auto-recover stuck campaigns: {e}")
+        return 0
+
+
 def generate_worker_id() -> str:
     """Generates a unique worker identifier for lease attribution."""
     import socket

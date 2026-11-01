@@ -616,6 +616,8 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
             campaign.status = "COMPLETED"
             if fail_count > 0:
                 campaign.error_message = f"Partially completed: {success_count} sent, {fail_count} failed"
+        campaign.claimed_by = None
+        campaign.claimed_until = None
         db.commit()
         logger.info(f"Campaign {campaign_id} {campaign.status}: {success_count} sent, {fail_count} failed. Note: {campaign.error_message}")
 
@@ -624,8 +626,15 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
         if campaign:
             campaign.status = "FAILED"
             campaign.error_message = str(e)
+            campaign.claimed_by = None
+            campaign.claimed_until = None
             db.commit()
     finally:
+        try:
+            from services.job_claim_service import release_campaign
+            release_campaign(db, campaign_id)
+        except Exception:
+            pass
         db.close()
 
 
@@ -687,6 +696,29 @@ def run_scheduled_meta_template_sync():
         db.close()
 
 
+def run_campaign_health_and_recovery_sweep():
+    """
+    Periodically checks for campaigns that got stuck due to server restarts or crashed workers.
+    Recovers expired leases and automatically resumes remaining recipients.
+    """
+    from services.job_claim_service import auto_recover_stuck_campaigns
+    db = SessionLocal()
+    try:
+        recovered = auto_recover_stuck_campaigns(db)
+        if recovered > 0:
+            stuck_camps = db.query(models.Campaign).filter(
+                models.Campaign.status == "IN_PROGRESS",
+                models.Campaign.claimed_until == None
+            ).all()
+            for sc in stuck_camps:
+                logger.info(f"[Auto-Recovery] Resuming stuck campaign #{sc.id} ({sc.title})...")
+                execute_campaign_broadcast(sc.id)
+    except Exception as e:
+        logger.warning(f"[Campaign Auto-Recovery Sweep Error] {e}")
+    finally:
+        db.close()
+
+
 def start_scheduler():
     if not config.SCHEDULER_ENABLED:
         logger.info("Scheduler is disabled for this application instance.")
@@ -718,6 +750,13 @@ def start_scheduler():
             func=run_scheduled_shopify_sync,
             trigger=IntervalTrigger(minutes=5),
             id="auto_sync_shopify_customers_sweep",
+            replace_existing=True
+        )
+        # 5. Stale Campaign Lease Auto-Recovery & Resume every 2 minutes
+        scheduler.add_job(
+            func=run_campaign_health_and_recovery_sweep,
+            trigger=IntervalTrigger(minutes=2),
+            id="campaign_health_and_recovery_sweep",
             replace_existing=True
         )
         scheduler.start()
