@@ -49,8 +49,11 @@ export default function SegmentsPage() {
     created_mode: "single", // "single" or "range"
     created_date: "",
     created_from: "",
-    created_to: ""
+    created_to: "",
+    campaign_id: "",
+    campaign_interaction: "read" // 'sent', 'delivered', 'read', 'failed', 'clicked', 'all'
   });
+  const [campaignsList, setCampaignsList] = useState([]);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -58,10 +61,14 @@ export default function SegmentsPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("/api/segments", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      const data = res.data || [];
+      const [segRes, campRes] = await Promise.allSettled([
+        axios.get("/api/segments", { headers: token ? { Authorization: `Bearer ${token}` } : {} }),
+        axios.get("/api/campaigns", { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      ]);
+      const data = segRes.status === "fulfilled" ? (segRes.value.data || []) : [];
+      if (campRes.status === "fulfilled") {
+        setCampaignsList(campRes.value.data || []);
+      }
       setSegments(data);
       if (data.length > 0) {
         const idToSelect = preserveSelectedId || selectedSegmentId || data[0].id;
@@ -137,6 +144,13 @@ export default function SegmentsPage() {
         if (newSegment.created_from) criteria.created_from = newSegment.created_from;
         if (newSegment.created_to) criteria.created_to = newSegment.created_to;
       }
+    } else if (newSegment.criteriaType === "campaign_status") {
+      if (newSegment.campaign_id) {
+        criteria.campaign_id = parseInt(newSegment.campaign_id);
+      }
+      if (newSegment.campaign_interaction && newSegment.campaign_interaction !== "all") {
+        criteria.message_status = newSegment.campaign_interaction.toUpperCase();
+      }
     }
 
     try {
@@ -166,7 +180,9 @@ export default function SegmentsPage() {
         created_mode: "single",
         created_date: "",
         created_from: "",
-        created_to: ""
+        created_to: "",
+        campaign_id: "",
+        campaign_interaction: "read"
       });
       fetchSegments(res.data.id);
     } catch (err) {
@@ -339,6 +355,12 @@ export default function SegmentsPage() {
                 else if (criteria.created_from && criteria.created_to) ruleDesc = `Imported between: ${criteria.created_from} to ${criteria.created_to}`;
                 else if (criteria.created_from) ruleDesc = `Imported from: ${criteria.created_from}`;
                 else if (criteria.created_to) ruleDesc = `Imported up to: ${criteria.created_to}`;
+                else if (criteria.message_status || criteria.campaign_id) {
+                  const campObj = criteria.campaign_id ? campaignsList.find(c => c.id === criteria.campaign_id) : null;
+                  const campName = campObj ? campObj.title : (criteria.campaign_id ? `Campaign #${criteria.campaign_id}` : "Any Campaign");
+                  const st = criteria.message_status || "All recipients";
+                  ruleDesc = `${st} in ${campName}`;
+                }
 
                 return (
                   <div
@@ -603,6 +625,7 @@ export default function SegmentsPage() {
                   <option value="inactivity">Days Since Last Order (Inactivity)</option>
                   <option value="tag">Customer Tag / Label</option>
                   <option value="created_date">Contact Created / Imported Date</option>
+                  <option value="campaign_status">Campaign Delivery & Engagement Status (Sent, Delivered, Read, Click, Failed)</option>
                 </select>
               </div>
 
@@ -775,6 +798,46 @@ export default function SegmentsPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {newSegment.criteriaType === "campaign_status" && (
+                <div className="p-3.5 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                      Target Campaign
+                    </label>
+                    <select
+                      value={newSegment.campaign_id}
+                      onChange={(e) => setNewSegment({ ...newSegment, campaign_id: e.target.value })}
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                    >
+                      <option value="">Any Campaign (Overall History)</option>
+                      {campaignsList.map((camp) => (
+                        <option key={camp.id} value={camp.id}>
+                          #{camp.id} - {camp.title} ({camp.template_name})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                      Engagement & Delivery Status
+                    </label>
+                    <select
+                      value={newSegment.campaign_interaction}
+                      onChange={(e) => setNewSegment({ ...newSegment, campaign_interaction: e.target.value })}
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                    >
+                      <option value="read">👀 Read (Customers who opened / read the message)</option>
+                      <option value="clicked">👆 Clicked / Interacted (Customers who tapped CTA buttons or replied)</option>
+                      <option value="delivered">✅ Delivered (Received the WhatsApp message)</option>
+                      <option value="sent">🚀 Sent (Successfully dispatched from platform)</option>
+                      <option value="failed">❌ Failed (Message could not be delivered / phone inactive)</option>
+                      <option value="all">👥 All Recipients (Anyone in this campaign)</option>
+                    </select>
+                  </div>
                 </div>
               )}
 

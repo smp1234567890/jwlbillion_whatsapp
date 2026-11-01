@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 import auth
 import models
@@ -93,6 +93,61 @@ def query_contacts_by_criteria(db: Session, criteria: Dict[str, Any]):
             q = q.filter(models.Contact.created_at <= dt_to)
         except Exception:
             pass
+
+    # Campaign engagement & delivery status segmentation
+    # Supported criteria:
+    # - campaign_id (int or 'all'): filter by specific campaign, or any campaign
+    # - message_status: 'SENT', 'DELIVERED', 'READ', 'FAILED', 'CLICKED'
+    # - campaign_interaction: 'sent', 'delivered', 'read', 'failed', 'clicked'
+    target_campaign_id = criteria.get("campaign_id")
+    target_status = criteria.get("message_status") or criteria.get("campaign_interaction")
+
+    if target_status:
+        target_status_upper = str(target_status).strip().upper()
+
+        if target_status_upper == "CLICKED":
+            # Clicked = contacts who received a campaign message and interacted (button click reply)
+            click_subq = db.query(models.ChatMessage.customer_phone).filter(
+                models.ChatMessage.sender_type == "CUSTOMER",
+                or_(
+                    models.ChatMessage.message_type.in_(["button", "interactive"]),
+                    models.ChatMessage.text.ilike("%[button%"),
+                    models.ChatMessage.text.ilike("%clicked%"),
+                    models.ChatMessage.text.ilike("%yes%"),
+                    models.ChatMessage.text.ilike("%order%"),
+                    models.ChatMessage.text.ilike("%view%")
+                )
+            )
+            # If scoped to a specific campaign:
+            if target_campaign_id and str(target_campaign_id).isdigit():
+                camp_phones = db.query(models.MessageLog.recipient_phone).filter(
+                    models.MessageLog.campaign_id == int(target_campaign_id)
+                )
+                click_subq = click_subq.filter(models.ChatMessage.customer_phone.in_(camp_phones))
+            
+            q = q.filter(models.Contact.phone.in_(click_subq))
+
+        elif target_status_upper in ["SENT", "DELIVERED", "READ", "FAILED"]:
+            log_subq = db.query(models.MessageLog.recipient_phone)
+            if target_campaign_id and str(target_campaign_id).isdigit():
+                log_subq = log_subq.filter(models.MessageLog.campaign_id == int(target_campaign_id))
+
+            if target_status_upper == "SENT":
+                log_subq = log_subq.filter(models.MessageLog.status.in_(["SENT", "SENT_SIMULATED", "DELIVERED", "READ"]))
+            elif target_status_upper == "DELIVERED":
+                log_subq = log_subq.filter(models.MessageLog.status.in_(["DELIVERED", "READ", "SENT_SIMULATED"]))
+            elif target_status_upper == "READ":
+                log_subq = log_subq.filter(models.MessageLog.status.in_(["READ", "SENT_SIMULATED"]))
+            elif target_status_upper == "FAILED":
+                log_subq = log_subq.filter(models.MessageLog.status == "FAILED")
+
+            q = q.filter(models.Contact.phone.in_(log_subq))
+    elif target_campaign_id and str(target_campaign_id).isdigit():
+        # Only campaign selected without specific status -> recipients of that campaign
+        camp_subq = db.query(models.MessageLog.recipient_phone).filter(
+            models.MessageLog.campaign_id == int(target_campaign_id)
+        )
+        q = q.filter(models.Contact.phone.in_(camp_subq))
 
     return q
 
