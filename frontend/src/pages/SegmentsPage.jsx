@@ -821,12 +821,12 @@ export default function SegmentsPage() {
                       onChange={(e) => setNewSegment({ ...newSegment, campaign_interaction: e.target.value })}
                       className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                     >
-                      <option value="read">👀 Read (Customers who opened / read the message)</option>
-                      <option value="clicked">👆 Clicked / Interacted (Customers who tapped CTA buttons or replied)</option>
-                      <option value="delivered">✅ Delivered (Received the WhatsApp message)</option>
-                      <option value="sent">🚀 Sent (Successfully dispatched from platform)</option>
-                      <option value="failed">❌ Failed (Message could not be delivered / phone inactive)</option>
-                      <option value="all">👥 All Recipients (Anyone in this campaign)</option>
+                      <option value="read">Read (Customers who opened / read the message)</option>
+                      <option value="clicked">Clicked / Interacted (Customers who tapped CTA buttons or replied)</option>
+                      <option value="delivered">Delivered (Received the WhatsApp message)</option>
+                      <option value="sent">Sent (Successfully dispatched from platform)</option>
+                      <option value="failed">Failed (Message could not be delivered / phone inactive)</option>
+                      <option value="all">All Recipients (Anyone in this campaign)</option>
                     </select>
                   </div>
                 </div>
