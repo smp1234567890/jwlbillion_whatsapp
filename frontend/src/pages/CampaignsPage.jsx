@@ -51,7 +51,7 @@ export default function CampaignsPage({
                 <th className="px-5 py-3">Language</th>
                 <th className="px-5 py-3">Target</th>
                 <th className="px-5 py-3">Schedule / Trigger Time</th>
-                <th className="px-5 py-3">Delivered / Total</th>
+                <th className="px-5 py-3">Dispatched / Total</th>
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3 text-right">Action</th>
               </tr>
@@ -112,8 +112,14 @@ export default function CampaignsPage({
                           <span>{c.successful_sends} / {c.total_recipients}</span>
                           <span className="text-[10px] text-emerald-600 font-normal opacity-0 group-hover:opacity-100 transition">View</span>
                         </div>
+                        {c.delivered_count !== undefined && c.delivered_count > 0 && (
+                          <div className="text-[10px] text-gray-500 font-normal mt-0.5">
+                            Delivered: <strong className="text-emerald-600">{c.delivered_count}</strong>
+                            {c.read_count ? <span className="text-purple-600 font-semibold ml-1">({c.read_count} read)</span> : null}
+                          </div>
+                        )}
                         {c.per_day_limit && (
-                          <span className="text-[10px] font-medium text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                          <span className="text-[10px] font-medium text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 mt-1 inline-block">
                             Limit: {c.per_day_limit}
                           </span>
                         )}

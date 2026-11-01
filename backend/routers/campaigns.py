@@ -73,7 +73,64 @@ def list_campaigns(
     db: Session = Depends(get_db)
 ):
     try:
-        return db.query(models.Campaign).order_by(models.Campaign.created_at.desc()).offset(skip).limit(limit).all()
+        campaigns = db.query(models.Campaign).order_by(models.Campaign.created_at.desc()).offset(skip).limit(limit).all()
+        if not campaigns:
+            return []
+
+        camp_ids = [c.id for c in campaigns]
+        # Aggregate real-time log counts by status per campaign
+        from sqlalchemy import func
+        status_counts = (
+            db.query(models.MessageLog.campaign_id, models.MessageLog.status, func.count(models.MessageLog.id))
+            .filter(models.MessageLog.campaign_id.in_(camp_ids))
+            .group_by(models.MessageLog.campaign_id, models.MessageLog.status)
+            .all()
+        )
+
+        counts_map = {}
+        for cid, st, cnt in status_counts:
+            if cid not in counts_map:
+                counts_map[cid] = {"sent": 0, "delivered": 0, "read": 0, "failed": 0}
+            st_upper = (st or "").upper()
+            if st_upper in ["SENT", "SENT_SIMULATED"]:
+                counts_map[cid]["sent"] += cnt
+            elif st_upper == "DELIVERED":
+                counts_map[cid]["delivered"] += cnt
+            elif st_upper == "READ":
+                counts_map[cid]["read"] += cnt
+            elif st_upper in ["FAILED", "BLOCKED"]:
+                counts_map[cid]["failed"] += cnt
+
+        results = []
+        for c in campaigns:
+            stats = counts_map.get(c.id, {})
+            # If logs exist, reflect actual delivered + read count
+            actual_delivered = stats.get("delivered", 0) + stats.get("read", 0)
+            actual_sent = stats.get("sent", 0)
+            actual_read = stats.get("read", 0)
+            actual_failed = stats.get("failed", c.failed_sends or 0)
+            
+            c_dict = {
+                "id": c.id,
+                "title": c.title,
+                "template_name": c.template_name,
+                "language": c.language,
+                "target_filter": c.target_filter,
+                "status": c.status,
+                "total_recipients": c.total_recipients or 0,
+                "successful_sends": c.successful_sends or 0,
+                "failed_sends": actual_failed,
+                "sent_count": actual_sent,
+                "delivered_count": actual_delivered,
+                "read_count": actual_read,
+                "per_day_limit": c.per_day_limit,
+                "scheduled_for": c.scheduled_for,
+                "error_message": c.error_message,
+                "created_at": c.created_at
+            }
+            results.append(c_dict)
+
+        return results
     except Exception as e:
         logger.error(f"Error fetching campaigns: {e}", exc_info=True)
         return []

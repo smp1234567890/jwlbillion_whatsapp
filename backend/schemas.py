@@ -288,6 +288,9 @@ class CampaignResponse(BaseModel):
     total_recipients: Optional[int] = 0
     successful_sends: Optional[int] = 0
     failed_sends: Optional[int] = 0
+    sent_count: Optional[int] = 0
+    delivered_count: Optional[int] = 0
+    read_count: Optional[int] = 0
     per_day_limit: Optional[int] = None
     scheduled_for: Optional[Union[datetime, str]] = None
     error_message: Optional[str] = None
