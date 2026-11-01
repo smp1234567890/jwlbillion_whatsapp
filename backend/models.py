@@ -419,3 +419,22 @@ class OutboundMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     dispatched_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class LinkClick(Base):
+    """
+    Stores click tracking events when a recipient taps a personalized smart redirect link in WhatsApp.
+    Enables tracking of Total Clicks, Unique Clicks per recipient, and direct conversion attribution.
+    """
+    __tablename__ = "link_clicks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tracking_code = Column(String(64), index=True, nullable=False)
+    recipient_phone = Column(String(30), index=True, nullable=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
+    source = Column(String(50), default="campaign")  # "campaign", "automation", "cart_recovery"
+    target_url = Column(Text, nullable=False)
+    user_agent = Column(String(255), nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    clicked_at = Column(DateTime, default=datetime.utcnow, index=True)
+

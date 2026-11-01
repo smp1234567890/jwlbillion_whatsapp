@@ -179,7 +179,7 @@ export default function AnalyticsPage({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
                   {/* Stage 1: Sent */}
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col justify-between">
                     <div>
@@ -219,33 +219,48 @@ export default function AnalyticsPage({
                     </div>
                   </div>
 
-                  {/* Stage 4: Engaged / Replies */}
+                  {/* Stage 4: Unique Clicks */}
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">4. Engaged / Replies</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">4. Unique Clicks</span>
+                      </div>
+                      <p className="text-2xl font-black text-gray-900 mt-2">
+                        {analyticsData?.funnel?.unique_clicks ?? analyticsData?.funnel?.total_clicks ?? 0}
+                      </p>
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-gray-200/60 text-[11px] font-semibold text-gray-700">
+                      {analyticsData?.rates?.click_rate ?? 0}% click-through
+                    </div>
+                  </div>
+
+                  {/* Stage 5: Engaged / Replies */}
+                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">5. Replies</span>
                       </div>
                       <p className="text-2xl font-black text-gray-900 mt-2">
                         {analyticsData?.funnel?.total_replied ?? 0}
                       </p>
                     </div>
                     <div className="mt-3 pt-2 border-t border-gray-200/60 text-[11px] font-semibold text-gray-700">
-                      {analyticsData?.funnel?.total_replied ?? 0} customer replies
+                      {analyticsData?.rates?.reply_rate ?? 0}% reply rate
                     </div>
                   </div>
 
-                  {/* Stage 5: Converted */}
+                  {/* Stage 6: Converted Revenue */}
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">5. Converted</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">6. Revenue Earned</span>
                       </div>
                       <p className="text-2xl font-black text-gray-900 mt-2">
                         ₹{Number(analyticsData?.funnel?.revenue_recovered || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </p>
                     </div>
                     <div className="mt-3 pt-2 border-t border-gray-200/60 text-[11px] font-semibold text-gray-700">
-                      {analyticsData?.funnel?.recovered_carts ?? 0} carts converted
+                      {analyticsData?.funnel?.recovered_carts ?? 0} orders attributed
                     </div>
                   </div>
                 </div>

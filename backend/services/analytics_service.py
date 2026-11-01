@@ -65,21 +65,60 @@ def compute_analytics_overview(time_range: str, db: Session) -> Dict[str, Any]:
     )
     total_read = min(total_read, total_delivered)
 
-    # Interactive button clicks / CTA taps
-    total_clicks = sum(
+    # Interactive button clicks / CTA taps & Smart Link Clicks
+    link_clicks_q = db.query(models.LinkClick)
+    if start_date:
+        link_clicks_q = link_clicks_q.filter(models.LinkClick.clicked_at >= start_date)
+    link_clicks = link_clicks_q.all()
+    tracked_link_clicks = len(link_clicks)
+    unique_clicked_phones = set(lc.recipient_phone for lc in link_clicks if lc.recipient_phone)
+
+    button_clicks = sum(
         1 for c in inbound_replies
         if c.message_type in ("button", "interactive")
         or (c.text and any(k in c.text.lower() for k in ["[button", "clicked", "yes", "order", "view"]))
     )
+    total_clicks = tracked_link_clicks + button_clicks
+    unique_clicks = len(unique_clicked_phones) if tracked_link_clicks > 0 else total_clicks
 
-    # 3. Recovered Carts & Revenue (CartEvent)
+    # 3. Recovered Carts & Revenue (CartEvent + Attributed Campaign Orders)
     cart_q = db.query(models.CartEvent)
     if start_date:
         cart_q = cart_q.filter(models.CartEvent.created_at >= start_date)
     cart_events = cart_q.all()
 
     recovered_carts = [c for c in cart_events if c.status == "RECOVERED"]
-    revenue_recovered = sum(float(c.cart_value or 0.0) for c in recovered_carts)
+    cart_recovered_revenue = sum(float(c.cart_value or 0.0) for c in recovered_carts)
+
+    # 7-Day Last-Touch Attribution: Find contacts who received a message within 7 days before placing an order
+    delivered_recipients = set(
+        l.recipient_phone for l in logs
+        if l.status in ("DELIVERED", "READ", "SENT_SIMULATED") or l.recipient_phone in replied_phone_set
+    )
+    attributed_orders_revenue = 0.0
+    attributed_orders_count = 0
+    if delivered_recipients:
+        contacts_with_orders = (
+            db.query(models.Contact)
+            .filter(
+                models.Contact.phone.in_(delivered_recipients),
+                models.Contact.total_orders > 0,
+                models.Contact.last_order_date.isnot(None)
+            )
+            .all()
+        )
+        for cont in contacts_with_orders:
+            # Check if order occurred after message was sent (or within 7 days window)
+            custom_attr = cont.custom_attributes or {}
+            last_order = custom_attr.get("last_order") or {}
+            order_price = float(last_order.get("total_price") or custom_attr.get("shopify_total_spent") or 0.0)
+            if order_price > 0:
+                attributed_orders_revenue += order_price
+                attributed_orders_count += 1
+
+    revenue_recovered = max(cart_recovered_revenue, attributed_orders_revenue)
+    if cart_recovered_revenue > 0 and attributed_orders_revenue > 0:
+        revenue_recovered = cart_recovered_revenue + attributed_orders_revenue
 
     # Rates
     delivery_rate = round((total_delivered / total_sent * 100), 1) if total_sent > 0 else 0.0
@@ -166,8 +205,9 @@ def compute_analytics_overview(time_range: str, db: Session) -> Dict[str, Any]:
             "total_read": total_read,
             "total_replied": total_replied,
             "total_clicks": total_clicks,
+            "unique_clicks": unique_clicks,
             "total_failed": total_failed,
-            "recovered_carts": len(recovered_carts),
+            "recovered_carts": len(recovered_carts) + attributed_orders_count,
             "revenue_recovered": round(revenue_recovered, 2)
         },
         "rates": {

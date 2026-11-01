@@ -26,9 +26,25 @@ export default function DashboardPage({
   setEditingWorkflow,
   handleOpenNewJourneyModal
 }) {
-  const totalRecoveredValue = cartEvents
+  // Total WhatsApp Attributed Revenue (recovered carts + attributed campaign customer orders)
+  const cartRecoveredVal = cartEvents
     .filter((c) => c.status === "RECOVERED")
     .reduce((sum, c) => sum + (c.cart_value || 0), 0);
+
+  // Delivered contacts with orders placed
+  const deliveredPhones = new Set(
+    messageLogs
+      .filter((l) => ["DELIVERED", "READ", "SENT", "SENT_SIMULATED"].includes(l.status))
+      .map((l) => l.recipient_phone)
+  );
+  const attributedOrdersVal = contacts
+    .filter((c) => deliveredPhones.has(c.phone) && c.total_orders > 0)
+    .reduce((sum, c) => {
+      const orderPrice = Number(c.custom_attributes?.last_order?.total_price || c.custom_attributes?.shopify_total_spent || 0);
+      return sum + orderPrice;
+    }, 0);
+
+  const totalEarnedRevenue = Math.max(cartRecoveredVal, attributedOrdersVal) + (cartRecoveredVal > 0 && attributedOrdersVal > 0 ? cartRecoveredVal : 0);
 
   return (
 
@@ -50,10 +66,10 @@ export default function DashboardPage({
 
                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recovered Cart Value</p>
-                    <h3 className="text-2xl font-black text-gray-900 mt-1">₹ {totalRecoveredValue.toFixed(2)}</h3>
-                    <span className="text-xs font-semibold text-gray-500 mt-1">
-                      Autonomous 30m recovery
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Revenue Earned</p>
+                    <h3 className="text-2xl font-black text-gray-900 mt-1">₹ {totalEarnedRevenue.toFixed(2)}</h3>
+                    <span className="text-xs font-semibold text-emerald-700 mt-1">
+                      Attributed from WhatsApp
                     </span>
                   </div>
                   <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600">
