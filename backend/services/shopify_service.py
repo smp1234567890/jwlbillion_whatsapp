@@ -419,7 +419,8 @@ def sync_shopify_customers_and_orders(db) -> Dict[str, Any]:
                     created_str = latest.get("created_at")
                     if created_str:
                         try:
-                            last_order_date = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                            dt = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                            last_order_date = dt.replace(tzinfo=None)
                         except Exception:
                             pass
                     last_order_info = {
@@ -498,7 +499,8 @@ def sync_shopify_customers_and_orders(db) -> Dict[str, Any]:
                 created_str = latest.get("created_at")
                 if created_str:
                     try:
-                        last_order_date = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                        dt = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                        last_order_date = dt.replace(tzinfo=None)
                     except Exception:
                         pass
 

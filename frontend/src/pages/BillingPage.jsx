@@ -3,16 +3,9 @@ import axios from "axios";
 import {
   CreditCard,
   RefreshCw,
-  TrendingUp,
   AlertCircle,
-  Megaphone,
-  Sliders,
-  DollarSign,
   Calendar,
-  CheckCircle2,
-  Info,
-  Layers,
-  ArrowUpRight
+  Info
 } from "lucide-react";
 
 export default function BillingPage({ token }) {
@@ -107,27 +100,27 @@ export default function BillingPage({ token }) {
       )}
 
       {/* Meta Account Status & Cycle Badge */}
-      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/80 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           <div className="text-xs">
             <span className="font-bold text-gray-900">
               {waba?.name || "JWL Billion"} (WABA #{waba?.waba_id})
             </span>
             <span className="text-gray-500 ml-2">
-              • Currency: <strong className="text-gray-700">{waba?.currency || "INR"}</strong>
+              Currency: <strong className="text-gray-700">{waba?.currency || "INR"}</strong>
             </span>
             <span className="text-gray-500 ml-2">
-              • Status:{" "}
-              <span className="text-emerald-700 font-bold uppercase text-[11px] bg-emerald-100/80 px-2 py-0.5 rounded">
+              Status:{" "}
+              <span className="text-emerald-700 font-bold uppercase text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 {waba?.account_status || "APPROVED"}
               </span>
             </span>
           </div>
         </div>
 
-        <div className="text-xs font-semibold text-gray-700 bg-white/80 px-3 py-1 rounded-lg border border-emerald-100 shadow-2xs">
-          Cycle: <span className="text-emerald-700">{cycle?.month || "Current Month"}</span> ({cycle?.start_date} to {cycle?.end_date})
+        <div className="text-xs font-semibold text-gray-700 bg-white px-3 py-1 rounded-lg border border-gray-200">
+          Cycle: <span className="text-gray-900 font-bold">{cycle?.month || "Current Month"}</span> ({cycle?.start_date} to {cycle?.end_date})
         </div>
       </div>
 
@@ -139,9 +132,6 @@ export default function BillingPage({ token }) {
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
               Total Cost This Month
             </span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <span className="font-black text-sm">₹</span>
-            </div>
           </div>
           <div>
             <div className="text-2xl font-black text-gray-900">
@@ -159,12 +149,9 @@ export default function BillingPage({ token }) {
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
               Marketing Broadcasts
             </span>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Megaphone className="w-4 h-4" />
-            </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-purple-900">
+            <div className="text-2xl font-black text-gray-900">
               ₹{totals.marketing_cost_inr.toFixed(2)}
             </div>
             <p className="text-[11px] text-gray-400 mt-1">
@@ -179,12 +166,9 @@ export default function BillingPage({ token }) {
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
               Utility & Automations
             </span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Sliders className="w-4 h-4" />
-            </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-blue-900">
+            <div className="text-2xl font-black text-gray-900">
               ₹{totals.utility_cost_inr.toFixed(2)}
             </div>
             <p className="text-[11px] text-gray-400 mt-1">
@@ -199,9 +183,6 @@ export default function BillingPage({ token }) {
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
               Billable Messages
             </span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
           </div>
           <div>
             <div className="text-2xl font-black text-gray-900">
@@ -219,7 +200,6 @@ export default function BillingPage({ token }) {
       <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Megaphone className="w-4 h-4 text-purple-600" />
             <h3 className="font-bold text-gray-900 text-sm">Campaign Cost Breakdown</h3>
             <span className="text-xs text-gray-400 font-mono">({campaigns.length} campaigns)</span>
           </div>
@@ -288,7 +268,6 @@ export default function BillingPage({ token }) {
       <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-blue-600" />
             <h3 className="font-bold text-gray-900 text-sm">Automations & Journeys Cost Breakdown</h3>
             <span className="text-xs text-gray-400 font-mono">({automations.length} sources)</span>
           </div>

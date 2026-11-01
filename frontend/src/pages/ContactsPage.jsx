@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 import {
   Upload,
   RefreshCw,
@@ -59,15 +60,8 @@ export default function ContactsPage({
     setSyncingShopify(true);
     setShopifySyncResult(null);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/shopify/sync-customers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      });
-      const data = await res.json();
+      const res = await axios.post("/api/shopify/sync-customers");
+      const data = res.data;
       if (data.status === "success") {
         setShopifySyncResult(`Synced ${data.synced_new} new customers, updated ${data.updated_existing} orders!`);
         if (onRefreshContacts) onRefreshContacts();
@@ -75,7 +69,8 @@ export default function ContactsPage({
         setShopifySyncResult(`Sync error: ${data.error || data.message || "Failed"}`);
       }
     } catch (err) {
-      setShopifySyncResult(`Error: ${err.message}`);
+      const msg = err.response?.data?.detail || err.response?.data?.message || err.message;
+      setShopifySyncResult(`Error: ${msg}`);
     } finally {
       setSyncingShopify(false);
       setTimeout(() => setShopifySyncResult(null), 5000);

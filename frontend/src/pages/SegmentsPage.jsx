@@ -375,24 +375,15 @@ export default function SegmentsPage() {
                       {/* Top Bar of Card */}
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                              seg.is_predefined
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-purple-50 text-purple-700"
-                            }`}
-                          >
-                            <Users className="w-4 h-4" />
-                          </div>
                           <div>
-                            <h5 className="font-bold text-gray-900 text-sm leading-tight flex items-center gap-1.5">
+                            <h5 className="font-bold text-gray-900 text-sm leading-tight">
                               {seg.name}
                             </h5>
                             <span
                               className={`inline-block text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded mt-0.5 ${
                                 seg.is_predefined
                                   ? "bg-gray-100 text-gray-600"
-                                  : "bg-purple-100/70 text-purple-800"
+                                  : "bg-emerald-50 text-emerald-800 border border-emerald-200"
                               }`}
                             >
                               {seg.is_predefined ? "System Default" : "Custom Rule"}
