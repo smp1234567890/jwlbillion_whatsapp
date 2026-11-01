@@ -46,6 +46,14 @@ export default function DashboardPage({
 
   const totalEarnedRevenue = Math.max(cartRecoveredVal, attributedOrdersVal) + (cartRecoveredVal > 0 && attributedOrdersVal > 0 ? cartRecoveredVal : 0);
 
+  // Total messages sent across all campaigns and direct automation dispatches
+  const totalCampaignDispatched = (campaigns || []).reduce(
+    (sum, c) => sum + (Number(c.successful_sends) || Number(c.delivered_count) || 0),
+    0
+  );
+  const nonCampaignLogs = messageLogs.filter((l) => !l.campaign_id).length;
+  const totalMessagesSent = Math.max(messageLogs.length, totalCampaignDispatched + nonCampaignLogs);
+
   return (
 
             <>
@@ -54,7 +62,7 @@ export default function DashboardPage({
                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Messages Sent</p>
-                    <h3 className="text-2xl font-black text-gray-900 mt-1">{messageLogs.length}</h3>
+                    <h3 className="text-2xl font-black text-gray-900 mt-1">{totalMessagesSent}</h3>
                     <span className="inline-flex items-center text-xs font-semibold text-gray-500 mt-1">
                       100% Meta Compliant
                     </span>
