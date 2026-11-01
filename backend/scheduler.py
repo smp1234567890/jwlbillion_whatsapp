@@ -452,9 +452,19 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
         campaign.total_recipients = len(phones)
         db.commit()
 
-        success_count = 0
-        fail_count = 0
+        # Query already dispatched/logged messages for this campaign so resumed broadcasts skip previously processed phones
+        already_handled_logs = db.query(models.MessageLog.recipient_phone, models.MessageLog.status).filter(
+            models.MessageLog.campaign_id == campaign.id
+        ).all()
+        already_handled_phones = set(p[0] for p in already_handled_logs if p[0])
+
+        success_count = sum(1 for p, st in already_handled_logs if st in ["SENT", "SENT_SIMULATED", "DELIVERED", "READ"])
+        fail_count = sum(1 for p, st in already_handled_logs if st == "FAILED")
         last_failure_reason = ""
+
+        # Filter out phones that were already dispatched or processed in this campaign
+        pending_phones = [p for p in phones if p not in already_handled_phones]
+        logger.info(f"[Campaign {campaign_id}] Total: {len(phones)}, Already processed: {len(already_handled_phones)}, Remaining to send: {len(pending_phones)}")
 
         import re
         tmpl = db.query(models.Template).filter(models.Template.template_name == campaign.template_name).first()
@@ -466,11 +476,11 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
 
         # BATCH PACING: 7 messages per batch with 1-second pause to match DB pool size (7) and prevent rate-limit
         BATCH_SIZE = 7
-        total_phones = len(phones)
-        logger.info(f"[Campaign {campaign_id}] Processing {total_phones} recipients in batches of {BATCH_SIZE} (1s pacing)")
+        total_phones = len(pending_phones)
+        logger.info(f"[Campaign {campaign_id}] Processing {total_phones} remaining recipients in batches of {BATCH_SIZE} (1s pacing)")
 
         for i in range(0, total_phones, BATCH_SIZE):
-            batch = phones[i:i + BATCH_SIZE]
+            batch = pending_phones[i:i + BATCH_SIZE]
             batch_start_time = time.time()
 
             for phone in batch:
