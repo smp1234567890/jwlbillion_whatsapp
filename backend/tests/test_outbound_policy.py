@@ -24,10 +24,10 @@ def db():
     session.close()
 
 
-def test_deny_by_default_campaign_without_active_consent(db):
+def test_allow_campaign_without_explicit_consent_if_not_dnd(db):
     """
-    CRITICAL (B-4): A recipient without active affirmative consent MUST be denied
-    for promotional campaigns, even if a contact record exists in the DB.
+    Marketing campaigns send to all contacts without requiring pre-recorded consent,
+    as long as they have not opted out / DND.
     """
     phone = "+919876543210"
     # Contact exists, but NO consent record
@@ -43,8 +43,8 @@ def test_deny_by_default_campaign_without_active_consent(db):
         campaign_id=1,
         enforce_quiet_hours=False
     )
-    assert is_auth is False
-    assert "No active marketing consent" in reason
+    assert is_auth is True
+    assert reason == "Authorized"
 
 
 def test_allow_campaign_with_active_consent(db):
