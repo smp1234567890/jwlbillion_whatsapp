@@ -36,6 +36,7 @@ class ContactUpdate(BaseModel):
     last_order_date: Optional[datetime] = None
     assigned_user_id: Optional[int] = None
     custom_attributes: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
 
     @field_validator("phone")
     @classmethod
@@ -62,6 +63,7 @@ class ContactResponse(BaseModel):
     is_active: bool
     assigned_user_id: Optional[int] = None
     custom_attributes: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -81,6 +83,7 @@ class ContactListItemResponse(BaseModel):
     is_active: bool = True
     assigned_user_id: Optional[int] = None
     custom_attributes: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

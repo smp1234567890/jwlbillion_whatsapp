@@ -65,6 +65,35 @@ def query_contacts_by_criteria(db: Session, criteria: Dict[str, Any]):
         tag_term = str(criteria["tag"]).strip()
         q = q.filter(models.Contact.tags.ilike(f"%{tag_term}%"))
 
+    # Date-based filtering for Contact Imported / Created Date
+    # Supports:
+    # 1. Exact date (created_date: "YYYY-MM-DD") -> from 00:00:00 to 23:59:59.999999
+    # 2. Date range (created_from: "YYYY-MM-DD", created_to: "YYYY-MM-DD")
+    if "created_date" in criteria and criteria["created_date"]:
+        try:
+            d_str = str(criteria["created_date"]).strip()
+            dt_start = datetime.strptime(d_str, "%Y-%m-%d")
+            dt_end = dt_start + timedelta(days=1) - timedelta(microseconds=1)
+            q = q.filter(models.Contact.created_at >= dt_start, models.Contact.created_at <= dt_end)
+        except Exception:
+            pass
+
+    if "created_from" in criteria and criteria["created_from"]:
+        try:
+            from_str = str(criteria["created_from"]).strip()
+            dt_from = datetime.strptime(from_str, "%Y-%m-%d")
+            q = q.filter(models.Contact.created_at >= dt_from)
+        except Exception:
+            pass
+
+    if "created_to" in criteria and criteria["created_to"]:
+        try:
+            to_str = str(criteria["created_to"]).strip()
+            dt_to = datetime.strptime(to_str, "%Y-%m-%d") + timedelta(days=1) - timedelta(microseconds=1)
+            q = q.filter(models.Contact.created_at <= dt_to)
+        except Exception:
+            pass
+
     return q
 
 

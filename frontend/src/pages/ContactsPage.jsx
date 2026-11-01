@@ -222,6 +222,9 @@ export default function ContactsPage({
                   } else if (contactSortField === "last_order_date") {
                     valA = a.last_order_date ? new Date(a.last_order_date).getTime() : 0;
                     valB = b.last_order_date ? new Date(b.last_order_date).getTime() : 0;
+                  } else if (contactSortField === "created_at") {
+                    valA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                    valB = b.created_at ? new Date(b.created_at).getTime() : 0;
                   } else if (contactSortField === "id") {
                     valA = Number(a.id) || 0;
                     valB = Number(b.id) || 0;
@@ -397,6 +400,15 @@ export default function ContactsPage({
                                 <ArrowUpDown className={`w-3 h-3 ${contactSortField === "last_order_date" ? "text-emerald-600 font-bold" : "text-gray-400"}`} />
                               </div>
                             </th>
+                            <th
+                              onClick={() => handleSort("created_at")}
+                              className="px-6 py-3 cursor-pointer hover:bg-gray-100/80 transition select-none"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span>Contact Created</span>
+                                <ArrowUpDown className={`w-3 h-3 ${contactSortField === "created_at" ? "text-emerald-600 font-bold" : "text-gray-400"}`} />
+                              </div>
+                            </th>
                             <th className="px-6 py-3">VIP Status</th>
                             <th className="px-6 py-3 text-right">Actions</th>
                           </tr>
@@ -404,7 +416,7 @@ export default function ContactsPage({
                         <tbody className="divide-y divide-gray-100">
                           {paginatedContacts.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-10 text-center text-gray-400 text-xs font-medium">
+                              <td colSpan={8} className="px-6 py-10 text-center text-gray-400 text-xs font-medium">
                                 No contacts found matching the active filters or search.
                               </td>
                             </tr>
@@ -473,6 +485,16 @@ export default function ContactsPage({
                                             <span className="truncate">{c.custom_attributes.last_order.items_summary}</span>
                                           </div>
                                         )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400">—</span>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 text-xs font-medium text-gray-600 whitespace-nowrap">
+                                    {c.created_at ? (
+                                      <div className="flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                                        <span title="Date imported into platform">{formatToISTDate(c.created_at)}</span>
                                       </div>
                                     ) : (
                                       <span className="text-gray-400">—</span>

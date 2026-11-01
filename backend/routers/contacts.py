@@ -136,7 +136,8 @@ def list_contacts(
             birth_month=c.birth_month,
             is_active=c.is_active,
             assigned_user_id=c.assigned_user_id,
-            custom_attributes=c.custom_attributes or {}
+            custom_attributes=c.custom_attributes or {},
+            created_at=c.created_at
         )
         for c in contacts
     ]
@@ -498,7 +499,8 @@ def export_contacts(
                 "total_orders": c.total_orders,
                 "tags": c.tags,
                 "assigned_user_id": c.assigned_user_id,
-                "custom_attributes": c.custom_attributes or {}
+                "custom_attributes": c.custom_attributes or {},
+                "created_at": c.created_at
             }
             for c in contacts
         ]

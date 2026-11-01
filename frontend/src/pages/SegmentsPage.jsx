@@ -45,7 +45,11 @@ export default function SegmentsPage() {
     inactivity_days: "",
     city: "",
     state: "",
-    tag: ""
+    tag: "",
+    created_mode: "single", // "single" or "range"
+    created_date: "",
+    created_from: "",
+    created_to: ""
   });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -116,6 +120,23 @@ export default function SegmentsPage() {
       if (newSegment.state.trim()) criteria.state = newSegment.state.trim();
     } else if (newSegment.criteriaType === "tag") {
       if (newSegment.tag.trim()) criteria.tag = newSegment.tag.trim();
+    } else if (newSegment.criteriaType === "created_date") {
+      if (newSegment.created_mode === "single") {
+        if (!newSegment.created_date) {
+          setCreateError("Please select a valid date for contact creation.");
+          setCreating(false);
+          return;
+        }
+        criteria.created_date = newSegment.created_date;
+      } else {
+        if (!newSegment.created_from && !newSegment.created_to) {
+          setCreateError("Please select at least a From or To date for the range.");
+          setCreating(false);
+          return;
+        }
+        if (newSegment.created_from) criteria.created_from = newSegment.created_from;
+        if (newSegment.created_to) criteria.created_to = newSegment.created_to;
+      }
     }
 
     try {
@@ -141,7 +162,11 @@ export default function SegmentsPage() {
         inactivity_days: "",
         city: "",
         state: "",
-        tag: ""
+        tag: "",
+        created_mode: "single",
+        created_date: "",
+        created_from: "",
+        created_to: ""
       });
       fetchSegments(res.data.id);
     } catch (err) {
@@ -310,6 +335,10 @@ export default function SegmentsPage() {
                 else if (criteria.order_eq !== undefined) ruleDesc = `Exact orders: ${criteria.order_eq}`;
                 else if (criteria.inactivity_days) ruleDesc = `Inactive for ≥ ${criteria.inactivity_days} days`;
                 else if (criteria.tag) ruleDesc = `Tag contains: "${criteria.tag}"`;
+                else if (criteria.created_date) ruleDesc = `Imported on: ${criteria.created_date}`;
+                else if (criteria.created_from && criteria.created_to) ruleDesc = `Imported between: ${criteria.created_from} to ${criteria.created_to}`;
+                else if (criteria.created_from) ruleDesc = `Imported from: ${criteria.created_from}`;
+                else if (criteria.created_to) ruleDesc = `Imported up to: ${criteria.created_to}`;
 
                 return (
                   <div
@@ -456,6 +485,7 @@ export default function SegmentsPage() {
                       <th className="px-5 py-3">Orders</th>
                       <th className="px-5 py-3">City</th>
                       <th className="px-5 py-3">Tags</th>
+                      <th className="px-5 py-3">Imported Date</th>
                       <th className="px-5 py-3 text-right">Last Order</th>
                     </tr>
                   </thead>
@@ -472,6 +502,16 @@ export default function SegmentsPage() {
                             <span className="inline-block bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[11px] font-medium border border-gray-200/60">
                               {c.tags}
                             </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-gray-600 whitespace-nowrap">
+                          {c.created_at ? (
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-gray-400" />
+                              <span>{formatToISTDate(c.created_at)}</span>
+                            </div>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}
@@ -562,6 +602,7 @@ export default function SegmentsPage() {
                   <option value="orders">Total Orders Range (Purchase Volume)</option>
                   <option value="inactivity">Days Since Last Order (Inactivity)</option>
                   <option value="tag">Customer Tag / Label</option>
+                  <option value="created_date">Contact Created / Imported Date</option>
                 </select>
               </div>
 
@@ -657,6 +698,83 @@ export default function SegmentsPage() {
                     onChange={(e) => setNewSegment({ ...newSegment, tag: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
                   />
+                </div>
+              )}
+
+              {newSegment.criteriaType === "created_date" && (
+                <div className="p-3.5 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-600 mb-1.5">
+                      Target Mode
+                    </label>
+                    <div className="flex items-center gap-4 text-xs">
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer font-medium text-gray-700">
+                        <input
+                          type="radio"
+                          name="created_mode"
+                          value="single"
+                          checked={newSegment.created_mode === "single"}
+                          onChange={() => setNewSegment({ ...newSegment, created_mode: "single" })}
+                          className="text-[#25D366] focus:ring-[#25D366]"
+                        />
+                        <span>Specific Single Date</span>
+                      </label>
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer font-medium text-gray-700">
+                        <input
+                          type="radio"
+                          name="created_mode"
+                          value="range"
+                          checked={newSegment.created_mode === "range"}
+                          onChange={() => setNewSegment({ ...newSegment, created_mode: "range" })}
+                          className="text-[#25D366] focus:ring-[#25D366]"
+                        />
+                        <span>Date Range Group</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {newSegment.created_mode === "single" ? (
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                        Select Exact Created Date
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={newSegment.created_date}
+                        onChange={(e) => setNewSegment({ ...newSegment, created_date: e.target.value })}
+                        className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        Targets all customers imported/created on this exact calendar day (00:00 to 23:59).
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                          From (Start Date)
+                        </label>
+                        <input
+                          type="date"
+                          value={newSegment.created_from}
+                          onChange={(e) => setNewSegment({ ...newSegment, created_from: e.target.value })}
+                          className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                          To (End Date)
+                        </label>
+                        <input
+                          type="date"
+                          value={newSegment.created_to}
+                          onChange={(e) => setNewSegment({ ...newSegment, created_to: e.target.value })}
+                          className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
