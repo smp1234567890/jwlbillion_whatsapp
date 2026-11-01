@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api/chat", tags=["Two-Way Live Chat"])
 
 @router.get("/conversations", response_model=List[schemas.ChatConversationSummary])
 def list_conversations(
-    limit: int = Query(50, ge=1, le=100),
+    limit: Optional[int] = Query(None, ge=1),
     offset: int = Query(0, ge=0),
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
@@ -108,8 +108,9 @@ def list_conversations(
 
     # Sort: most recent message first
     summaries.sort(key=lambda s: s.last_message_time or datetime.min, reverse=True)
-    capped_limit = min(max(1, limit), 100)
-    return summaries[offset:offset + capped_limit]
+    if limit is not None:
+        return summaries[offset:offset + limit]
+    return summaries[offset:]
 
 
 @router.get("/history/{phone}", response_model=List[schemas.ChatMessageResponse])
