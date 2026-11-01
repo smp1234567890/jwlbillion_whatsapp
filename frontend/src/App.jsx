@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard,
   Megaphone,
+  CreditCard,
   Users,
   ShoppingCart,
   FileText,
@@ -74,6 +75,7 @@ import SettingsPage from "./pages/SettingsPage";
 import TemplatesPage from "./pages/TemplatesPage";
 import CampaignsPage from "./pages/CampaignsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import BillingPage from "./pages/BillingPage";
 import ContactsPage from "./pages/ContactsPage";
 import MessageLogsPage from "./pages/MessageLogsPage";
 import OptOutPage from "./pages/OptOutPage";
@@ -1923,6 +1925,7 @@ export default function App() {
               { id: "logs", label: "Message Logs", icon: FileText },
               { id: "opt_out", label: "Opt-Out (DND)", icon: ShieldBan, badge: optOuts.length },
               { id: "profile", label: "Profile Details", icon: UserCheck },
+              { id: "billing", label: "Billing", icon: CreditCard },
               { id: "settings", label: "Settings", icon: Settings },
             ].map((item) => {
               const Icon = item.icon;
@@ -2140,6 +2143,10 @@ export default function App() {
               setAddUserError={setAddUserError}
               setSystemUsers={setSystemUsers}
             />
+          )}
+
+          {activeTab === "billing" && (
+            <BillingPage token={token} />
           )}
 
 
