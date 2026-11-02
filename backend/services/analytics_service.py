@@ -90,31 +90,49 @@ def compute_analytics_overview(time_range: str, db: Session) -> Dict[str, Any]:
     recovered_carts = [c for c in cart_events if c.status == "RECOVERED"]
     cart_recovered_revenue = sum(float(c.cart_value or 0.0) for c in recovered_carts)
 
-    # 7-Day Last-Touch Attribution: Find contacts who received a message within 7 days before placing an order
-    delivered_recipients = set(
-        l.recipient_phone for l in logs
-        if l.status in ("DELIVERED", "READ", "SENT_SIMULATED") or l.recipient_phone in replied_phone_set
-    )
+    # WhatsApp Attribution:
+    # 1. Delivered recipients map with earliest message sent timestamp in current window
+    delivered_msg_times = {}
+    for l in logs:
+        if l.status in ("DELIVERED", "READ", "SENT_SIMULATED") or l.recipient_phone in replied_phone_set:
+            if l.recipient_phone:
+                if l.recipient_phone not in delivered_msg_times or (l.created_at and l.created_at < delivered_msg_times[l.recipient_phone]):
+                    delivered_msg_times[l.recipient_phone] = l.created_at or now_utc
+
+    # 2. Clicked or replied customer phones
+    engaged_phones = unique_clicked_phones | replied_phone_set
+
+    # 3. Monthly cycle window: current month 1st 00:00:01 to 1st of next month 00:00:00
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    cycle_start_ist = now_ist.replace(day=1, hour=0, minute=0, second=1, microsecond=0)
+    cycle_start_utc = cycle_start_ist - timedelta(hours=5, minutes=30)
+
     attributed_orders_revenue = 0.0
     attributed_orders_count = 0
-    if delivered_recipients:
+    if delivered_msg_times:
         contacts_with_orders = (
             db.query(models.Contact)
             .filter(
-                models.Contact.phone.in_(delivered_recipients),
+                models.Contact.phone.in_(list(delivered_msg_times.keys())),
                 models.Contact.total_orders > 0,
                 models.Contact.last_order_date.isnot(None)
             )
             .all()
         )
         for cont in contacts_with_orders:
-            # Check if order occurred after message was sent (or within 7 days window)
-            custom_attr = cont.custom_attributes or {}
-            last_order = custom_attr.get("last_order") or {}
-            order_price = float(last_order.get("total_price") or custom_attr.get("shopify_total_spent") or 0.0)
-            if order_price > 0:
-                attributed_orders_revenue += order_price
-                attributed_orders_count += 1
+            # Order must be within current cycle AND strictly after the WhatsApp message delivery
+            if cont.last_order_date:
+                order_time = cont.last_order_date
+                msg_time = delivered_msg_times.get(cont.phone, now_utc)
+
+                # Strictly post-broadcast and within active month cycle
+                if order_time >= cycle_start_utc and order_time >= msg_time:
+                    custom_attr = cont.custom_attributes or {}
+                    last_order = custom_attr.get("last_order") or {}
+                    order_price = float(last_order.get("total_price") or custom_attr.get("shopify_total_spent") or 0.0)
+                    if order_price > 0:
+                        attributed_orders_revenue += order_price
+                        attributed_orders_count += 1
 
     revenue_recovered = max(cart_recovered_revenue, attributed_orders_revenue)
     if cart_recovered_revenue > 0 and attributed_orders_revenue > 0:

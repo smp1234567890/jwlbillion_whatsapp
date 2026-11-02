@@ -27,18 +27,45 @@ export default function DashboardPage({
   handleOpenNewJourneyModal
 }) {
   // Total WhatsApp Attributed Revenue (recovered carts + attributed campaign customer orders)
+  // Monthly cycle window: current month 1st 00:00:01 to 1st of next month 00:00:00
+  const now = new Date();
+  const cycleStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 1);
+  const cycleEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+
   const cartRecoveredVal = cartEvents
-    .filter((c) => c.status === "RECOVERED")
+    .filter((c) => {
+      if (c.status !== "RECOVERED") return false;
+      if (!c.created_at) return true;
+      const eventTime = new Date(c.created_at);
+      return eventTime >= cycleStart && eventTime <= cycleEnd;
+    })
     .reduce((sum, c) => sum + (c.cart_value || 0), 0);
 
-  // Delivered contacts with orders placed
-  const deliveredPhones = new Set(
-    messageLogs
-      .filter((l) => ["DELIVERED", "READ", "SENT", "SENT_SIMULATED"].includes(l.status))
-      .map((l) => l.recipient_phone)
-  );
-  const attributedOrdersVal = contacts
-    .filter((c) => deliveredPhones.has(c.phone) && c.total_orders > 0)
+  // Delivered contacts with their earliest message sent timestamp in current cycle
+  const deliveredPhoneMsgTime = new Map();
+  (messageLogs || []).forEach((l) => {
+    if (["DELIVERED", "READ", "SENT", "SENT_SIMULATED"].includes(l.status) && l.recipient_phone) {
+      const logTime = l.created_at ? new Date(l.created_at) : cycleStart;
+      if (!deliveredPhoneMsgTime.has(l.recipient_phone) || logTime < deliveredPhoneMsgTime.get(l.recipient_phone)) {
+        deliveredPhoneMsgTime.set(l.recipient_phone, logTime);
+      }
+    }
+  });
+
+  // Only attribute orders strictly placed AFTER the WhatsApp broadcast delivery within the monthly cycle
+  const attributedOrdersVal = (contacts || [])
+    .filter((c) => {
+      if (!c.phone || !deliveredPhoneMsgTime.has(c.phone) || !c.total_orders || c.total_orders <= 0) {
+        return false;
+      }
+      if (!c.last_order_date) {
+        return false;
+      }
+      const orderDate = new Date(c.last_order_date);
+      const msgDeliveredTime = deliveredPhoneMsgTime.get(c.phone);
+      // Strictly in current month cycle AND strictly after WhatsApp broadcast was dispatched/delivered
+      return orderDate >= cycleStart && orderDate <= cycleEnd && orderDate >= msgDeliveredTime;
+    })
     .reduce((sum, c) => {
       const orderPrice = Number(c.custom_attributes?.last_order?.total_price || c.custom_attributes?.shopify_total_spent || 0);
       return sum + orderPrice;
