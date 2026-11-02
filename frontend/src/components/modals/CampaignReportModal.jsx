@@ -262,11 +262,14 @@ export default function CampaignReportModal({
                           {st}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 font-mono text-[11px]">
+                      <td className="px-6 py-3.5 font-mono text-[11px] max-w-xs">
                         {rec.error_message ? (
-                          <span className="text-red-600 line-clamp-1" title={rec.error_message}>
+                          <div
+                            className="text-red-600 bg-red-50/60 p-1.5 rounded border border-red-100 whitespace-pre-wrap break-words leading-relaxed select-text"
+                            title={rec.error_message}
+                          >
                             {rec.error_message}
-                          </span>
+                          </div>
                         ) : rec.meta_message_id ? (
                           <span className="text-gray-400 truncate max-w-[160px] inline-block" title={rec.meta_message_id}>
                             {rec.meta_message_id}
