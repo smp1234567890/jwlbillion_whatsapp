@@ -114,7 +114,7 @@ def claim_campaign(
     db: Session,
     campaign_id: int,
     worker_id: str,
-    lease_seconds: int = 600,
+    lease_seconds: int = 900,
 ) -> bool:
     """
     Atomically claims a campaign row.  Returns True if claim succeeded.
@@ -143,6 +143,41 @@ def claim_campaign(
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to claim campaign {campaign_id}: {e}")
+        return False
+
+
+def renew_campaign_lease(
+    db: Session,
+    campaign_id: int,
+    worker_id: str,
+    lease_seconds: int = 900,
+) -> bool:
+    """
+    Heartbeats/renews the lease for an actively running campaign worker.
+    Ensures long-running broadcasts never get flagged as expired while sending.
+    """
+    now = datetime.utcnow()
+    new_claimed_until = now + timedelta(seconds=lease_seconds)
+    try:
+        result = db.execute(
+            text("""
+                UPDATE campaigns
+                SET claimed_until = :new_claimed_until
+                WHERE id = :campaign_id
+                  AND claimed_by = :worker_id
+                  AND status = 'IN_PROGRESS'
+            """),
+            {
+                "campaign_id": campaign_id,
+                "worker_id": worker_id,
+                "new_claimed_until": new_claimed_until,
+            },
+        )
+        db.commit()
+        return result.rowcount == 1
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"Failed to renew campaign {campaign_id} lease: {e}")
         return False
 
 

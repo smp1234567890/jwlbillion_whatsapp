@@ -18,7 +18,12 @@ from whatsapp_service import send_whatsapp_template
 from services.phone_service import normalize_phone
 from services.secret_store import get_secret
 from services.integration_gateway import dispatch_external_request, SSRFSecurityError, HostNotAllowedError, CredentialMismatchError
-from services.job_claim_service import claim_workflow_session, release_workflow_session, claim_campaign
+from services.job_claim_service import (
+    claim_workflow_session,
+    release_workflow_session,
+    claim_campaign,
+    renew_campaign_lease,
+)
 from services.pii_service import mask_phone
 
 import config
@@ -409,7 +414,7 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
 
         # WP8: Acquire a distributed row-level campaign lease before execution
         worker_id = f"campaign_worker_{uuid_module.uuid4().hex[:8]}"
-        claimed = claim_campaign(db, campaign_id, worker_id=worker_id, lease_seconds=600)
+        claimed = claim_campaign(db, campaign_id, worker_id=worker_id, lease_seconds=900)
         if not claimed:
             logger.info(f"[Campaign] Campaign {campaign_id} already claimed by another worker — skipping duplicate execution.")
             return
@@ -599,6 +604,9 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
             campaign.successful_sends = success_count
             campaign.failed_sends = fail_count
             db.commit()
+
+            # Heartbeat / renew lease while actively processing so long broadcasts never expire
+            renew_campaign_lease(db, campaign.id, worker_id, lease_seconds=900)
 
             # Pacing: Sleep for remainder of 1 second if more batches remain
             if i + BATCH_SIZE < total_phones:
