@@ -333,6 +333,43 @@ def list_opt_outs(
     return db.query(models.OptOut).order_by(models.OptOut.created_at.desc()).limit(limit).all()
 
 
+@router.get("/api/permanently-failed")
+def list_permanently_failed(
+    limit: int = 200,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns unique phone numbers that permanently failed delivery on WhatsApp
+    (e.g., Meta Code 131026: Message Undeliverable / Non-WhatsApp number).
+    """
+    effective_limit = min(max(1, limit), 1000)
+    # Group distinct phones by recent failure log
+    stmt = text("""
+        SELECT DISTINCT ON (recipient_phone)
+            recipient_phone AS phone,
+            error_message AS reason,
+            created_at AS failed_at,
+            campaign_id
+        FROM message_logs
+        WHERE error_message LIKE '%131026%'
+           OR error_message LIKE '%Message Undeliverable%'
+        ORDER BY recipient_phone, created_at DESC
+        LIMIT :limit
+    """)
+    rows = db.execute(stmt, {"limit": effective_limit}).fetchall()
+    return [
+        {
+            "phone": r.phone,
+            "reason": "Meta 131026: Not registered on WhatsApp / Inactive Number",
+            "raw_error": r.reason,
+            "failed_at": r.failed_at.isoformat() if r.failed_at else None,
+            "campaign_id": r.campaign_id
+        }
+        for r in rows
+    ]
+
+
 @router.delete("/api/campaigns/{campaign_id}")
 def delete_campaign(
     campaign_id: int,
