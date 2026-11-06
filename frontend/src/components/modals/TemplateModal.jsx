@@ -49,6 +49,81 @@ export default function TemplateModal({
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
+  // Carousel Card State & Helpers
+  const addCarouselCard = () => {
+    const current = newTemplate.carousel_cards || [];
+    if (current.length >= 10) return;
+    const newIdx = current.length;
+    const firstCardBtn = current[0]?.buttons?.[0];
+    const defaultBtn = firstCardBtn 
+      ? { type: firstCardBtn.type, text: firstCardBtn.text || "Shop Now", url: firstCardBtn.url || "https://example.com/item" }
+      : { type: "URL", text: "Shop Now", url: "https://example.com/item" };
+
+    const newCard = {
+      card_index: newIdx,
+      header_type: "IMAGE",
+      header_url: "",
+      header_handle: "",
+      body_text: "✨ Item " + (newIdx + 1) + ": Description & price",
+      buttons: [defaultBtn]
+    };
+    setNewTemplate((prev) => ({
+      ...prev,
+      carousel_cards: [...current, newCard]
+    }));
+  };
+
+  const removeCarouselCard = (idx) => {
+    const current = newTemplate.carousel_cards || [];
+    if (current.length <= 2) {
+      alert("Meta requires a minimum of 2 cards in a Carousel template.");
+      return;
+    }
+    const filtered = current.filter((_, i) => i !== idx).map((c, i) => ({ ...c, card_index: i }));
+    setNewTemplate((prev) => ({
+      ...prev,
+      carousel_cards: filtered
+    }));
+  };
+
+  const updateCarouselCard = (cardIdx, field, value) => {
+    setNewTemplate((prev) => {
+      const copy = [...(prev.carousel_cards || [])];
+      copy[cardIdx] = { ...copy[cardIdx], [field]: value };
+      return { ...prev, carousel_cards: copy };
+    });
+  };
+
+  const handleCardImageUpload = async (cardIdx, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Card image must be under 5 MB.");
+      e.target.value = "";
+      return;
+    }
+    setUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+      const res = await api.post("/api/templates/upload-media", formData, {
+        headers: {
+          ...(token ? { Authorization: "Bearer " + token } : {}),
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      const data = res.data;
+      updateCarouselCard(cardIdx, "header_url", data.url);
+      updateCarouselCard(cardIdx, "header_handle", data.header_handle || data.url);
+    } catch (err) {
+      alert("Error uploading card image: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setUploadingMedia(false);
+      e.target.value = "";
+    }
+  };
+
   const handleMediaFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -121,7 +196,25 @@ export default function TemplateModal({
         add_security_recommendation: true,
         add_expiry_time: false
       },
-      variable_type: prev.variable_type || "Number"
+      variable_type: prev.variable_type || "Number",
+      carousel_cards: prev.carousel_cards || [
+        {
+          card_index: 0,
+          header_type: "IMAGE",
+          header_url: "",
+          header_handle: "",
+          body_text: "✨ Item 1: Exclusive Design & Pricing",
+          buttons: [{ type: "URL", text: "Shop Now", url: "https://example.com/item1" }]
+        },
+        {
+          card_index: 1,
+          header_type: "IMAGE",
+          header_url: "",
+          header_handle: "",
+          body_text: "✨ Item 2: Special Festive Collection",
+          buttons: [{ type: "URL", text: "Shop Now", url: "https://example.com/item2" }]
+        }
+      ]
     }));
   }, []);
 
@@ -248,6 +341,7 @@ export default function TemplateModal({
     if (cat === "MARKETING") {
       return [
         { id: "DEFAULT", title: "Default", desc: "Send messages with media and customised buttons to engage your customers." },
+        { id: "CAROUSEL", title: "Carousel (Multi-Card)", desc: "Send 2 to 10 scrollable cards with product photos, descriptions, and action buttons." },
         { id: "CATALOGUE", title: "Catalogue", desc: "Send messages that drive sales by connecting your product catalogue." },
         { id: "FLOWS", title: "Flows", desc: "Send a form to capture customer interests, appointment requests or run surveys." },
         { id: "ORDER_DETAILS", title: "Order details", desc: "Send messages through which customers can pay you." },
@@ -560,7 +654,7 @@ export default function TemplateModal({
                 )}
 
                 {/* ── HEADER SECTION ── */}
-                {category !== "AUTHENTICATION" && subType !== "ORDER_STATUS" && (
+                {category !== "AUTHENTICATION" && subType !== "ORDER_STATUS" && subType !== "CAROUSEL" && (
                   <div className="space-y-3 pt-2 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold uppercase text-gray-700">Header • Optional</label>
@@ -763,6 +857,159 @@ export default function TemplateModal({
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── CAROUSEL CARDS BUILDER (Only if CAROUSEL sub_type) ── */}
+                {subType === "CAROUSEL" && (
+                  <div className="space-y-4 pt-3 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-emerald-600" />
+                          <label className="text-xs font-bold uppercase text-gray-800">
+                            Carousel Cards ({(newTemplate.carousel_cards || []).length}/10)
+                          </label>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Meta requires 2 to 10 cards. Each card contains an image header, body text, and up to 2 uniform action buttons.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={addCarouselCard}
+                        disabled={(newTemplate.carousel_cards || []).length >= 10}
+                        className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Card
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {(newTemplate.carousel_cards || []).map((card, cIdx) => (
+                        <div
+                          key={cIdx}
+                          className="p-4 rounded-xl border border-gray-200 bg-gray-50/70 space-y-3 relative hover:border-gray-300 transition"
+                        >
+                          <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
+                                {cIdx + 1}
+                              </span>
+                              <span className="text-xs font-bold text-gray-900">Card #{cIdx + 1}</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeCarouselCard(cIdx)}
+                              disabled={(newTemplate.carousel_cards || []).length <= 2}
+                              title={(newTemplate.carousel_cards || []).length <= 2 ? "Minimum 2 cards required" : "Remove card"}
+                              className="p-1 text-gray-400 hover:text-red-600 disabled:opacity-30 disabled:hover:text-gray-400 transition"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Card Media Header */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-gray-700 uppercase">Card Media (Image)</label>
+                              {card.header_url && (
+                                <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                                  ✓ Uploaded
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div className="relative">
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp"
+                                  onChange={(e) => handleCardImageUpload(cIdx, e)}
+                                  className="hidden"
+                                  id={"card-img-upload-" + cIdx}
+                                />
+                                <label
+                                  htmlFor={"card-img-upload-" + cIdx}
+                                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-100 cursor-pointer transition shadow-2xs"
+                                >
+                                  <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                  {uploadingMedia ? "Uploading..." : "Upload Image File"}
+                                </label>
+                              </div>
+
+                              <input
+                                type="text"
+                                placeholder="Or paste public image URL (https://...)"
+                                value={card.header_url || ""}
+                                onChange={(e) => updateCarouselCard(cIdx, "header_url", e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#25D366]"
+                              />
+                            </div>
+
+                            {card.header_url && (
+                              <div className="w-24 h-16 rounded-lg overflow-hidden border border-gray-200 bg-white">
+                                <img
+                                  src={card.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + card.header_url : card.header_url}
+                                  alt={"Card " + (cIdx + 1)}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Card Body Text */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-gray-700 uppercase">Card Body Text</label>
+                              <span className="text-[10px] text-gray-400 font-mono">{(card.body_text || "").length}/160</span>
+                            </div>
+                            <textarea
+                              rows={2}
+                              maxLength={160}
+                              placeholder="e.g. ✨ Gold Plated Tennis Bracelet - ₹899 (Special 20% OFF)"
+                              value={card.body_text || ""}
+                              onChange={(e) => updateCarouselCard(cIdx, "body_text", e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-[#25D366]"
+                            />
+                          </div>
+
+                          {/* Card Button */}
+                          <div className="space-y-1.5 pt-1 border-t border-gray-200">
+                            <label className="text-[11px] font-bold text-gray-700 uppercase">Card Action Button</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                placeholder="Button Label (e.g. Shop Now)"
+                                value={card.buttons?.[0]?.text || ""}
+                                onChange={(e) => {
+                                  const textVal = e.target.value;
+                                  const btns = card.buttons || [{ type: "URL" }];
+                                  btns[0] = { ...btns[0], text: textVal };
+                                  updateCarouselCard(cIdx, "buttons", btns);
+                                }}
+                                className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Product Link (https://...)"
+                                value={card.buttons?.[0]?.url || ""}
+                                onChange={(e) => {
+                                  const urlVal = e.target.value;
+                                  const btns = card.buttons || [{ type: "URL" }];
+                                  btns[0] = { ...btns[0], url: urlVal };
+                                  updateCarouselCard(cIdx, "buttons", btns);
+                                }}
+                                className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -1202,6 +1449,46 @@ export default function TemplateModal({
                 {subType === "ORDER_STATUS" && (
                   <div className="p-2.5 bg-gray-100 border-b border-gray-200 text-xs font-mono font-bold text-gray-700">
                     Status: {"{{Order Status}}"}
+                  </div>
+                )}
+
+                {/* Carousel Cards Live Swiper Preview */}
+                {subType === "CAROUSEL" && (
+                  <div className="p-3 bg-gray-50 border-b border-gray-200">
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-gray-600 mb-2">
+                      <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                      Scrollable Cards ({(newTemplate.carousel_cards || []).length}):
+                    </div>
+                    <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin">
+                      {(newTemplate.carousel_cards || []).map((c, i) => (
+                        <div
+                          key={i}
+                          className="min-w-[170px] max-w-[170px] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden shrink-0 flex flex-col justify-between"
+                        >
+                          <div>
+                            {c.header_url ? (
+                              <img
+                                src={c.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + c.header_url : c.header_url}
+                                alt={"Card " + (i + 1)}
+                                className="w-full h-24 object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
+                                [Card Image]
+                              </div>
+                            )}
+                            <div className="p-2 text-[11px] text-gray-800 leading-snug">
+                              {c.body_text || "Card description..."}
+                            </div>
+                          </div>
+                          {(c.buttons || []).length > 0 && (
+                            <div className="p-1.5 border-t border-gray-100 bg-[#FAFAFA] text-center text-[10px] font-bold text-[#00A884]">
+                              {c.buttons[0]?.text || "Shop Now"}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
