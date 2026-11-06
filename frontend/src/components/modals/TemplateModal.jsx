@@ -1177,7 +1177,6 @@ export default function TemplateModal({
                 )}
 
                 {/* ── INTERACTIVE BUTTONS SECTION ── */}
-                {subType !== "CAROUSEL" && (
                 <div className="space-y-3 pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1300,7 +1299,6 @@ export default function TemplateModal({
                     </div>
                   ))}
                 </div>
-                )}
 
                 {/* ── MESSAGE VALIDITY PERIOD (Utility / Auth) ── */}
                 {["UTILITY", "AUTHENTICATION"].includes(category) && (
@@ -1588,7 +1586,7 @@ export default function TemplateModal({
                 )}
 
                 {/* Action Buttons Mockup */}
-                {subType !== "CAROUSEL" && (newTemplate.buttons || []).length > 0 && (
+                {(newTemplate.buttons || []).length > 0 && (
                   <div className="border-t border-gray-100 divide-y divide-gray-100 bg-[#FAFAFA]">
                     {newTemplate.buttons.map((btn, i) => (
                       <div
@@ -1656,7 +1654,6 @@ export default function TemplateModal({
                     newTemplate.header_type = "NONE";
                     newTemplate.header_text = "";
                     newTemplate.footer_text = "";
-                    newTemplate.buttons = [];
                   }
                   onSubmit(e);
                 }}
