@@ -1082,7 +1082,7 @@ export default function TemplateModal({
                 </div>
 
                 {/* ── FOOTER SECTION ── */}
-                {category !== "AUTHENTICATION" && (
+                {category !== "AUTHENTICATION" && subType !== "CAROUSEL" && (
                   <div className="space-y-1.5 pt-2 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold uppercase text-gray-700">Footer Text • Optional</label>
@@ -1100,6 +1100,7 @@ export default function TemplateModal({
                 )}
 
                 {/* ── INTERACTIVE BUTTONS SECTION ── */}
+                {subType !== "CAROUSEL" && (
                 <div className="space-y-3 pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1222,6 +1223,7 @@ export default function TemplateModal({
                     </div>
                   ))}
                 </div>
+                )}
 
                 {/* ── MESSAGE VALIDITY PERIOD (Utility / Auth) ── */}
                 {["UTILITY", "AUTHENTICATION"].includes(category) && (
@@ -1502,14 +1504,14 @@ export default function TemplateModal({
                 </div>
 
                 {/* Message Footer */}
-                {newTemplate.footer_text && (
+                {subType !== "CAROUSEL" && newTemplate.footer_text && (
                   <div className="px-4 pb-2 text-[10px] text-gray-400 border-t border-gray-50">
                     {newTemplate.footer_text}
                   </div>
                 )}
 
                 {/* Action Buttons Mockup */}
-                {(newTemplate.buttons || []).length > 0 && (
+                {subType !== "CAROUSEL" && (newTemplate.buttons || []).length > 0 && (
                   <div className="border-t border-gray-100 divide-y divide-gray-100 bg-[#FAFAFA]">
                     {newTemplate.buttons.map((btn, i) => (
                       <div
@@ -1572,7 +1574,15 @@ export default function TemplateModal({
             ) : (
               <button
                 type="button"
-                onClick={onSubmit}
+                onClick={(e) => {
+                  if (subType === "CAROUSEL") {
+                    newTemplate.header_type = "NONE";
+                    newTemplate.header_text = "";
+                    newTemplate.footer_text = "";
+                    newTemplate.buttons = [];
+                  }
+                  onSubmit(e);
+                }}
                 className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-6 py-2 rounded-lg text-xs font-bold shadow-md transition"
               >
                 <CheckCircle2 className="w-4 h-4" />
