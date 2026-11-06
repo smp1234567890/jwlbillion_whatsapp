@@ -978,185 +978,36 @@ export default function TemplateModal({
                             />
                           </div>
 
-                          {/* Card Buttons (Up to 2 buttons per card: Quick Reply, URL, Phone, Code) */}
-                          <div className="space-y-2.5 pt-1 border-t border-gray-200">
-                            <div className="flex items-center justify-between">
-                              <label className="text-[11px] font-bold text-gray-700 uppercase">Card Action Buttons (Max 2)</label>
-                              <div className="relative">
-                                <button
-                                  type="button"
-                                  onClick={() => setCardButtonDropdownOpen(cardButtonDropdownOpen === cIdx ? null : cIdx)}
-                                  disabled={(card.buttons || []).length >= 2}
-                                  className="flex items-center gap-1.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-800 px-2.5 py-1 rounded-lg text-xs font-bold shadow-2xs transition disabled:opacity-40"
-                                >
-                                  <Plus className="w-3.5 h-3.5 text-emerald-600" />
-                                  Add Button
-                                </button>
-
-                                {cardButtonDropdownOpen === cIdx && (
-                                  <div className="absolute right-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-20 animate-in fade-in">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const btns = card.buttons ? [...card.buttons] : [];
-                                        if (btns.length >= 2) return;
-                                        btns.push({ type: "QUICK_REPLY", text: "Request a Callback" });
-                                        updateCarouselCard(cIdx, "buttons", btns);
-                                        setCardButtonDropdownOpen(null);
-                                      }}
-                                      className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                      <Layers className="w-3.5 h-3.5 text-gray-500" />
-                                      Custom (Quick Reply)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const btns = card.buttons ? [...card.buttons] : [];
-                                        if (btns.length >= 2) return;
-                                        btns.push({ type: "URL", text: "Visit Website", url: "https://jwlbillion.com/" });
-                                        updateCarouselCard(cIdx, "buttons", btns);
-                                        setCardButtonDropdownOpen(null);
-                                      }}
-                                      className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                      <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
-                                      Visit website
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const btns = card.buttons ? [...card.buttons] : [];
-                                        if (btns.length >= 2) return;
-                                        btns.push({ type: "PHONE_NUMBER", text: "Call Support", phone_number: "+919638325271" });
-                                        updateCarouselCard(cIdx, "buttons", btns);
-                                        setCardButtonDropdownOpen(null);
-                                      }}
-                                      className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                      <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                                      Call phone number
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const btns = card.buttons ? [...card.buttons] : [];
-                                        if (btns.length >= 2) return;
-                                        btns.push({ type: "COPY_CODE", text: "Copy Offer Code", example: "JWL30" });
-                                        updateCarouselCard(cIdx, "buttons", btns);
-                                        setCardButtonDropdownOpen(null);
-                                      }}
-                                      className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                      <Copy className="w-3.5 h-3.5 text-amber-500" />
-                                      Copy offer code
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="space-y-2">
-                              {(card.buttons || [{ type: "URL", text: "Shop Now", url: "https://jwlbillion.com/" }]).map((btn, bIdx) => (
-                                <div key={bIdx} className="p-2.5 bg-white border border-gray-200 rounded-lg space-y-1.5 relative">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-bold text-gray-500 uppercase">
-                                        Button #{bIdx + 1} • {btn.type === "QUICK_REPLY" ? "Quick Reply" : (btn.type === "PHONE_NUMBER" ? "Call" : (btn.type === "COPY_CODE" ? "Copy Code" : "Website URL"))}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <select
-                                        value={btn.type || "URL"}
-                                        onChange={(e) => {
-                                          const newType = e.target.value;
-                                          const copy = [...(card.buttons || [])];
-                                          copy[bIdx] = {
-                                            ...copy[bIdx],
-                                            type: newType,
-                                            text: newType === "QUICK_REPLY" ? "Request a Callback" : (newType === "PHONE_NUMBER" ? "Call Us" : (newType === "COPY_CODE" ? "Copy Code" : "Shop Now")),
-                                            url: newType === "URL" ? "https://jwlbillion.com/" : undefined,
-                                            phone_number: newType === "PHONE_NUMBER" ? "+919638325271" : undefined,
-                                            example: newType === "COPY_CODE" ? "JWL30" : undefined
-                                          };
-                                          updateCarouselCard(cIdx, "buttons", copy);
-                                        }}
-                                        className="text-[10px] bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 font-medium"
-                                      >
-                                        <option value="URL">Visit Website (URL)</option>
-                                        <option value="QUICK_REPLY">Custom (Quick Reply)</option>
-                                        <option value="PHONE_NUMBER">Call phone number</option>
-                                        <option value="COPY_CODE">Copy offer code</option>
-                                      </select>
-                                      {(card.buttons || []).length > 1 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const copy = (card.buttons || []).filter((_, i) => i !== bIdx);
-                                            updateCarouselCard(cIdx, "buttons", copy);
-                                          }}
-                                          className="text-gray-400 hover:text-red-500 transition"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    <input
-                                      type="text"
-                                      placeholder="Button Label (e.g. Shop Now / Request a Callback)"
-                                      value={btn.text || ""}
-                                      onChange={(e) => {
-                                        const copy = [...(card.buttons || [])];
-                                        copy[bIdx] = { ...copy[bIdx], text: e.target.value };
-                                        updateCarouselCard(cIdx, "buttons", copy);
-                                      }}
-                                      className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-medium"
-                                    />
-                                    {btn.type === "URL" && (
-                                      <input
-                                        type="text"
-                                        placeholder="Product URL (https://...)"
-                                        value={btn.url || ""}
-                                        onChange={(e) => {
-                                          const copy = [...(card.buttons || [])];
-                                          copy[bIdx] = { ...copy[bIdx], url: e.target.value };
-                                          updateCarouselCard(cIdx, "buttons", copy);
-                                        }}
-                                        className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-mono"
-                                      />
-                                    )}
-                                    {btn.type === "PHONE_NUMBER" && (
-                                      <input
-                                        type="tel"
-                                        placeholder="+919638325271"
-                                        value={btn.phone_number || ""}
-                                        onChange={(e) => {
-                                          const copy = [...(card.buttons || [])];
-                                          copy[bIdx] = { ...copy[bIdx], phone_number: e.target.value };
-                                          updateCarouselCard(cIdx, "buttons", copy);
-                                        }}
-                                        className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-mono"
-                                      />
-                                    )}
-                                    {btn.type === "COPY_CODE" && (
-                                      <input
-                                        type="text"
-                                        placeholder="Coupon Code (e.g. JWL30)"
-                                        value={btn.example || ""}
-                                        onChange={(e) => {
-                                          const copy = [...(card.buttons || [])];
-                                          copy[bIdx] = { ...copy[bIdx], example: e.target.value };
-                                          updateCarouselCard(cIdx, "buttons", copy);
-                                        }}
-                                        className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-mono uppercase"
-                                      />
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                          {/* Card URL Action Button (Unique link for this card) */}
+                          <div className="space-y-2 pt-1 border-t border-gray-200">
+                            <label className="text-[11px] font-bold text-gray-700 uppercase">
+                              Card Action Button • Website URL
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                placeholder="Button Label (e.g. Shop Now)"
+                                value={(card.buttons && card.buttons[0] && card.buttons[0].text) || "Shop Now"}
+                                onChange={(e) => {
+                                  const copy = [...(card.buttons || [])];
+                                  if (!copy[0]) copy[0] = { type: "URL", text: "Shop Now", url: "https://jwlbillion.com/" };
+                                  copy[0] = { ...copy[0], type: "URL", text: e.target.value };
+                                  updateCarouselCard(cIdx, "buttons", copy);
+                                }}
+                                className="px-2.5 py-1.5 bg-white border border-gray-300 rounded text-xs font-medium"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Product URL (https://...)"
+                                value={(card.buttons && card.buttons[0] && card.buttons[0].url) || ""}
+                                onChange={(e) => {
+                                  const copy = [...(card.buttons || [])];
+                                  if (!copy[0]) copy[0] = { type: "URL", text: "Shop Now", url: "https://jwlbillion.com/" };
+                                  copy[0] = { ...copy[0], type: "URL", url: e.target.value };
+                                  updateCarouselCard(cIdx, "buttons", copy);
+                                }}
+                                className="px-2.5 py-1.5 bg-white border border-gray-300 rounded text-xs font-mono"
+                              />
                             </div>
                           </div>
                         </div>
@@ -1251,13 +1102,16 @@ export default function TemplateModal({
                   </div>
                 )}
 
-                {/* ── INTERACTIVE BUTTONS SECTION (Standard templates only; Carousel templates use per-card buttons) ── */}
-                {subType !== "CAROUSEL" && (
+                {/* ── INTERACTIVE BUTTONS SECTION ── */}
                 <div className="space-y-3 pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="text-xs font-bold uppercase text-gray-700">Buttons • Optional</label>
-                      <p className="text-[10px] text-gray-400">Add up to 10 buttons (Quick Replies, URL, Calls, Flows)</p>
+                      <p className="text-[10px] text-gray-400">
+                        {subType === "CAROUSEL"
+                          ? "Add common action button(s) applied to all carousel cards (e.g. Request a Callback)"
+                          : "Add up to 10 buttons (Quick Replies, URL, Calls, Flows)"}
+                      </p>
                     </div>
 
                     {/* Add button dropdown */}
@@ -1265,7 +1119,7 @@ export default function TemplateModal({
                       <button
                         type="button"
                         onClick={() => setButtonDropdownOpen(!buttonDropdownOpen)}
-                        disabled={(newTemplate.buttons || []).length >= 10}
+                        disabled={(newTemplate.buttons || []).length >= (subType === "CAROUSEL" ? 1 : 10)}
                         className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition disabled:opacity-50"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -1306,14 +1160,16 @@ export default function TemplateModal({
                             <Copy className="w-3.5 h-3.5 text-amber-500" />
                             Copy offer code
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => addButton("FLOW")}
-                            className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                          >
-                            <FileText className="w-3.5 h-3.5 text-purple-500" />
-                            Complete flow
-                          </button>
+                          {subType !== "CAROUSEL" && (
+                            <button
+                              type="button"
+                              onClick={() => addButton("FLOW")}
+                              className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-purple-500" />
+                              Complete flow
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1375,7 +1231,6 @@ export default function TemplateModal({
                     </div>
                   ))}
                 </div>
-                )}
 
                 {/* ── MESSAGE VALIDITY PERIOD (Utility / Auth) ── */}
                 {["UTILITY", "AUTHENTICATION"].includes(category) && (
@@ -1614,45 +1469,57 @@ export default function TemplateModal({
                       Scrollable Cards ({(newTemplate.carousel_cards || []).length}):
                     </div>
                     <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin">
-                      {(newTemplate.carousel_cards || []).map((c, i) => (
-                        <div
-                          key={i}
-                          className="min-w-[185px] max-w-[185px] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden shrink-0 flex flex-col justify-between"
-                        >
-                          <div>
-                            {c.header_url ? (
-                              <img
-                                src={c.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + c.header_url : c.header_url}
-                                alt={"Card " + (i + 1)}
-                                className="w-full h-24 object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
-                                [Card Image]
+                      {(newTemplate.carousel_cards || []).map((c, i) => {
+                        // Merge card's URL button with any global bottom button(s) added
+                        const displayBtns = [...(c.buttons || [])];
+                        if ((newTemplate.buttons || []).length > 0) {
+                          newTemplate.buttons.forEach((gBtn) => {
+                            if (!displayBtns.some((b) => b.type === gBtn.type && b.text === gBtn.text)) {
+                              displayBtns.push(gBtn);
+                            }
+                          });
+                        }
+
+                        return (
+                          <div
+                            key={i}
+                            className="min-w-[185px] max-w-[185px] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden shrink-0 flex flex-col justify-between"
+                          >
+                            <div>
+                              {c.header_url ? (
+                                <img
+                                  src={c.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + c.header_url : c.header_url}
+                                  alt={"Card " + (i + 1)}
+                                  className="w-full h-24 object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
+                                  [Card Image]
+                                </div>
+                              )}
+                              <div className="p-2 text-[11px] text-gray-800 leading-snug">
+                                {c.body_text || "Card description..."}
+                              </div>
+                            </div>
+                            {displayBtns.length > 0 && (
+                              <div className="border-t border-gray-100 divide-y divide-gray-100 bg-[#FAFAFA]">
+                                {displayBtns.slice(0, 2).map((b, bI) => (
+                                  <div
+                                    key={bI}
+                                    className="py-1.5 px-2 text-center text-[11px] font-bold text-[#00A884] flex items-center justify-center gap-1"
+                                  >
+                                    {b.type === "URL" && <ExternalLink className="w-3 h-3 text-[#00A884]" />}
+                                    {b.type === "QUICK_REPLY" && <span className="text-[11px]">↩</span>}
+                                    {b.type === "PHONE_NUMBER" && <Phone className="w-3 h-3 text-[#00A884]" />}
+                                    {b.type === "COPY_CODE" && <Copy className="w-3 h-3 text-[#00A884]" />}
+                                    <span>{b.text || (b.type === "QUICK_REPLY" ? "Request a Callback" : "Shop Now")}</span>
+                                  </div>
+                                ))}
                               </div>
                             )}
-                            <div className="p-2 text-[11px] text-gray-800 leading-snug">
-                              {c.body_text || "Card description..."}
-                            </div>
                           </div>
-                          {(c.buttons || []).length > 0 && (
-                            <div className="border-t border-gray-100 divide-y divide-gray-100 bg-[#FAFAFA]">
-                              {(c.buttons || []).map((b, bI) => (
-                                <div
-                                  key={bI}
-                                  className="py-1.5 px-2 text-center text-[11px] font-bold text-[#00A884] flex items-center justify-center gap-1"
-                                >
-                                  {b.type === "URL" && <ExternalLink className="w-3 h-3 text-[#00A884]" />}
-                                  {b.type === "QUICK_REPLY" && <span className="text-[11px]">↩</span>}
-                                  {b.type === "PHONE_NUMBER" && <Phone className="w-3 h-3 text-[#00A884]" />}
-                                  {b.type === "COPY_CODE" && <Copy className="w-3 h-3 text-[#00A884]" />}
-                                  <span>{b.text || (b.type === "QUICK_REPLY" ? "Request a Callback" : "Shop Now")}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1673,8 +1540,8 @@ export default function TemplateModal({
                   </div>
                 )}
 
-                {/* Action Buttons Mockup */}
-                {(newTemplate.buttons || []).length > 0 && (
+                {/* Action Buttons Mockup (Standard templates only; Carousel templates show buttons inside cards) */}
+                {subType !== "CAROUSEL" && (newTemplate.buttons || []).length > 0 && (
                   <div className="border-t border-gray-100 divide-y divide-gray-100 bg-[#FAFAFA]">
                     {newTemplate.buttons.map((btn, i) => (
                       <div
@@ -1742,6 +1609,31 @@ export default function TemplateModal({
                     newTemplate.header_type = "NONE";
                     newTemplate.header_text = "";
                     newTemplate.footer_text = "";
+
+                    // If user added bottom button(s), automatically merge into every card
+                    const globalBtns = newTemplate.buttons || [];
+                    if (globalBtns.length > 0 && Array.isArray(newTemplate.carousel_cards)) {
+                      newTemplate.carousel_cards = newTemplate.carousel_cards.map((card) => {
+                        const existingBtns = [...(card.buttons || [])];
+                        // Button 1 is the card's URL button (Shop Now)
+                        const cardUrlBtn = existingBtns.find((b) => b.type === "URL") || existingBtns[0] || {
+                          type: "URL",
+                          text: "Shop Now",
+                          url: "https://jwlbillion.com/"
+                        };
+                        const cardMerged = [cardUrlBtn];
+                        // Button 2 is the shared bottom button (e.g. Request a Callback)
+                        globalBtns.forEach((gBtn) => {
+                          if (cardMerged.length < 2 && !cardMerged.some((b) => b.type === gBtn.type && b.text === gBtn.text)) {
+                            cardMerged.push(gBtn);
+                          }
+                        });
+                        return {
+                          ...card,
+                          buttons: cardMerged
+                        };
+                      });
+                    }
                   }
                   onSubmit(e);
                 }}
