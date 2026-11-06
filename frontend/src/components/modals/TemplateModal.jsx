@@ -46,6 +46,7 @@ export default function TemplateModal({
   // Wizard state: 1 = Set up template, 2 = Edit template, 3 = Review & Submit
   const [step, setStep] = useState(1);
   const [buttonDropdownOpen, setButtonDropdownOpen] = useState(false);
+  const [cardButtonDropdownOpen, setCardButtonDropdownOpen] = useState(null); // cardIdx or null
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
@@ -977,37 +978,81 @@ export default function TemplateModal({
                             />
                           </div>
 
-                          {/* Card Buttons (Up to 2 buttons per card: e.g. Shop Now + Request a Callback) */}
+                          {/* Card Buttons (Up to 2 buttons per card: Quick Reply, URL, Phone, Code) */}
                           <div className="space-y-2.5 pt-1 border-t border-gray-200">
                             <div className="flex items-center justify-between">
                               <label className="text-[11px] font-bold text-gray-700 uppercase">Card Action Buttons (Max 2)</label>
-                              <div className="flex items-center gap-1.5">
+                              <div className="relative">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const btns = card.buttons ? [...card.buttons] : [];
-                                    if (btns.length >= 2) return;
-                                    btns.push({ type: "QUICK_REPLY", text: "Request a Callback" });
-                                    updateCarouselCard(cIdx, "buttons", btns);
-                                  }}
+                                  onClick={() => setCardButtonDropdownOpen(cardButtonDropdownOpen === cIdx ? null : cIdx)}
                                   disabled={(card.buttons || []).length >= 2}
-                                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-40 transition"
+                                  className="flex items-center gap-1.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-800 px-2.5 py-1 rounded-lg text-xs font-bold shadow-2xs transition disabled:opacity-40"
                                 >
-                                  + Add Callback Button
+                                  <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                                  Add Button
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const btns = card.buttons ? [...card.buttons] : [];
-                                    if (btns.length >= 2) return;
-                                    btns.push({ type: "URL", text: "View Details", url: "https://jwlbillion.com/" });
-                                    updateCarouselCard(cIdx, "buttons", btns);
-                                  }}
-                                  disabled={(card.buttons || []).length >= 2}
-                                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 disabled:opacity-40 transition"
-                                >
-                                  + Add URL Button
-                                </button>
+
+                                {cardButtonDropdownOpen === cIdx && (
+                                  <div className="absolute right-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-20 animate-in fade-in">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const btns = card.buttons ? [...card.buttons] : [];
+                                        if (btns.length >= 2) return;
+                                        btns.push({ type: "QUICK_REPLY", text: "Request a Callback" });
+                                        updateCarouselCard(cIdx, "buttons", btns);
+                                        setCardButtonDropdownOpen(null);
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                      <Layers className="w-3.5 h-3.5 text-gray-500" />
+                                      Custom (Quick Reply)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const btns = card.buttons ? [...card.buttons] : [];
+                                        if (btns.length >= 2) return;
+                                        btns.push({ type: "URL", text: "Visit Website", url: "https://jwlbillion.com/" });
+                                        updateCarouselCard(cIdx, "buttons", btns);
+                                        setCardButtonDropdownOpen(null);
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                                      Visit website
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const btns = card.buttons ? [...card.buttons] : [];
+                                        if (btns.length >= 2) return;
+                                        btns.push({ type: "PHONE_NUMBER", text: "Call Support", phone_number: "+919638325271" });
+                                        updateCarouselCard(cIdx, "buttons", btns);
+                                        setCardButtonDropdownOpen(null);
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                      <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                                      Call phone number
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const btns = card.buttons ? [...card.buttons] : [];
+                                        if (btns.length >= 2) return;
+                                        btns.push({ type: "COPY_CODE", text: "Copy Offer Code", example: "JWL30" });
+                                        updateCarouselCard(cIdx, "buttons", btns);
+                                        setCardButtonDropdownOpen(null);
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                      <Copy className="w-3.5 h-3.5 text-amber-500" />
+                                      Copy offer code
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -1017,7 +1062,7 @@ export default function TemplateModal({
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                       <span className="text-[10px] font-bold text-gray-500 uppercase">
-                                        Button #{bIdx + 1} • {btn.type === "QUICK_REPLY" ? "Quick Reply" : "Website URL"}
+                                        Button #{bIdx + 1} • {btn.type === "QUICK_REPLY" ? "Quick Reply" : (btn.type === "PHONE_NUMBER" ? "Call" : (btn.type === "COPY_CODE" ? "Copy Code" : "Website URL"))}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -1029,15 +1074,19 @@ export default function TemplateModal({
                                           copy[bIdx] = {
                                             ...copy[bIdx],
                                             type: newType,
-                                            text: newType === "QUICK_REPLY" ? "Request a Callback" : "Shop Now",
-                                            url: newType === "URL" ? "https://jwlbillion.com/" : undefined
+                                            text: newType === "QUICK_REPLY" ? "Request a Callback" : (newType === "PHONE_NUMBER" ? "Call Us" : (newType === "COPY_CODE" ? "Copy Code" : "Shop Now")),
+                                            url: newType === "URL" ? "https://jwlbillion.com/" : undefined,
+                                            phone_number: newType === "PHONE_NUMBER" ? "+919638325271" : undefined,
+                                            example: newType === "COPY_CODE" ? "JWL30" : undefined
                                           };
                                           updateCarouselCard(cIdx, "buttons", copy);
                                         }}
                                         className="text-[10px] bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 font-medium"
                                       >
                                         <option value="URL">Visit Website (URL)</option>
-                                        <option value="QUICK_REPLY">Quick Reply (e.g. Callback)</option>
+                                        <option value="QUICK_REPLY">Custom (Quick Reply)</option>
+                                        <option value="PHONE_NUMBER">Call phone number</option>
+                                        <option value="COPY_CODE">Copy offer code</option>
                                       </select>
                                       {(card.buttons || []).length > 1 && (
                                         <button
@@ -1077,6 +1126,32 @@ export default function TemplateModal({
                                           updateCarouselCard(cIdx, "buttons", copy);
                                         }}
                                         className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-mono"
+                                      />
+                                    )}
+                                    {btn.type === "PHONE_NUMBER" && (
+                                      <input
+                                        type="tel"
+                                        placeholder="+919638325271"
+                                        value={btn.phone_number || ""}
+                                        onChange={(e) => {
+                                          const copy = [...(card.buttons || [])];
+                                          copy[bIdx] = { ...copy[bIdx], phone_number: e.target.value };
+                                          updateCarouselCard(cIdx, "buttons", copy);
+                                        }}
+                                        className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-mono"
+                                      />
+                                    )}
+                                    {btn.type === "COPY_CODE" && (
+                                      <input
+                                        type="text"
+                                        placeholder="Coupon Code (e.g. JWL30)"
+                                        value={btn.example || ""}
+                                        onChange={(e) => {
+                                          const copy = [...(card.buttons || [])];
+                                          copy[bIdx] = { ...copy[bIdx], example: e.target.value };
+                                          updateCarouselCard(cIdx, "buttons", copy);
+                                        }}
+                                        className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-mono uppercase"
                                       />
                                     )}
                                   </div>
@@ -1176,7 +1251,8 @@ export default function TemplateModal({
                   </div>
                 )}
 
-                {/* ── INTERACTIVE BUTTONS SECTION ── */}
+                {/* ── INTERACTIVE BUTTONS SECTION (Standard templates only; Carousel templates use per-card buttons) ── */}
+                {subType !== "CAROUSEL" && (
                 <div className="space-y-3 pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1299,6 +1375,7 @@ export default function TemplateModal({
                     </div>
                   ))}
                 </div>
+                )}
 
                 {/* ── MESSAGE VALIDITY PERIOD (Utility / Auth) ── */}
                 {["UTILITY", "AUTHENTICATION"].includes(category) && (
@@ -1540,7 +1617,7 @@ export default function TemplateModal({
                       {(newTemplate.carousel_cards || []).map((c, i) => (
                         <div
                           key={i}
-                          className="min-w-[170px] max-w-[170px] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden shrink-0 flex flex-col justify-between"
+                          className="min-w-[185px] max-w-[185px] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden shrink-0 flex flex-col justify-between"
                         >
                           <div>
                             {c.header_url ? (
@@ -1559,8 +1636,19 @@ export default function TemplateModal({
                             </div>
                           </div>
                           {(c.buttons || []).length > 0 && (
-                            <div className="p-1.5 border-t border-gray-100 bg-[#FAFAFA] text-center text-[10px] font-bold text-[#00A884]">
-                              {c.buttons[0]?.text || "Shop Now"}
+                            <div className="border-t border-gray-100 divide-y divide-gray-100 bg-[#FAFAFA]">
+                              {(c.buttons || []).map((b, bI) => (
+                                <div
+                                  key={bI}
+                                  className="py-1.5 px-2 text-center text-[11px] font-bold text-[#00A884] flex items-center justify-center gap-1"
+                                >
+                                  {b.type === "URL" && <ExternalLink className="w-3 h-3 text-[#00A884]" />}
+                                  {b.type === "QUICK_REPLY" && <span className="text-[11px]">↩</span>}
+                                  {b.type === "PHONE_NUMBER" && <Phone className="w-3 h-3 text-[#00A884]" />}
+                                  {b.type === "COPY_CODE" && <Copy className="w-3 h-3 text-[#00A884]" />}
+                                  <span>{b.text || (b.type === "QUICK_REPLY" ? "Request a Callback" : "Shop Now")}</span>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
