@@ -2155,6 +2155,7 @@ export default function App() {
               templates={templates}
               contacts={contacts}
               setIsTemplateModalOpen={setIsTemplateModalOpen}
+              setNewTemplate={setNewTemplate}
               handleDeleteTemplate={handleDeleteTemplate}
               handleSyncMetaTemplates={handleSyncMetaTemplates}
               loading={loading}

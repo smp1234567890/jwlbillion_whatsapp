@@ -379,9 +379,9 @@ export default function TemplateModal({
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 font-medium">WhatsApp Manager</span>
                 <span className="text-xs text-gray-400">/</span>
-                <h2 className="text-sm font-bold text-gray-900">Create Template</h2>
+                <h2 className="text-sm font-bold text-gray-900">{newTemplate?.id ? "Edit Template" : "Create Template"}</h2>
               </div>
-              <p className="text-xs text-gray-400">Configure Meta Graph API compliant templates with live WhatsApp device preview</p>
+              <p className="text-xs text-gray-400">{newTemplate?.id ? `Update and re-submit ${newTemplate.template_name} to Meta & CRM` : "Configure Meta Graph API compliant templates with live WhatsApp device preview"}</p>
             </div>
           </div>
 

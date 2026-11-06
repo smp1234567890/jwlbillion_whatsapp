@@ -4,7 +4,8 @@ import {
   BookOpen,
   Trash2,
   RefreshCw,
-  Send
+  Send,
+  Edit
 } from "lucide-react";
 import TemplateTestModal from "../components/modals/TemplateTestModal";
 
@@ -12,6 +13,7 @@ export default function TemplatesPage({
   templates = [],
   contacts = [],
   setIsTemplateModalOpen,
+  setNewTemplate,
   handleDeleteTemplate,
   handleSyncMetaTemplates,
   loading = false,
@@ -181,6 +183,32 @@ export default function TemplatesPage({
                             <span>Category: {t.category}</span>
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-gray-500">{t.footer_text}</span>
+                              <button
+                                onClick={() => {
+                                  if (setNewTemplate) {
+                                    setNewTemplate({
+                                      id: t.id,
+                                      template_name: t.template_name,
+                                      category: t.category || "MARKETING",
+                                      sub_type: t.carousel_cards && t.carousel_cards.length > 0 ? "CAROUSEL" : (t.sub_type || "DEFAULT"),
+                                      language: t.language || "en",
+                                      header_type: t.header_type || "NONE",
+                                      header_text: t.header_text || "",
+                                      body_text: t.body_text || "",
+                                      footer_text: t.footer_text || "",
+                                      buttons: t.buttons || [],
+                                      carousel_cards: t.carousel_cards || [],
+                                      sample_values: t.sample_values || {},
+                                      variable_mappings: t.variable_mappings || {}
+                                    });
+                                  }
+                                  setIsTemplateModalOpen(true);
+                                }}
+                                className="text-xs text-amber-600 hover:text-amber-800 font-semibold hover:underline flex items-center gap-1 transition"
+                                title={`Edit ${t.template_name}`}
+                              >
+                                <Edit className="w-3 h-3 text-amber-600" /> Edit
+                              </button>
                               <button
                                 onClick={() => setTestModalTemplate(t)}
                                 className="text-xs text-emerald-600 hover:text-emerald-800 font-semibold hover:underline flex items-center gap-1 transition"
