@@ -977,34 +977,111 @@ export default function TemplateModal({
                             />
                           </div>
 
-                          {/* Card Button */}
-                          <div className="space-y-1.5 pt-1 border-t border-gray-200">
-                            <label className="text-[11px] font-bold text-gray-700 uppercase">Card Action Button</label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <input
-                                type="text"
-                                placeholder="Button Label (e.g. Shop Now)"
-                                value={card.buttons?.[0]?.text || ""}
-                                onChange={(e) => {
-                                  const textVal = e.target.value;
-                                  const btns = card.buttons || [{ type: "URL" }];
-                                  btns[0] = { ...btns[0], text: textVal };
-                                  updateCarouselCard(cIdx, "buttons", btns);
-                                }}
-                                className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium"
-                              />
-                              <input
-                                type="text"
-                                placeholder="Product Link (https://...)"
-                                value={card.buttons?.[0]?.url || ""}
-                                onChange={(e) => {
-                                  const urlVal = e.target.value;
-                                  const btns = card.buttons || [{ type: "URL" }];
-                                  btns[0] = { ...btns[0], url: urlVal };
-                                  updateCarouselCard(cIdx, "buttons", btns);
-                                }}
-                                className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-mono"
-                              />
+                          {/* Card Buttons (Up to 2 buttons per card: e.g. Shop Now + Request a Callback) */}
+                          <div className="space-y-2.5 pt-1 border-t border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-gray-700 uppercase">Card Action Buttons (Max 2)</label>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const btns = card.buttons ? [...card.buttons] : [];
+                                    if (btns.length >= 2) return;
+                                    btns.push({ type: "QUICK_REPLY", text: "Request a Callback" });
+                                    updateCarouselCard(cIdx, "buttons", btns);
+                                  }}
+                                  disabled={(card.buttons || []).length >= 2}
+                                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-40 transition"
+                                >
+                                  + Add Callback Button
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const btns = card.buttons ? [...card.buttons] : [];
+                                    if (btns.length >= 2) return;
+                                    btns.push({ type: "URL", text: "View Details", url: "https://jwlbillion.com/" });
+                                    updateCarouselCard(cIdx, "buttons", btns);
+                                  }}
+                                  disabled={(card.buttons || []).length >= 2}
+                                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 disabled:opacity-40 transition"
+                                >
+                                  + Add URL Button
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              {(card.buttons || [{ type: "URL", text: "Shop Now", url: "https://jwlbillion.com/" }]).map((btn, bIdx) => (
+                                <div key={bIdx} className="p-2.5 bg-white border border-gray-200 rounded-lg space-y-1.5 relative">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-bold text-gray-500 uppercase">
+                                        Button #{bIdx + 1} • {btn.type === "QUICK_REPLY" ? "Quick Reply" : "Website URL"}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={btn.type || "URL"}
+                                        onChange={(e) => {
+                                          const newType = e.target.value;
+                                          const copy = [...(card.buttons || [])];
+                                          copy[bIdx] = {
+                                            ...copy[bIdx],
+                                            type: newType,
+                                            text: newType === "QUICK_REPLY" ? "Request a Callback" : "Shop Now",
+                                            url: newType === "URL" ? "https://jwlbillion.com/" : undefined
+                                          };
+                                          updateCarouselCard(cIdx, "buttons", copy);
+                                        }}
+                                        className="text-[10px] bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 font-medium"
+                                      >
+                                        <option value="URL">Visit Website (URL)</option>
+                                        <option value="QUICK_REPLY">Quick Reply (e.g. Callback)</option>
+                                      </select>
+                                      {(card.buttons || []).length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const copy = (card.buttons || []).filter((_, i) => i !== bIdx);
+                                            updateCarouselCard(cIdx, "buttons", copy);
+                                          }}
+                                          className="text-gray-400 hover:text-red-500 transition"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Button Label (e.g. Shop Now / Request a Callback)"
+                                      value={btn.text || ""}
+                                      onChange={(e) => {
+                                        const copy = [...(card.buttons || [])];
+                                        copy[bIdx] = { ...copy[bIdx], text: e.target.value };
+                                        updateCarouselCard(cIdx, "buttons", copy);
+                                      }}
+                                      className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-medium"
+                                    />
+                                    {btn.type === "URL" && (
+                                      <input
+                                        type="text"
+                                        placeholder="Product URL (https://...)"
+                                        value={btn.url || ""}
+                                        onChange={(e) => {
+                                          const copy = [...(card.buttons || [])];
+                                          copy[bIdx] = { ...copy[bIdx], url: e.target.value };
+                                          updateCarouselCard(cIdx, "buttons", copy);
+                                        }}
+                                        className="px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded text-xs font-mono"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </div>
