@@ -20,7 +20,11 @@ import {
   FileText,
   Video,
   ExternalLink,
-  Search
+  Search,
+  CheckSquare,
+  Square,
+  Calendar,
+  Filter
 } from "lucide-react";
 
 export default function PerformanceNocPage({ token, handleTabChange }) {
@@ -33,16 +37,21 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
   const [storageData, setStorageData] = useState({ total_files: 0, total_mb: 0, files: [] });
   const [storageLoading, setStorageLoading] = useState(false);
   const [storageSearch, setStorageSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("all"); // "all", "7d", "30d", "older30d", "older7d"
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [deletingFile, setDeletingFile] = useState(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState("");
 
   const fetchStorageFiles = async () => {
     setStorageLoading(true);
     try {
-      const res = await axios.get("/api/analytics/storage/files?limit=300", {
+      const res = await axios.get("/api/analytics/storage/files?limit=500", {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       setStorageData(res.data);
+      // Clean up selections that no longer exist
+      setSelectedFiles((prev) => prev.filter((name) => res.data.files.some((f) => f.name === name)));
     } catch (err) {
       console.error("Failed to load storage files:", err);
     } finally {
@@ -62,11 +71,59 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
       });
       setDeleteMsg(`Deleted ${filename} successfully`);
       setTimeout(() => setDeleteMsg(""), 4000);
+      setSelectedFiles((prev) => prev.filter((f) => f !== filename));
       await fetchStorageFiles();
     } catch (err) {
       alert("Failed to delete file: " + (err.response?.data?.detail || err.message));
     } finally {
       setDeletingFile(null);
+    }
+  };
+
+  const handleBulkDeleteSelected = async () => {
+    if (selectedFiles.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedFiles.length} selected files? This cannot be undone.`)) {
+      return;
+    }
+    setIsBulkDeleting(true);
+    setDeleteMsg("");
+    try {
+      const res = await axios.post(
+        "/api/analytics/storage/files/bulk-delete",
+        { filenames: selectedFiles },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      setDeleteMsg(`Successfully deleted ${res.data.deleted_count} files (${res.data.freed_mb} MB freed)`);
+      setTimeout(() => setDeleteMsg(""), 4500);
+      setSelectedFiles([]);
+      await fetchStorageFiles();
+    } catch (err) {
+      alert("Failed to delete selected files: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteOlderThan = async (days, label) => {
+    if (!window.confirm(`Are you sure you want to delete ALL uploaded files older than ${label}? This cannot be undone.`)) {
+      return;
+    }
+    setIsBulkDeleting(true);
+    setDeleteMsg("");
+    try {
+      const res = await axios.post(
+        "/api/analytics/storage/files/bulk-delete",
+        { older_than_days: days },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      setDeleteMsg(`Purged ${res.data.deleted_count} files older than ${label} (${res.data.freed_mb} MB freed)`);
+      setTimeout(() => setDeleteMsg(""), 4500);
+      setSelectedFiles([]);
+      await fetchStorageFiles();
+    } catch (err) {
+      alert("Failed to purge older files: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -492,6 +549,117 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
           </div>
         )}
 
+        {/* Action & Filter Toolbar */}
+        <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/30 flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* Left: Date Filters & Select All */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => {
+                const visible = storageData.files.filter((f) => {
+                  if (storageSearch && !f.name.toLowerCase().includes(storageSearch.toLowerCase())) return false;
+                  if (dateFilter === "all") return true;
+                  const daysOld = (Date.now() - new Date(f.modified_at).getTime()) / (1000 * 60 * 60 * 24);
+                  if (dateFilter === "7d") return daysOld <= 7;
+                  if (dateFilter === "older7d") return daysOld > 7;
+                  if (dateFilter === "older30d") return daysOld > 30;
+                  return true;
+                });
+                const visibleNames = visible.map((f) => f.name);
+                const allSelected = visibleNames.length > 0 && visibleNames.every((n) => selectedFiles.includes(n));
+                if (allSelected) {
+                  setSelectedFiles((prev) => prev.filter((n) => !visibleNames.includes(n)));
+                } else {
+                  setSelectedFiles((prev) => Array.from(new Set([...prev, ...visibleNames])));
+                }
+              }}
+              className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold flex items-center gap-1.5 transition-colors"
+            >
+              {selectedFiles.length > 0 ? (
+                <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+              ) : (
+                <Square className="w-3.5 h-3.5 text-gray-400" />
+              )}
+              <span>{selectedFiles.length > 0 ? `Selected (${selectedFiles.length})` : "Select All"}</span>
+            </button>
+
+            {/* Date Filter Pills */}
+            <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-[11px]">
+              <span className="px-2 text-gray-400 font-medium flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                Date:
+              </span>
+              <button
+                onClick={() => setDateFilter("all")}
+                className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                  dateFilter === "all" ? "bg-white text-gray-900 shadow-2xs" : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setDateFilter("7d")}
+                className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                  dateFilter === "7d" ? "bg-white text-gray-900 shadow-2xs" : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Last 7 Days
+              </button>
+              <button
+                onClick={() => setDateFilter("older7d")}
+                className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                  dateFilter === "older7d" ? "bg-white text-gray-900 shadow-2xs" : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Older than 7d
+              </button>
+              <button
+                onClick={() => setDateFilter("older30d")}
+                className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                  dateFilter === "older30d" ? "bg-white text-gray-900 shadow-2xs" : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Older than 30d
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Bulk Delete Actions */}
+          <div className="flex items-center gap-2">
+            {selectedFiles.length > 0 && (
+              <button
+                onClick={handleBulkDeleteSelected}
+                disabled={isBulkDeleting}
+                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-1.5 shadow-2xs transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isBulkDeleting ? "Deleting..." : `Delete Selected (${selectedFiles.length})`}</span>
+              </button>
+            )}
+
+            {/* Quick Purge by Date */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleDeleteOlderThan(7, "7 days")}
+                disabled={isBulkDeleting}
+                className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 font-semibold text-[11px] flex items-center gap-1 transition-colors disabled:opacity-50"
+                title="Delete all media files uploaded more than 7 days ago"
+              >
+                <Trash2 className="w-3 h-3 text-red-500" />
+                <span>Delete &gt; 7 Days</span>
+              </button>
+              <button
+                onClick={() => handleDeleteOlderThan(30, "30 days")}
+                disabled={isBulkDeleting}
+                className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 font-semibold text-[11px] flex items-center gap-1 transition-colors disabled:opacity-50"
+                title="Delete all media files uploaded more than 30 days ago"
+              >
+                <Trash2 className="w-3 h-3 text-red-500" />
+                <span>Delete &gt; 30 Days</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="p-6">
           {storageLoading && storageData.files.length === 0 ? (
             <div className="py-12 text-center text-gray-400">
@@ -507,17 +675,54 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {storageData.files
-                .filter((f) => !storageSearch || f.name.toLowerCase().includes(storageSearch.toLowerCase()))
+                .filter((f) => {
+                  if (storageSearch && !f.name.toLowerCase().includes(storageSearch.toLowerCase())) {
+                    return false;
+                  }
+                  if (dateFilter === "all") return true;
+                  const daysOld = (Date.now() - new Date(f.modified_at).getTime()) / (1000 * 60 * 60 * 24);
+                  if (dateFilter === "7d") return daysOld <= 7;
+                  if (dateFilter === "older7d") return daysOld > 7;
+                  if (dateFilter === "older30d") return daysOld > 30;
+                  return true;
+                })
                 .map((file) => {
                   const mediaUrl = `${axios.defaults.baseURL || "https://130-210-23-25.sslip.io"}${file.url}`;
                   const isDel = deletingFile === file.name;
+                  const isSelected = selectedFiles.includes(file.name);
 
                   return (
                     <div
                       key={file.name}
-                      className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition-all bg-white flex flex-col justify-between gap-2.5 shadow-2xs group"
+                      onClick={() => {
+                        setSelectedFiles((prev) =>
+                          isSelected ? prev.filter((n) => n !== file.name) : [...prev, file.name]
+                        );
+                      }}
+                      className={`border rounded-lg p-3 transition-all bg-white flex flex-col justify-between gap-2.5 shadow-2xs group cursor-pointer ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-50/20 ring-1 ring-emerald-500"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
                     >
                       <div className="flex items-start gap-3">
+                        {/* Checkbox */}
+                        <div
+                          className="pt-1 flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFiles((prev) =>
+                              isSelected ? prev.filter((n) => n !== file.name) : [...prev, file.name]
+                            );
+                          }}
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Square className="w-4 h-4 text-gray-300 group-hover:text-gray-400" />
+                          )}
+                        </div>
+
                         {/* Thumbnail / Icon */}
                         <div className="w-14 h-14 rounded-md bg-gray-100 border border-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
                           {file.is_image ? (
@@ -559,7 +764,10 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+                      <div
+                        className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <a
                           href={mediaUrl}
                           target="_blank"
@@ -572,7 +780,7 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
 
                         <button
                           onClick={() => handleDeleteFile(file.name)}
-                          disabled={isDel}
+                          disabled={isDel || isBulkDeleting}
                           className="px-2 py-1 rounded text-[11px] font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 border border-transparent hover:border-red-200 flex items-center gap-1 transition-all disabled:opacity-50"
                         >
                           <Trash2 className="w-3 h-3" />
