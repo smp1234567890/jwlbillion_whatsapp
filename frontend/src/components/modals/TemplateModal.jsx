@@ -1016,7 +1016,7 @@ export default function TemplateModal({
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-[11px] text-gray-500">1:1 square preview</p>
+                                  <p className="text-[11px] text-gray-500">Image thumbnail</p>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1568,10 +1568,10 @@ export default function TemplateModal({
                                 <img
                                   src={c.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + c.header_url : c.header_url}
                                   alt={"Card " + (i + 1)}
-                                  className="w-full h-24 object-cover"
+                                  className="w-full aspect-[4/3] object-contain bg-black/5"
                                 />
                               ) : (
-                                <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
+                                <div className="w-full aspect-[4/3] bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
                                   [Card Image]
                                 </div>
                               )}
