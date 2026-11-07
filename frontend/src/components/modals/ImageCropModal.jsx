@@ -37,7 +37,8 @@ export default function ImageCropModal({
       onClose();
     } catch (e) {
       console.error("Crop error:", e);
-      alert("Failed to crop image: " + e.message);
+      const msg = e?.message || (typeof e === "string" ? e : JSON.stringify(e)) || "Unknown error";
+      alert("Failed to crop image: " + msg);
     } finally {
       setIsProcessing(false);
     }
@@ -142,3 +143,4 @@ export default function ImageCropModal({
     </div>
   );
 }
+
