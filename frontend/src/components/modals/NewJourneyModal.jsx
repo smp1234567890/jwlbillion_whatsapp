@@ -8,7 +8,8 @@ import {
   UserPlus,
   Package,
   Sparkles,
-  Tag
+  Tag,
+  X
 } from "lucide-react";
 
 export default function NewJourneyModal({
@@ -33,7 +34,14 @@ export default function NewJourneyModal({
               <p className="text-xs text-gray-500">Pick a starting trigger to begin building your visual automation flow</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none"></button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <form onSubmit={onConfirm} className="mt-5 space-y-4">
