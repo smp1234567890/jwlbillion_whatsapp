@@ -37,17 +37,29 @@ export default function ImageCropModal({
     if (!imageSrc || !croppedAreaPixels) return;
     setIsProcessing(true);
     try {
-      const croppedBlob = await getCroppedImg(
-        imageSrc,
-        croppedAreaPixels,
-        targetDims.width,
-        targetDims.height
-      );
-      await onConfirmCrop(croppedBlob);
+      // If imageSrc is a remote URL or server path (recropping existing card), send crop parameters to server
+      if (typeof imageSrc === "string" && (imageSrc.startsWith("http") || imageSrc.startsWith("/uploads/"))) {
+        await onConfirmCrop({
+          type: "server_crop",
+          image_url: imageSrc,
+          crop: croppedAreaPixels,
+          target_width: targetDims.width,
+          target_height: targetDims.height
+        });
+      } else {
+        // If imageSrc is a freshly picked local data URL (FileReader), canvas crop in browser is 100% untainted
+        const croppedBlob = await getCroppedImg(
+          imageSrc,
+          croppedAreaPixels,
+          targetDims.width,
+          targetDims.height
+        );
+        await onConfirmCrop(croppedBlob);
+      }
       onClose();
     } catch (e) {
       console.error("Crop error:", e);
-      const msg = e?.message || (typeof e === "string" ? e : JSON.stringify(e)) || "Unknown error";
+      const msg = e?.response?.data?.detail || e?.message || (typeof e === "string" ? e : JSON.stringify(e)) || "Unknown error";
       alert("Failed to crop image: " + msg);
     } finally {
       setIsProcessing(false);

@@ -125,20 +125,40 @@ export default function TemplateModal({
     e.target.value = "";
   };
 
-  const uploadCroppedBlob = async (blob, cardIdx, isStandardHeader = false) => {
+  const uploadCroppedBlob = async (cropResult, cardIdx, isStandardHeader = false) => {
     setUploadingMedia(true);
     try {
-      const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: "image/jpeg" });
-      const formData = new FormData();
-      formData.append("file", file);
       const token = localStorage.getItem("token") || localStorage.getItem("access_token");
-      const res = await api.post("/api/templates/upload-media", formData, {
-        headers: {
-          ...(token ? { Authorization: "Bearer " + token } : {}),
-          "Content-Type": "multipart/form-data"
-        }
-      });
-      const data = res.data;
+      let data;
+
+      // Check if server-side crop request
+      if (cropResult && cropResult.type === "server_crop") {
+        const res = await api.post("/api/templates/crop-media", {
+          image_url: cropResult.image_url,
+          crop: cropResult.crop,
+          target_width: cropResult.target_width || 1080,
+          target_height: cropResult.target_height || 1080
+        }, {
+          headers: {
+            ...(token ? { Authorization: "Bearer " + token } : {}),
+            "Content-Type": "application/json"
+          }
+        });
+        data = res.data;
+      } else {
+        // Blob from local file crop
+        const file = new File([cropResult], `cropped_${Date.now()}.jpg`, { type: "image/jpeg" });
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await api.post("/api/templates/upload-media", formData, {
+          headers: {
+            ...(token ? { Authorization: "Bearer " + token } : {}),
+            "Content-Type": "multipart/form-data"
+          }
+        });
+        data = res.data;
+      }
+
       if (isStandardHeader) {
         setNewTemplate((prev) => ({
           ...prev,
