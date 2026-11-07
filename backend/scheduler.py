@@ -479,126 +479,139 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
             if matches:
                 placeholder_count = max([int(m) for m in matches])
 
-        # BATCH PACING: 7 messages per batch with 1-second pause to match DB pool size (7) and prevent rate-limit
-        BATCH_SIZE = 7
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        # BATCH PACING: 10 parallel workers per batch, 1-second pacing interval
+        # Provides ~10 messages/sec throughput without database or Meta rate-limit exhaustion
+        BATCH_SIZE = 10
         total_phones = len(pending_phones)
-        logger.info(f"[Campaign {campaign_id}] Processing {total_phones} remaining recipients in batches of {BATCH_SIZE} (1s pacing)")
+        logger.info(f"[Campaign {campaign_id}] Processing {total_phones} remaining recipients in parallel batches of {BATCH_SIZE}")
+
+        def _send_single_recipient(phone_num: str):
+            """Helper executed in worker thread with its own scoped DB session to prevent session contention."""
+            scoped_db = SessionLocal()
+            try:
+                contact = scoped_db.query(models.Contact).filter(models.Contact.phone == phone_num).first()
+                customer_name = contact.name if contact and contact.name else "Valued Customer"
+
+                # Build parameters: use template-level mappings first, then positional fallback
+                params = {}
+                body_mappings = {
+                    k: v for k, v in (tmpl.variable_mappings or {}).items()
+                    if k != "header" and isinstance(v, dict)
+                } if tmpl and isinstance(tmpl.variable_mappings, dict) else {}
+
+                if body_mappings:
+                    cart_val_str = str(getattr(contact, "total_spent", 0) or 0)
+                    items_summary = campaign.title
+                    for idx_str, m_def in body_mappings.items():
+                        if not isinstance(m_def, dict):
+                            continue
+                        m_type = m_def.get("type")
+                        m_val = m_def.get("value")
+                        if m_type == "contact_field":
+                            if m_val == "phone":
+                                val_str = phone_num
+                            elif m_val == "city":
+                                val_str = contact.city if contact and contact.city else "Ahmedabad"
+                            elif m_val == "total_orders":
+                                val_str = str(contact.total_orders) if contact else "1"
+                            elif m_val == "last_order_date":
+                                val_str = contact.last_order_date.strftime("%d/%m/%Y") if contact and contact.last_order_date else "Recently"
+                            else:
+                                val_str = customer_name
+                        elif m_type == "cart_event":
+                            val_str = cart_val_str if m_val == "cart_value" else items_summary
+                        elif m_type == "coupon":
+                            val_str = config.DEFAULT_COUPON_CODE if hasattr(config, "DEFAULT_COUPON_CODE") else "MANU10"
+                        elif m_type == "static":
+                            val_str = str(m_val) if m_val else ""
+                        else:
+                            val_str = customer_name
+                        params[f"param_{idx_str}"] = val_str
+                elif placeholder_count > 0:
+                    # Positional fallback if template has placeholders but no configured mappings
+                    fallback_values = [
+                        customer_name,
+                        campaign.title,
+                        config.STORE_SUPPORT_PHONE or phone_num,
+                        f"{config.DEFAULT_DISCOUNT_PERCENT}% OFF",
+                        config.STORE_LOCATION or config.BRAND_NAME,
+                        config.BRAND_NAME
+                    ]
+                    for idx in range(1, placeholder_count + 1):
+                        params[f"param_{idx}"] = fallback_values[(idx - 1) % len(fallback_values)]
+
+                # Build header media if campaign or template has configured media
+                campaign_header_media = None
+                if tmpl and (tmpl.header_type or "NONE").upper() in ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]:
+                    if campaign.header_media and isinstance(campaign.header_media, dict):
+                        campaign_header_media = campaign.header_media
+
+                    if not campaign_header_media:
+                        if tmpl.header_text and (tmpl.header_text.startswith("http") or tmpl.header_text.startswith("/uploads/")):
+                            m_url = tmpl.header_text
+                            if m_url.startswith("/uploads/"):
+                                m_url = f"https://130-210-23-25.sslip.io{m_url}"
+                            campaign_header_media = {"url": m_url}
+                        else:
+                            h_map = (tmpl.variable_mappings or {}).get("header")
+                            if h_map and isinstance(h_map, dict):
+                                m_type = h_map.get("type")
+                                m_val = h_map.get("value")
+                                if m_type == "static" and m_val:
+                                    m_url = str(m_val)
+                                    if m_url.startswith("/uploads/"):
+                                        m_url = f"https://130-210-23-25.sslip.io{m_url}"
+                                    campaign_header_media = {"url": m_url}
+
+                    if not campaign_header_media and tmpl.sample_values:
+                        sv = tmpl.sample_values
+                        if sv.get("header_url"):
+                            campaign_header_media = {"url": sv.get("header_url")}
+                        elif sv.get("latitude") and sv.get("longitude"):
+                            campaign_header_media = {
+                                "latitude": sv.get("latitude"),
+                                "longitude": sv.get("longitude"),
+                                "name": sv.get("location_name")
+                            }
+
+                res = send_whatsapp_template(
+                    recipient_phone=phone_num,
+                    template_name=campaign.template_name,
+                    language=campaign.language,
+                    parameters=params,
+                    header_media=campaign_header_media,
+                    campaign_id=campaign.id,
+                    sender_user=f"Campaign: {campaign.title}",
+                    idempotency_key=f"campaign_{campaign.id}_{phone_num}",
+                    purpose=campaign.message_type or "marketing",
+                    db=scoped_db
+                )
+                return (phone_num, res, None)
+            except Exception as ex:
+                return (phone_num, None, str(ex))
+            finally:
+                scoped_db.close()
 
         for i in range(0, total_phones, BATCH_SIZE):
             batch = pending_phones[i:i + BATCH_SIZE]
             batch_start_time = time.time()
 
-            for phone in batch:
-                try:
-                    contact = db.query(models.Contact).filter(models.Contact.phone == phone).first()
-                    customer_name = contact.name if contact and contact.name else "Valued Customer"
-
-                    # Build parameters: use template-level mappings first, then positional fallback
-                    params = {}
-                    body_mappings = {
-                        k: v for k, v in (tmpl.variable_mappings or {}).items()
-                        if k != "header" and isinstance(v, dict)
-                    } if tmpl and isinstance(tmpl.variable_mappings, dict) else {}
-
-                    if body_mappings:
-                        cart_val_str = str(getattr(contact, "total_spent", 0) or 0)
-                        items_summary = campaign.title
-                        for idx_str, m_def in body_mappings.items():
-                            if not isinstance(m_def, dict):
-                                continue
-                            m_type = m_def.get("type")
-                            m_val = m_def.get("value")
-                            if m_type == "contact_field":
-                                if m_val == "phone":
-                                    val_str = phone
-                                elif m_val == "city":
-                                    val_str = contact.city if contact and contact.city else "Ahmedabad"
-                                elif m_val == "total_orders":
-                                    val_str = str(contact.total_orders) if contact else "1"
-                                elif m_val == "last_order_date":
-                                    val_str = contact.last_order_date.strftime("%d/%m/%Y") if contact and contact.last_order_date else "Recently"
-                                else:
-                                    val_str = customer_name
-                            elif m_type == "cart_event":
-                                val_str = cart_val_str if m_val == "cart_value" else items_summary
-                            elif m_type == "coupon":
-                                val_str = config.DEFAULT_COUPON_CODE if hasattr(config, "DEFAULT_COUPON_CODE") else "MANU10"
-                            elif m_type == "static":
-                                val_str = str(m_val) if m_val else ""
-                            else:
-                                val_str = customer_name
-                            params[f"param_{idx_str}"] = val_str
-                    elif placeholder_count > 0:
-                        # Positional fallback if template has placeholders but no configured mappings
-                        fallback_values = [
-                            customer_name,
-                            campaign.title,
-                            config.STORE_SUPPORT_PHONE or phone,
-                            f"{config.DEFAULT_DISCOUNT_PERCENT}% OFF",
-                            config.STORE_LOCATION or config.BRAND_NAME,
-                            config.BRAND_NAME
-                        ]
-                        for idx in range(1, placeholder_count + 1):
-                            params[f"param_{idx}"] = fallback_values[(idx - 1) % len(fallback_values)]
-
-                    # Build header media if campaign or template has configured media
-                    campaign_header_media = None
-                    if tmpl and (tmpl.header_type or "NONE").upper() in ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]:
-                        # 0. Check if campaign has explicit header_media set
-                        if campaign.header_media and isinstance(campaign.header_media, dict):
-                            campaign_header_media = campaign.header_media
-
-                        # 1. Check if template has column mapping for header
-                        if not campaign_header_media:
-                            if tmpl.header_text and (tmpl.header_text.startswith("http") or tmpl.header_text.startswith("/uploads/")):
-                                m_url = tmpl.header_text
-                                if m_url.startswith("/uploads/"):
-                                    m_url = f"https://130-210-23-25.sslip.io{m_url}"
-                                campaign_header_media = {"url": m_url}
-                            else:
-                                h_map = (tmpl.variable_mappings or {}).get("header")
-                                if h_map and isinstance(h_map, dict):
-                                    m_type = h_map.get("type")
-                                    m_val = h_map.get("value")
-                                    if m_type == "static" and m_val:
-                                        m_url = str(m_val)
-                                        if m_url.startswith("/uploads/"):
-                                            m_url = f"https://130-210-23-25.sslip.io{m_url}"
-                                        campaign_header_media = {"url": m_url}
-                        
-                        # 2. Check if template sample_values has header_url or location
-                        if not campaign_header_media and tmpl.sample_values:
-                            sv = tmpl.sample_values
-                            if sv.get("header_url"):
-                                campaign_header_media = {"url": sv.get("header_url")}
-                            elif sv.get("latitude") and sv.get("longitude"):
-                                campaign_header_media = {
-                                    "latitude": sv.get("latitude"),
-                                    "longitude": sv.get("longitude"),
-                                    "name": sv.get("location_name")
-                                }
-
-                    res = send_whatsapp_template(
-                        recipient_phone=phone,
-                        template_name=campaign.template_name,
-                        language=campaign.language,
-                        parameters=params,
-                        header_media=campaign_header_media,
-                        campaign_id=campaign.id,
-                        sender_user=f"Campaign: {campaign.title}",
-                        idempotency_key=f"campaign_{campaign.id}_{phone}",
-                        purpose=campaign.message_type or "marketing"
-                    )
-
-                    if res.get("status") in ["success", "success_simulated"]:
+            # Execute batch in parallel using ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=min(len(batch), 10)) as executor:
+                futures = [executor.submit(_send_single_recipient, p) for p in batch]
+                for future in as_completed(futures):
+                    p_num, res, err = future.result()
+                    if err:
+                        logger.error(f"Error processing recipient {mask_phone(p_num)} in campaign {campaign_id}: {err}")
+                        fail_count += 1
+                        last_failure_reason = err
+                    elif res and res.get("status") in ["success", "success_simulated"]:
                         success_count += 1
                     else:
                         fail_count += 1
-                        last_failure_reason = res.get("error") or res.get("reason") or res.get("message") or "Meta send rejected"
-                except Exception as rec_err:
-                    logger.error(f"Error processing recipient {mask_phone(phone)} in campaign {campaign_id}: {rec_err}", exc_info=True)
-                    fail_count += 1
-                    last_failure_reason = str(rec_err)
+                        last_failure_reason = (res or {}).get("error") or (res or {}).get("reason") or (res or {}).get("message") or "Meta send rejected"
 
             # Update live campaign progress in DB after each batch so UI displays real-time progress
             campaign.successful_sends = success_count
