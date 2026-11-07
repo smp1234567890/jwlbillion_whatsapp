@@ -14,7 +14,13 @@ import {
   Sliders,
   Layers,
   ArrowUpRight,
-  Server
+  Server,
+  Trash2,
+  Image as ImageIcon,
+  FileText,
+  Video,
+  ExternalLink,
+  Search
 } from "lucide-react";
 
 export default function PerformanceNocPage({ token, handleTabChange }) {
@@ -22,6 +28,47 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Storage files state
+  const [storageData, setStorageData] = useState({ total_files: 0, total_mb: 0, files: [] });
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [storageSearch, setStorageSearch] = useState("");
+  const [deletingFile, setDeletingFile] = useState(null);
+  const [deleteMsg, setDeleteMsg] = useState("");
+
+  const fetchStorageFiles = async () => {
+    setStorageLoading(true);
+    try {
+      const res = await axios.get("/api/analytics/storage/files?limit=300", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      setStorageData(res.data);
+    } catch (err) {
+      console.error("Failed to load storage files:", err);
+    } finally {
+      setStorageLoading(false);
+    }
+  };
+
+  const handleDeleteFile = async (filename) => {
+    if (!window.confirm(`Are you sure you want to delete "${filename}"? This will free server disk space permanently.`)) {
+      return;
+    }
+    setDeletingFile(filename);
+    setDeleteMsg("");
+    try {
+      await axios.delete(`/api/analytics/storage/files/${encodeURIComponent(filename)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      setDeleteMsg(`Deleted ${filename} successfully`);
+      setTimeout(() => setDeleteMsg(""), 4000);
+      await fetchStorageFiles();
+    } catch (err) {
+      alert("Failed to delete file: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setDeletingFile(null);
+    }
+  };
 
   const fetchPerformance = async () => {
     setLoading(true);
@@ -42,6 +89,7 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
 
   useEffect(() => {
     fetchPerformance();
+    fetchStorageFiles();
     const interval = setInterval(fetchPerformance, 15000); // 15s auto-refresh
     return () => clearInterval(interval);
   }, [token]);
@@ -393,6 +441,149 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Uploaded Media Storage & File Manager */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/60">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center flex-shrink-0">
+              <HardDrive className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-gray-900 text-sm">Media Storage & Uploaded Files</h4>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                  {storageData.total_files} files ({storageData.total_mb} MB)
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Browse, preview, and delete uploaded template images and media to reclaim server disk space
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search file name..."
+                value={storageSearch}
+                onChange={(e) => setStorageSearch(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 w-44"
+              />
+            </div>
+            <button
+              onClick={fetchStorageFiles}
+              disabled={storageLoading}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${storageLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        {deleteMsg && (
+          <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-lg flex items-center justify-between">
+            <span>✓ {deleteMsg}</span>
+          </div>
+        )}
+
+        <div className="p-6">
+          {storageLoading && storageData.files.length === 0 ? (
+            <div className="py-12 text-center text-gray-400">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
+              <p className="text-xs">Loading storage files...</p>
+            </div>
+          ) : storageData.files.length === 0 ? (
+            <div className="py-12 text-center text-gray-400">
+              <ImageIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-xs font-bold text-gray-700">No uploaded files in storage</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Uploads directory is completely empty.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {storageData.files
+                .filter((f) => !storageSearch || f.name.toLowerCase().includes(storageSearch.toLowerCase()))
+                .map((file) => {
+                  const mediaUrl = `${axios.defaults.baseURL || "https://130-210-23-25.sslip.io"}${file.url}`;
+                  const isDel = deletingFile === file.name;
+
+                  return (
+                    <div
+                      key={file.name}
+                      className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition-all bg-white flex flex-col justify-between gap-2.5 shadow-2xs group"
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Thumbnail / Icon */}
+                        <div className="w-14 h-14 rounded-md bg-gray-100 border border-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                          {file.is_image ? (
+                            <img
+                              src={mediaUrl}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                              }}
+                            />
+                          ) : file.is_video ? (
+                            <Video className="w-6 h-6 text-indigo-500" />
+                          ) : (
+                            <FileText className="w-6 h-6 text-gray-400" />
+                          )}
+                        </div>
+
+                        {/* File Details */}
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className="text-xs font-semibold text-gray-900 truncate group-hover:text-emerald-700 transition-colors"
+                            title={file.name}
+                          >
+                            {file.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[11px] font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                              {file.size_formatted}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              {new Date(file.modified_at).toLocaleDateString([], {
+                                month: "short",
+                                day: "numeric"
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+                        <a
+                          href={mediaUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] font-semibold text-gray-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>View Full</span>
+                        </a>
+
+                        <button
+                          onClick={() => handleDeleteFile(file.name)}
+                          disabled={isDel}
+                          className="px-2 py-1 rounded text-[11px] font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 border border-transparent hover:border-red-200 flex items-center gap-1 transition-all disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>{isDel ? "Deleting..." : "Delete"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       </div>
     </div>
