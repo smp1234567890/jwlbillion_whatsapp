@@ -216,54 +216,74 @@ export default function ImageCropModal({
         </div>
 
         {/* Zoom Controls */}
-        <div className="px-6 py-2.5 bg-gray-50 border-t border-gray-200 flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.max(0.5, z - 0.2))}
-            className="p-1 text-gray-500 hover:text-gray-700"
-            title="Zoom out"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <input
-            type="range"
-            value={zoom}
-            min={0.5}
-            max={3}
-            step={0.05}
-            aria-labelledby="Zoom"
-            onChange={(e) => setZoom(Number(e.target.value))}
-            className="w-full h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-[#25D366]"
-          />
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.min(3, z + 0.2))}
-            className="p-1 text-gray-500 hover:text-gray-700"
-            title="Zoom in"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setZoom(0.55);
-              setCrop({ x: 0, y: 0 });
-            }}
-            className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-1 rounded-md flex items-center gap-1 shrink-0 ml-1 font-bold transition shadow-2xs"
-            title="Automatically scale to fit the entire full photo with side padding"
-          >
-            Fit Entire Photo
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setZoom(1);
-              setCrop({ x: 0, y: 0 });
-            }}
-            className="text-[11px] text-gray-500 hover:text-gray-800 flex items-center gap-1 shrink-0 ml-1 font-medium"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> Reset
-          </button>
+        <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(0.2, Number((z - 0.05).toFixed(2))))}
+              className="p-1 text-gray-500 hover:text-gray-700"
+              title="Zoom out (fine)"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <input
+              type="range"
+              value={zoom}
+              min={0.2}
+              max={3}
+              step={0.01}
+              aria-labelledby="Zoom"
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="w-full h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-[#25D366]"
+            />
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(3, Number((z + 0.05).toFixed(2))))}
+              className="p-1 text-gray-500 hover:text-gray-700"
+              title="Zoom in (fine)"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <span className="text-[11px] font-mono text-gray-600 font-semibold w-10 text-right">
+              {Math.round(zoom * 100)}%
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setZoom(0.78);
+                setCrop({ x: 0, y: 0 });
+              }}
+              className="text-[11px] text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-300 px-2 py-1 rounded-md font-bold transition shadow-2xs"
+              title="Balanced fit: fills height with gentle margins (middle option)"
+            >
+              Balanced Fit
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setZoom(0.55);
+                setCrop({ x: 0, y: 0 });
+              }}
+              className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-1 rounded-md font-bold transition shadow-2xs"
+              title="Fit entire square with maximum side padding"
+            >
+              Full Padding
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setZoom(1);
+                setCrop({ x: 0, y: 0 });
+              }}
+              className="text-[11px] text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-1 rounded-md flex items-center gap-1 font-semibold transition"
+              title="Fill frame edge to edge"
+            >
+              <RotateCcw className="w-3 h-3 text-gray-400" /> 100% Fill
+            </button>
+          </div>
         </div>
 
         {/* Footer actions */}
