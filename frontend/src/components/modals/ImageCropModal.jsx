@@ -14,6 +14,7 @@ export default function ImageCropModal({
 }) {
   // Preset ratios: Meta Standard 1.91:1 (1125x600) and Square 1:1 (1080x1080)
   const [selectedPreset, setSelectedPreset] = useState(initialPreset || "1125x600");
+  const [bgMode, setBgMode] = useState("white"); // "white" | "blur"
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -53,7 +54,8 @@ export default function ImageCropModal({
           crop: croppedAreaPixels,
           target_width: targetDims.width,
           target_height: targetDims.height,
-          preset: selectedPreset
+          preset: selectedPreset,
+          bg_mode: bgMode
         });
       } else {
         // If imageSrc is a freshly picked local data URL (FileReader), canvas crop in browser is 100% untainted
@@ -61,9 +63,11 @@ export default function ImageCropModal({
           imageSrc,
           croppedAreaPixels,
           targetDims.width,
-          targetDims.height
+          targetDims.height,
+          bgMode
         );
         croppedBlob.preset = selectedPreset;
+        croppedBlob.bg_mode = bgMode;
         await onConfirmCrop(croppedBlob);
       }
       onClose();
@@ -97,10 +101,10 @@ export default function ImageCropModal({
           </button>
         </div>
 
-        {/* Aspect Ratio Selector Tabs */}
-        <div className="px-5 py-2.5 bg-white border-b border-gray-100 flex items-center justify-between gap-2">
-          <span className="text-xs font-bold text-gray-700 uppercase">Image Size:</span>
+        {/* Aspect Ratio & Background Padding Controls */}
+        <div className="px-5 py-2.5 bg-white border-b border-gray-100 flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Ratio:</span>
             <button
               type="button"
               onClick={() => {
@@ -108,14 +112,14 @@ export default function ImageCropModal({
                 setCrop({ x: 0, y: 0 });
                 setZoom(1);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border flex items-center gap-1.5 ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border flex items-center gap-1.5 ${
                 selectedPreset === "1125x600"
                   ? "bg-[#25D366]/10 text-emerald-800 border-[#25D366] shadow-xs"
                   : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
               }`}
             >
-              <span className="w-4 h-2.5 rounded-xs border border-current"></span>
-              Meta Standard (1125 × 600)
+              <span className="w-3.5 h-2 rounded-xs border border-current"></span>
+              Meta 1.91:1
             </button>
             <button
               type="button"
@@ -124,14 +128,42 @@ export default function ImageCropModal({
                 setCrop({ x: 0, y: 0 });
                 setZoom(1);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border flex items-center gap-1.5 ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border flex items-center gap-1.5 ${
                 selectedPreset === "1080x1080"
                   ? "bg-[#25D366]/10 text-emerald-800 border-[#25D366] shadow-xs"
                   : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
               }`}
             >
               <span className="w-2.5 h-2.5 rounded-xs border border-current"></span>
-              Square 1:1 (1080 × 1080)
+              Square 1:1
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Sides:</span>
+            <button
+              type="button"
+              onClick={() => setBgMode("white")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+                bgMode === "white"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-400 shadow-xs"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+              title="Clean white background padding"
+            >
+              White Sides
+            </button>
+            <button
+              type="button"
+              onClick={() => setBgMode("blur")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+                bgMode === "blur"
+                  ? "bg-purple-50 text-purple-800 border-purple-400 shadow-xs"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+              title="Blurred photo background padding"
+            >
+              Blurred Sides
             </button>
           </div>
         </div>
@@ -198,6 +230,17 @@ export default function ImageCropModal({
             title="Zoom in"
           >
             <ZoomIn className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setZoom(0.55);
+              setCrop({ x: 0, y: 0 });
+            }}
+            className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-1 rounded-md flex items-center gap-1 shrink-0 ml-1 font-bold transition shadow-2xs"
+            title="Automatically scale to fit the entire full photo with side padding"
+          >
+            Fit Entire Photo
           </button>
           <button
             type="button"

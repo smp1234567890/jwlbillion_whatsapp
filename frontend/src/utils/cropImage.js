@@ -20,7 +20,13 @@ export const createImage = (url) =>
     image.src = url;
   });
 
-export async function getCroppedImg(imageSrc, pixelCrop, outputWidth = 1080, outputHeight = 1080) {
+export async function getCroppedImg(
+  imageSrc,
+  pixelCrop,
+  outputWidth = 1080,
+  outputHeight = 1080,
+  bgMode = "white" // "white" | "blur"
+) {
   let image;
   try {
     // If it's a remote URL, fetch as blob first to completely eliminate canvas tainting
@@ -41,9 +47,30 @@ export async function getCroppedImg(imageSrc, pixelCrop, outputWidth = 1080, out
   canvas.height = outputHeight;
   const ctx = canvas.getContext("2d");
 
-  // Fill with white background for padded/zoomed out areas
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, outputWidth, outputHeight);
+  // Background rendering
+  if (bgMode === "blur") {
+    // Draw blurred and magnified background image covering the full canvas
+    ctx.save();
+    // Fill background with neutral base
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(0, 0, outputWidth, outputHeight);
+    
+    ctx.filter = "blur(28px) brightness(0.75)";
+    // Calculate aspect cover for background blur
+    const naturalW = image.naturalWidth || image.width;
+    const naturalH = image.naturalHeight || image.height;
+    const scale = Math.max(outputWidth / naturalW, outputHeight / naturalH) * 1.15;
+    const bgW = naturalW * scale;
+    const bgH = naturalH * scale;
+    const bgX = (outputWidth - bgW) / 2;
+    const bgY = (outputHeight - bgH) / 2;
+    ctx.drawImage(image, bgX, bgY, bgW, bgH);
+    ctx.restore();
+  } else {
+    // Clean solid white background
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, outputWidth, outputHeight);
+  }
 
   // When restrictPosition is false or zoom < 1, pixelCrop coordinates can extend outside image boundaries.
   // Calculate source clipping rectangle that intersects with actual image dimensions.
