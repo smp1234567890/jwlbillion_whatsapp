@@ -48,7 +48,10 @@ export async function getCroppedImg(
   const ctx = canvas.getContext("2d");
 
   // Background rendering
-  if (bgMode === "blur") {
+  if (bgMode === "transparent") {
+    // Transparent PNG canvas: clear fully
+    ctx.clearRect(0, 0, outputWidth, outputHeight);
+  } else if (bgMode === "blur") {
     // Draw blurred and magnified background image covering the full canvas
     ctx.save();
     // Fill background with neutral base
@@ -97,6 +100,9 @@ export async function getCroppedImg(
     ctx.drawImage(image, srcX, srcY, srcW, srcH, destX, destY, destW, destH);
   }
 
+  const mimeType = bgMode === "transparent" ? "image/png" : "image/jpeg";
+  const quality = bgMode === "transparent" ? undefined : 0.95;
+
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
@@ -106,8 +112,8 @@ export async function getCroppedImg(
         }
         resolve(blob);
       },
-      "image/jpeg",
-      0.95
+      mimeType,
+      quality
     );
   });
 }

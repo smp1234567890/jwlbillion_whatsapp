@@ -139,31 +139,43 @@ export default function ImageCropModal({
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Sides:</span>
             <button
               type="button"
               onClick={() => setBgMode("white")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+              className={`px-2 py-1 rounded-lg text-xs font-semibold transition border ${
                 bgMode === "white"
                   ? "bg-emerald-50 text-emerald-800 border-emerald-400 shadow-xs"
                   : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
               }`}
-              title="Clean white background padding"
+              title="Clean solid white background padding"
             >
-              White Sides
+              1. White
             </button>
             <button
               type="button"
               onClick={() => setBgMode("blur")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+              className={`px-2 py-1 rounded-lg text-xs font-semibold transition border ${
                 bgMode === "blur"
                   ? "bg-purple-50 text-purple-800 border-purple-400 shadow-xs"
                   : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
               }`}
-              title="Blurred photo background padding"
+              title="Soft blurred photo background padding"
             >
-              Blurred Sides
+              2. Blur
+            </button>
+            <button
+              type="button"
+              onClick={() => setBgMode("transparent")}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold transition border ${
+                bgMode === "transparent"
+                  ? "bg-blue-50 text-blue-800 border-blue-400 shadow-xs"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+              title="Transparent background padding (PNG)"
+            >
+              3. Transparent
             </button>
           </div>
         </div>
