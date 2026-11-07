@@ -8,15 +8,23 @@ export default function ImageCropModal({
   imageSrc,
   title = "Crop & Center Product Image",
   aspect = 1, // default
+  initialPreset = "1080x1080",
   onClose,
   onCropComplete: onConfirmCrop
 }) {
   // Preset ratios: 1:1 (1080x1080) and 4:3 (1200x900)
-  const [selectedPreset, setSelectedPreset] = useState("1080x1080"); // "1080x1080" | "1200x900"
+  const [selectedPreset, setSelectedPreset] = useState(initialPreset); // "1080x1080" | "1200x900"
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Sync initialPreset when modal opens or prop changes
+  React.useEffect(() => {
+    if (initialPreset) {
+      setSelectedPreset(initialPreset);
+    }
+  }, [initialPreset, isOpen]);
 
   const currentAspect = selectedPreset === "1200x900" ? 4 / 3 : 1;
   const targetDims = selectedPreset === "1200x900" ? { width: 1200, height: 900 } : { width: 1080, height: 1080 };
@@ -44,7 +52,8 @@ export default function ImageCropModal({
           image_url: imageSrc,
           crop: croppedAreaPixels,
           target_width: targetDims.width,
-          target_height: targetDims.height
+          target_height: targetDims.height,
+          preset: selectedPreset
         });
       } else {
         // If imageSrc is a freshly picked local data URL (FileReader), canvas crop in browser is 100% untainted
@@ -54,6 +63,7 @@ export default function ImageCropModal({
           targetDims.width,
           targetDims.height
         );
+        croppedBlob.preset = selectedPreset;
         await onConfirmCrop(croppedBlob);
       }
       onClose();
@@ -132,6 +142,9 @@ export default function ImageCropModal({
             image={imageSrc}
             crop={crop}
             zoom={zoom}
+            minZoom={0.5}
+            maxZoom={3}
+            restrictPosition={false}
             aspect={currentAspect}
             onCropChange={onCropChange}
             onZoomChange={onZoomChange}
@@ -144,7 +157,7 @@ export default function ImageCropModal({
         <div className="px-6 py-2.5 bg-gray-50 border-t border-gray-200 flex items-center gap-4">
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.max(1, z - 0.2))}
+            onClick={() => setZoom((z) => Math.max(0.5, z - 0.2))}
             className="p-1 text-gray-500 hover:text-gray-700"
             title="Zoom out"
           >
@@ -153,7 +166,7 @@ export default function ImageCropModal({
           <input
             type="range"
             value={zoom}
-            min={1}
+            min={0.5}
             max={3}
             step={0.05}
             aria-labelledby="Zoom"

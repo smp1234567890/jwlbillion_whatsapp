@@ -41,22 +41,34 @@ export async function getCroppedImg(imageSrc, pixelCrop, outputWidth = 1080, out
   canvas.height = outputHeight;
   const ctx = canvas.getContext("2d");
 
-  // Fill with white background in case of transparent edges
+  // Fill with white background for padded/zoomed out areas
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 0, outputWidth, outputHeight);
 
-  // Draw image based on cropped area
-  ctx.drawImage(
-    image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
-    0,
-    0,
-    outputWidth,
-    outputHeight
-  );
+  // When restrictPosition is false or zoom < 1, pixelCrop coordinates can extend outside image boundaries.
+  // Calculate source clipping rectangle that intersects with actual image dimensions.
+  const naturalWidth = image.naturalWidth || image.width;
+  const naturalHeight = image.naturalHeight || image.height;
+
+  const srcX = Math.max(0, pixelCrop.x);
+  const srcY = Math.max(0, pixelCrop.y);
+  const srcRight = Math.min(naturalWidth, pixelCrop.x + pixelCrop.width);
+  const srcBottom = Math.min(naturalHeight, pixelCrop.y + pixelCrop.height);
+
+  const srcW = Math.max(0, srcRight - srcX);
+  const srcH = Math.max(0, srcBottom - srcY);
+
+  if (srcW > 0 && srcH > 0) {
+    const scaleX = outputWidth / pixelCrop.width;
+    const scaleY = outputHeight / pixelCrop.height;
+
+    const destX = (srcX - pixelCrop.x) * scaleX;
+    const destY = (srcY - pixelCrop.y) * scaleY;
+    const destW = srcW * scaleX;
+    const destH = srcH * scaleY;
+
+    ctx.drawImage(image, srcX, srcY, srcW, srcH, destX, destY, destW, destH);
+  }
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(

@@ -114,11 +114,13 @@ export default function TemplateModal({
     // Read file as data URL to open in Crop modal
     const reader = new FileReader();
     reader.onload = () => {
+      const card = (newTemplate.carousel_cards || [])[cardIdx];
       setCropModalState({
         isOpen: true,
         imageSrc: reader.result,
         cardIdx: cardIdx,
-        isStandardHeader: false
+        isStandardHeader: false,
+        initialPreset: card?.crop_size || "1080x1080"
       });
     };
     reader.readAsDataURL(file);
@@ -172,6 +174,8 @@ export default function TemplateModal({
       } else {
         updateCarouselCard(cardIdx, "header_url", data.url);
         updateCarouselCard(cardIdx, "header_handle", data.header_handle || data.url);
+        const chosenPreset = cropResult?.preset || (cropResult?.target_width === 1200 ? "1200x900" : "1080x1080");
+        updateCarouselCard(cardIdx, "crop_size", chosenPreset);
       }
     } catch (err) {
       alert("Error uploading cropped image: " + (err.response?.data?.detail || err.message));
@@ -1016,7 +1020,16 @@ export default function TemplateModal({
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-[11px] text-gray-500">Image thumbnail</p>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-[11px] text-gray-500">Image thumbnail</p>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold border ${
+                                      card.crop_size === "1200x900"
+                                        ? "bg-purple-50 text-purple-700 border-purple-200"
+                                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    }`}>
+                                      {card.crop_size === "1200x900" ? "4:3 (1200×900)" : "1:1 (1080×1080)"}
+                                    </span>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1027,7 +1040,8 @@ export default function TemplateModal({
                                         isOpen: true,
                                         imageSrc: fullUrl,
                                         cardIdx: cIdx,
-                                        isStandardHeader: false
+                                        isStandardHeader: false,
+                                        initialPreset: card.crop_size || "1080x1080"
                                       });
                                     }}
                                     className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-md border border-gray-300 transition"
@@ -1731,12 +1745,14 @@ export default function TemplateModal({
         imageSrc={cropModalState.imageSrc}
         title={cropModalState.isStandardHeader ? "Crop Header Image" : `Crop & Position Card #${(cropModalState.cardIdx ?? 0) + 1} Image`}
         aspect={cropModalState.isStandardHeader ? 16 / 9 : 1}
+        initialPreset={cropModalState.initialPreset || "1080x1080"}
         onClose={() =>
           setCropModalState({
             isOpen: false,
             imageSrc: null,
             cardIdx: null,
-            isStandardHeader: false
+            isStandardHeader: false,
+            initialPreset: "1080x1080"
           })
         }
         onCropComplete={async (croppedBlob) => {
