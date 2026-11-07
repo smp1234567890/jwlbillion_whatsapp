@@ -158,7 +158,7 @@ export default function TemplatesPage({
                                     ? "bg-purple-50 text-purple-800 border-purple-200"
                                     : "bg-blue-50 text-blue-700 border-blue-200";
 
-                                  const displayVal = m.type === "contact_field"
+                                  let rawVal = m.type === "contact_field"
                                     ? m.value
                                     : m.type === "static"
                                     ? `"${m.value}"`
@@ -168,11 +168,25 @@ export default function TemplatesPage({
                                     ? `api.${m.value}`
                                     : `${m.type}.${m.value}`;
 
+                                  // If header mapping is a long upload path or URL, show compact filename
+                                  let shortVal = rawVal;
+                                  if (typeof rawVal === "string" && (rawVal.includes("/uploads/") || rawVal.includes("http"))) {
+                                    const parts = rawVal.split("/");
+                                    shortVal = parts[parts.length - 1].replace(/^["']|["']$/g, "");
+                                    if (shortVal.length > 24) {
+                                      shortVal = shortVal.slice(0, 10) + "…" + shortVal.slice(-10);
+                                    }
+                                  }
+
                                   return (
-                                    <span key={idx} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${pillStyle}`}>
-                                      <span className="font-mono font-bold">{`{{${idx}}}`}</span>
-                                      <span className="opacity-60">→</span>
-                                      <span>{displayVal}</span>
+                                    <span
+                                      key={idx}
+                                      title={`${idx} → ${rawVal}`}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold max-w-full ${pillStyle}`}
+                                    >
+                                      <span className="font-mono font-bold shrink-0">{`{{${idx}}}`}</span>
+                                      <span className="opacity-60 shrink-0">→</span>
+                                      <span className="truncate max-w-[170px]">{shortVal}</span>
                                     </span>
                                   );
                                 })}
