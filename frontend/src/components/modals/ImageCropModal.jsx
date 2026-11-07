@@ -137,7 +137,20 @@ export default function ImageCropModal({
         </div>
 
         {/* Cropper area */}
-        <div className="relative w-full h-72 sm:h-84 bg-gray-900">
+        <div
+          className="relative w-full h-72 sm:h-84 overflow-hidden border-y border-gray-200"
+          style={{
+            backgroundColor: "#f0f2f5",
+            backgroundImage: `
+              linear-gradient(45deg, #e4e7eb 25%, transparent 25%),
+              linear-gradient(-45deg, #e4e7eb 25%, transparent 25%),
+              linear-gradient(45deg, transparent 75%, #e4e7eb 75%),
+              linear-gradient(-45deg, transparent 75%, #e4e7eb 75%)
+            `,
+            backgroundSize: "16px 16px",
+            backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px"
+          }}
+        >
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -150,6 +163,11 @@ export default function ImageCropModal({
             onZoomChange={onZoomChange}
             onCropComplete={handleCropAreaChange}
             showGrid={true}
+            style={{
+              containerStyle: {
+                backgroundColor: "transparent"
+              }
+            }}
           />
         </div>
 
