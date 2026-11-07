@@ -1053,9 +1053,21 @@ export default function TemplateModal({
                               maxLength={160}
                               placeholder="e.g. ✨ Gold Plated Tennis Bracelet - ₹899 (Special 20% OFF)"
                               value={card.body_text || ""}
-                              onChange={(e) => updateCarouselCard(cIdx, "body_text", e.target.value)}
+                              onChange={(e) => {
+                                // Meta strictly forbids line breaks inside carousel card body text
+                                const cleaned = e.target.value.replace(/[\r\n]+/g, " ");
+                                updateCarouselCard(cIdx, "body_text", cleaned);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                }
+                              }}
                               className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-[#25D366]"
                             />
+                            <p className="text-[10px] text-gray-400">
+                              Single-line description. Meta does not permit line breaks (Enter) inside carousel cards.
+                            </p>
                           </div>
 
                           {/* Card URL Action Button (Unique link for this card) */}
