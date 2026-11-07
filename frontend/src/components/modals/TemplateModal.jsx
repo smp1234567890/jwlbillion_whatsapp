@@ -1697,7 +1697,19 @@ export default function TemplateModal({
               <button
                 type="button"
                 onClick={(e) => {
+                  {/* Validate Carousel Cards before submission */}
                   if (subType === "CAROUSEL") {
+                    const cards = newTemplate.carousel_cards || [];
+                    if (cards.length < 2) {
+                      alert("⚠️ Meta requires a minimum of 2 carousel cards.");
+                      return;
+                    }
+                    const emptyCardIdx = cards.findIndex(c => !c.header_url && !c.header_handle);
+                    if (emptyCardIdx !== -1) {
+                      alert(`⚠️ Card #${emptyCardIdx + 1} has no image uploaded or attached.\n\nMeta requires every carousel card to have an image header before submission.`);
+                      return;
+                    }
+
                     newTemplate.header_type = "NONE";
                     newTemplate.header_text = "";
                     newTemplate.footer_text = "";
