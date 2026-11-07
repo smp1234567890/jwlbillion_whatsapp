@@ -30,8 +30,10 @@ import {
   CheckCircle2,
   Info,
   Upload,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Crop as CropIcon
 } from "lucide-react";
+import ImageCropModal from "./ImageCropModal";
 import { TEMPLATE_FIELD_OPTIONS } from "../../constants/fieldOptions";
 
 export default function TemplateModal({
@@ -49,6 +51,12 @@ export default function TemplateModal({
   const [cardButtonDropdownOpen, setCardButtonDropdownOpen] = useState(null); // cardIdx or null
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [cropModalState, setCropModalState] = useState({
+    isOpen: false,
+    imageSrc: null,
+    cardIdx: null,
+    isStandardHeader: false
+  });
 
   // Carousel Card State & Helpers
   const addCarouselCard = () => {
@@ -98,13 +106,29 @@ export default function TemplateModal({
   const handleCardImageUpload = async (cardIdx, e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Card image must be under 5 MB.");
+    if (file.size > 15 * 1024 * 1024) {
+      alert("Image must be under 15 MB.");
       e.target.value = "";
       return;
     }
+    // Read file as data URL to open in Crop modal
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropModalState({
+        isOpen: true,
+        imageSrc: reader.result,
+        cardIdx: cardIdx,
+        isStandardHeader: false
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const uploadCroppedBlob = async (blob, cardIdx, isStandardHeader = false) => {
     setUploadingMedia(true);
     try {
+      const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: "image/jpeg" });
       const formData = new FormData();
       formData.append("file", file);
       const token = localStorage.getItem("token") || localStorage.getItem("access_token");
@@ -115,13 +139,24 @@ export default function TemplateModal({
         }
       });
       const data = res.data;
-      updateCarouselCard(cardIdx, "header_url", data.url);
-      updateCarouselCard(cardIdx, "header_handle", data.header_handle || data.url);
+      if (isStandardHeader) {
+        setNewTemplate((prev) => ({
+          ...prev,
+          sample_values: {
+            ...(prev.sample_values || {}),
+            header_handle: data.header_handle || data.url,
+            header_url: data.url,
+            header_filename: data.filename
+          }
+        }));
+      } else {
+        updateCarouselCard(cardIdx, "header_url", data.url);
+        updateCarouselCard(cardIdx, "header_handle", data.header_handle || data.url);
+      }
     } catch (err) {
-      alert("Error uploading card image: " + (err.response?.data?.detail || err.message));
+      alert("Error uploading cropped image: " + (err.response?.data?.detail || err.message));
     } finally {
       setUploadingMedia(false);
-      e.target.value = "";
     }
   };
 
@@ -952,12 +987,35 @@ export default function TemplateModal({
                             </div>
 
                             {card.header_url && (
-                              <div className="w-24 h-16 rounded-lg overflow-hidden border border-gray-200 bg-white">
-                                <img
-                                  src={card.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + card.header_url : card.header_url}
-                                  alt={"Card " + (cIdx + 1)}
-                                  className="w-full h-full object-cover"
-                                />
+                              <div className="flex items-center gap-3">
+                                <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white shrink-0">
+                                  <img
+                                    src={card.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + card.header_url : card.header_url}
+                                    alt={"Card " + (cIdx + 1)}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[11px] text-gray-500">1:1 square preview</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const fullUrl = card.header_url.startsWith("/uploads/")
+                                        ? "https://130-210-23-25.sslip.io" + card.header_url
+                                        : card.header_url;
+                                      setCropModalState({
+                                        isOpen: true,
+                                        imageSrc: fullUrl,
+                                        cardIdx: cIdx,
+                                        isStandardHeader: false
+                                      });
+                                    }}
+                                    className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-md border border-gray-300 transition"
+                                  >
+                                    <CropIcon className="w-3.5 h-3.5 text-emerald-600" />
+                                    Recrop / Reposition
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1646,6 +1704,25 @@ export default function TemplateModal({
           </div>
         </div>
       </div>
+
+      {/* Image Crop & Reposition Modal */}
+      <ImageCropModal
+        isOpen={cropModalState.isOpen}
+        imageSrc={cropModalState.imageSrc}
+        title={cropModalState.isStandardHeader ? "Crop Header Image" : `Crop & Position Card #${(cropModalState.cardIdx ?? 0) + 1} Image`}
+        aspect={cropModalState.isStandardHeader ? 16 / 9 : 1}
+        onClose={() =>
+          setCropModalState({
+            isOpen: false,
+            imageSrc: null,
+            cardIdx: null,
+            isStandardHeader: false
+          })
+        }
+        onCropComplete={async (croppedBlob) => {
+          await uploadCroppedBlob(croppedBlob, cropModalState.cardIdx, cropModalState.isStandardHeader);
+        }}
+      />
     </div>
   );
 }
