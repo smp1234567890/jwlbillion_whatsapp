@@ -7,13 +7,13 @@ export default function ImageCropModal({
   isOpen,
   imageSrc,
   title = "Crop & Center Product Image",
-  aspect = 1, // default
-  initialPreset = "1080x1080",
+  aspect = 1.91, // default
+  initialPreset = "1125x600",
   onClose,
   onCropComplete: onConfirmCrop
 }) {
-  // Preset ratios: 1:1 (1080x1080) and 4:3 (1200x900)
-  const [selectedPreset, setSelectedPreset] = useState(initialPreset); // "1080x1080" | "1200x900"
+  // Preset ratios: Meta Standard 1.91:1 (1125x600) and Square 1:1 (1080x1080)
+  const [selectedPreset, setSelectedPreset] = useState(initialPreset || "1125x600");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -26,8 +26,8 @@ export default function ImageCropModal({
     }
   }, [initialPreset, isOpen]);
 
-  const currentAspect = selectedPreset === "1200x900" ? 4 / 3 : 1;
-  const targetDims = selectedPreset === "1200x900" ? { width: 1200, height: 900 } : { width: 1080, height: 1080 };
+  const currentAspect = selectedPreset === "1080x1080" ? 1 : (1125 / 600);
+  const targetDims = selectedPreset === "1080x1080" ? { width: 1080, height: 1080 } : { width: 1125, height: 600 };
 
   const onCropChange = (newCrop) => {
     setCrop(newCrop);
@@ -104,6 +104,22 @@ export default function ImageCropModal({
             <button
               type="button"
               onClick={() => {
+                setSelectedPreset("1125x600");
+                setCrop({ x: 0, y: 0 });
+                setZoom(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border flex items-center gap-1.5 ${
+                selectedPreset === "1125x600"
+                  ? "bg-[#25D366]/10 text-emerald-800 border-[#25D366] shadow-xs"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+            >
+              <span className="w-4 h-2.5 rounded-xs border border-current"></span>
+              Meta Standard (1125 × 600)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 setSelectedPreset("1080x1080");
                 setCrop({ x: 0, y: 0 });
                 setZoom(1);
@@ -115,23 +131,7 @@ export default function ImageCropModal({
               }`}
             >
               <span className="w-2.5 h-2.5 rounded-xs border border-current"></span>
-              Square (1080 × 1080)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPreset("1200x900");
-                setCrop({ x: 0, y: 0 });
-                setZoom(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border flex items-center gap-1.5 ${
-                selectedPreset === "1200x900"
-                  ? "bg-[#25D366]/10 text-emerald-800 border-[#25D366] shadow-xs"
-                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-              }`}
-            >
-              <span className="w-3.5 h-2.5 rounded-xs border border-current"></span>
-              Landscape 4:3 (1200 × 900)
+              Square 1:1 (1080 × 1080)
             </button>
           </div>
         </div>

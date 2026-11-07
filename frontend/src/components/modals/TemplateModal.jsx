@@ -120,7 +120,7 @@ export default function TemplateModal({
         imageSrc: reader.result,
         cardIdx: cardIdx,
         isStandardHeader: false,
-        initialPreset: card?.crop_size || "1080x1080"
+        initialPreset: card?.crop_size || "1125x600"
       });
     };
     reader.readAsDataURL(file);
@@ -174,7 +174,7 @@ export default function TemplateModal({
       } else {
         updateCarouselCard(cardIdx, "header_url", data.url);
         updateCarouselCard(cardIdx, "header_handle", data.header_handle || data.url);
-        const chosenPreset = cropResult?.preset || (cropResult?.target_width === 1200 ? "1200x900" : "1080x1080");
+        const chosenPreset = cropResult?.preset || (cropResult?.target_width === 1125 ? "1125x600" : (cropResult?.target_width === 1200 ? "1200x900" : "1080x1080"));
         updateCarouselCard(cardIdx, "crop_size", chosenPreset);
       }
     } catch (err) {
@@ -1023,11 +1023,11 @@ export default function TemplateModal({
                                   <div className="flex items-center gap-1.5">
                                     <p className="text-[11px] text-gray-500">Image thumbnail</p>
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold border ${
-                                      card.crop_size === "1200x900"
+                                      card.crop_size === "1080x1080"
                                         ? "bg-purple-50 text-purple-700 border-purple-200"
                                         : "bg-emerald-50 text-emerald-700 border-emerald-200"
                                     }`}>
-                                      {card.crop_size === "1200x900" ? "4:3 (1200×900)" : "1:1 (1080×1080)"}
+                                      {card.crop_size === "1080x1080" ? "Square 1:1" : "Meta 1.91:1 (1125×600)"}
                                     </span>
                                   </div>
                                   <button
@@ -1041,7 +1041,7 @@ export default function TemplateModal({
                                         imageSrc: fullUrl,
                                         cardIdx: cIdx,
                                         isStandardHeader: false,
-                                        initialPreset: card.crop_size || "1080x1080"
+                                        initialPreset: card.crop_size || "1125x600"
                                       });
                                     }}
                                     className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-md border border-gray-300 transition"
@@ -1582,11 +1582,11 @@ export default function TemplateModal({
                                 <img
                                   src={c.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + c.header_url : c.header_url}
                                   alt={"Card " + (i + 1)}
-                                  className="w-full aspect-[4/3] object-contain bg-black/5"
+                                  className="w-full aspect-[1.91/1] object-cover bg-black/5"
                                 />
                               ) : (
-                                <div className="w-full aspect-[4/3] bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
-                                  [Card Image]
+                                <div className="w-full aspect-[1.91/1] bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
+                                  [Card Image (1.91:1)]
                                 </div>
                               )}
                               <div className="p-2 text-[11px] text-gray-800 leading-snug">
@@ -1744,15 +1744,15 @@ export default function TemplateModal({
         isOpen={cropModalState.isOpen}
         imageSrc={cropModalState.imageSrc}
         title={cropModalState.isStandardHeader ? "Crop Header Image" : `Crop & Position Card #${(cropModalState.cardIdx ?? 0) + 1} Image`}
-        aspect={cropModalState.isStandardHeader ? 16 / 9 : 1}
-        initialPreset={cropModalState.initialPreset || "1080x1080"}
+        aspect={cropModalState.isStandardHeader ? 16 / 9 : 1.91}
+        initialPreset={cropModalState.initialPreset || "1125x600"}
         onClose={() =>
           setCropModalState({
             isOpen: false,
             imageSrc: null,
             cardIdx: null,
             isStandardHeader: false,
-            initialPreset: "1080x1080"
+            initialPreset: "1125x600"
           })
         }
         onCropComplete={async (croppedBlob) => {
