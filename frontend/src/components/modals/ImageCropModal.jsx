@@ -244,9 +244,22 @@ export default function ImageCropModal({
             >
               <ZoomIn className="w-4 h-4" />
             </button>
-            <span className="text-[11px] font-mono text-gray-600 font-semibold w-10 text-right">
-              {Math.round(zoom * 100)}%
-            </span>
+            <div className="flex items-center bg-white border border-gray-300 rounded-md px-1.5 py-0.5 shadow-2xs">
+              <input
+                type="number"
+                min={20}
+                max={300}
+                value={Math.round(zoom * 100)}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (!isNaN(val) && val >= 20 && val <= 300) {
+                    setZoom(Number((val / 100).toFixed(2)));
+                  }
+                }}
+                className="w-9 text-right text-[11px] font-mono font-bold text-gray-800 focus:outline-hidden"
+              />
+              <span className="text-[11px] font-mono text-gray-400 pl-0.5">%</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5">

@@ -923,28 +923,16 @@ export default function TemplateModal({
                 {/* ── CAROUSEL CARDS BUILDER (Only if CAROUSEL sub_type) ── */}
                 {subType === "CAROUSEL" && (
                   <div className="space-y-4 pt-3 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Layers className="w-4 h-4 text-emerald-600" />
-                          <label className="text-xs font-bold uppercase text-gray-800">
-                            Carousel Cards ({(newTemplate.carousel_cards || []).length}/10)
-                          </label>
-                        </div>
-                        <p className="text-[11px] text-gray-500 mt-0.5">
-                          Meta requires 2 to 10 cards. Each card contains an image header, body text, and up to 2 uniform action buttons.
-                        </p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-emerald-600" />
+                        <label className="text-xs font-bold uppercase text-gray-800">
+                          Carousel Cards ({(newTemplate.carousel_cards || []).length}/10)
+                        </label>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={addCarouselCard}
-                        disabled={(newTemplate.carousel_cards || []).length >= 10}
-                        className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Add Card
-                      </button>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Meta requires 2 to 10 cards. Each card contains an image header, body text, and up to 2 uniform action buttons.
+                      </p>
                     </div>
 
                     <div className="space-y-4">
@@ -1104,6 +1092,18 @@ export default function TemplateModal({
                           </div>
                         </div>
                       ))}
+                    </div>
+
+                    {/* Add Card button positioned below the cards */}
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={addCarouselCard}
+                        disabled={(newTemplate.carousel_cards || []).length >= 10}
+                        className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition disabled:opacity-50 text-center shadow-2xs"
+                      >
+                        Add Card
+                      </button>
                     </div>
                   </div>
                 )}
