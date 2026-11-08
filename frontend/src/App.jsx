@@ -69,7 +69,7 @@ import {
   Menu,
   X
 } from "lucide-react";
-import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache } from "./api";
+import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache, isNativePlatform } from "./api";
 import FlowchartCanvas from "./components/FlowchartCanvas";
 import DashboardPage from "./pages/DashboardPage";
 import AutomationsPage from "./pages/AutomationsPage";
@@ -155,6 +155,7 @@ export default function App() {
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
   const getInitialTab = () => {
+    if (isNativePlatform) return "chat";
     const hash = window.location.hash.replace("#", "");
     if (hash && ["dashboard", "chat", "automations", "campaigns", "analytics", "performance", "templates", "contacts", "logs", "opt_out", "settings"].includes(hash)) {
       return hash;
@@ -189,29 +190,7 @@ export default function App() {
     initMobileDevice();
   }, []);
 
-  // Android Hardware Back Button Handling
-  useEffect(() => {
-    let unlisten = null;
-    const registerBackButton = async () => {
-      try {
-        const { App: CapApp } = await import("@capacitor/app");
-        const listener = await CapApp.addListener("backButton", ({ canGoBack }) => {
-          if (activeTab !== "dashboard") {
-            setActiveTab("dashboard");
-          } else if (canGoBack) {
-            window.history.back();
-          } else {
-            CapApp.exitApp();
-          }
-        });
-        unlisten = () => listener.remove();
-      } catch (e) {}
-    };
-    registerBackButton();
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, [activeTab]);
+
   const [campaigns, setCampaigns] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [discountCodes, setDiscountCodes] = useState([]);
@@ -235,6 +214,36 @@ export default function App() {
   // Two-Way WhatsApp Live Chat States
   const [chatConversations, setChatConversations] = useState([]);
   const [selectedChatPhone, setSelectedChatPhone] = useState(null);
+
+  // Android Hardware Back Button Handling
+  useEffect(() => {
+    let unlisten = null;
+    const registerBackButton = async () => {
+      try {
+        const { App: CapApp } = await import("@capacitor/app");
+        const listener = await CapApp.addListener("backButton", ({ canGoBack }) => {
+          if (isNativePlatform) {
+            if (selectedChatPhone) {
+              setSelectedChatPhone("");
+            } else {
+              CapApp.exitApp();
+            }
+          } else if (activeTab !== "dashboard") {
+            setActiveTab("dashboard");
+          } else if (canGoBack) {
+            window.history.back();
+          } else {
+            CapApp.exitApp();
+          }
+        });
+        unlisten = () => listener.remove();
+      } catch (e) {}
+    };
+    registerBackButton();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [activeTab, selectedChatPhone]);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatReplyText, setChatReplyText] = useState("");
@@ -1912,7 +1921,7 @@ export default function App() {
       )}
 
       {/* ── Left Sidebar (Responsive Drawer on Mobile, Collapsible on Desktop) ── */}
-      <aside
+      {!isNativePlatform && <aside
         className={`fixed md:relative inset-y-0 left-0 z-50 md:z-auto bg-[#111827] text-gray-300 flex flex-col justify-between border-r border-gray-800 transition-all duration-300 ease-in-out pt-[max(env(safe-area-inset-top,0px),8px)] md:pt-0 ${
           mobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"
         } ${sidebarCollapsed ? "md:w-16" : "md:w-64"}`}
@@ -2060,12 +2069,12 @@ export default function App() {
             </div>
           )}
         </div>
-      </aside>
+      </aside>}
 
       {/* ── Main Content Area ── */}
       <main className={`flex-1 flex flex-col min-w-0 ${activeTab === "chat" ? "overflow-hidden h-screen" : "overflow-y-auto"}`}>
         {/* Top App Bar (Sticky on mobile and desktop, with hardware punch-hole / notch safe-area offset) */}
-        <header className="sticky top-0 z-30 pt-[max(env(safe-area-inset-top,0px),28px)] md:pt-0 pb-3 md:pb-0 h-[calc(3.5rem+max(env(safe-area-inset-top,0px),28px))] md:h-16 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0 shadow-xs">
+        {!isNativePlatform && <header className="sticky top-0 z-30 pt-[max(env(safe-area-inset-top,0px),28px)] md:pt-0 pb-3 md:pb-0 h-[calc(3.5rem+max(env(safe-area-inset-top,0px),28px))] md:h-16 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0 shadow-xs">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Mobile Menu Hamburger Button */}
             <button
@@ -2132,7 +2141,7 @@ export default function App() {
               </button>
             )}
           </div>
-        </header>
+        </header>}
 
         {/* Action Toast / Success Banner */}
         {actionSuccessMsg && (
@@ -2143,7 +2152,7 @@ export default function App() {
         )}
 
         {/* Dynamic Views */}
-        <div className={activeTab === "chat" ? "p-2 sm:p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6"}>
+        <div className={isNativePlatform ? "p-0 flex-1 flex flex-col min-h-0 overflow-hidden" : (activeTab === "chat" ? "p-2 sm:p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6")}>
           {activeTab === "dashboard" && (
             <DashboardPage
               workflowFlows={workflowFlows}
@@ -2346,6 +2355,8 @@ export default function App() {
               handleSendChatMedia={handleSendChatMedia}
               handleReactToMessage={handleReactToMessage}
               handleDeleteConversation={handleDeleteConversation}
+              isNativeApp={isNativePlatform}
+              onLogout={handleLogout}
             />
           )}
         </div>

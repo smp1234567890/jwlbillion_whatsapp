@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const isNativePlatform = typeof window !== "undefined" && (
+export const isNativePlatform = typeof window !== "undefined" && (
   window.Capacitor?.isNativePlatform?.() ||
   window.location?.protocol === "capacitor:" ||
   (window.location?.protocol === "https:" && window.location?.hostname === "localhost" && !window.location?.port)

@@ -45,7 +45,7 @@ export default function LoginView({
           <div className="w-14 h-14 rounded-2xl bg-[#F5A623] flex items-center justify-center font-black text-black text-2xl shadow-lg mb-3">
             S
           </div>
-          <h2 className="text-2xl font-black text-gray-900">WhatsApp CRM</h2>
+          <h2 className="text-2xl font-black text-gray-900">JWL Whatsapp</h2>
           <p className="text-xs text-gray-500 mt-0.5">Scalifts • Portal Access</p>
           <button
             type="button"

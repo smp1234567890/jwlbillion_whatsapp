@@ -29,7 +29,8 @@ import {
   User,
   Smile,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  LogOut
 } from "lucide-react";
 import { formatToISTTime } from "../utils/dateUtils";
 import { getApiBaseUrl } from "../api";
@@ -57,7 +58,9 @@ export default function LiveChatPage({
   handleSendChatMessage,
   handleSendChatMedia,
   handleReactToMessage,
-  handleDeleteConversation
+  handleDeleteConversation,
+  isNativeApp = false,
+  onLogout
 }) {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -153,9 +156,50 @@ export default function LiveChatPage({
   }, [selectedChatPhone, chatMessages]);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-      {/* Top Banner / Live Status Indicator */}
-      <div className="px-6 py-2.5 bg-gradient-to-r from-emerald-50 via-gray-50 to-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+    <div className={`bg-white overflow-hidden flex flex-col flex-1 min-h-0 w-full ${isNativeApp ? "h-screen rounded-none border-0" : "rounded-2xl border border-gray-200 shadow-sm"}`}>
+      {/* Dedicated Native WhatsApp App Top Header */}
+      {isNativeApp && (
+        <div className="bg-[#075E54] text-white px-4 pt-[max(env(safe-area-inset-top,0px),28px)] pb-3 flex items-center justify-between shadow-md shrink-0 z-30">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-[#25D366] text-black font-extrabold flex items-center justify-center text-sm shadow-inner shrink-0">
+              JW
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-bold text-base tracking-wide leading-tight truncate">JWL Whatsapp</h1>
+              <p className="text-[11px] text-emerald-200 flex items-center gap-1.5 leading-tight">
+                <span className="w-2 h-2 rounded-full bg-[#25D366] inline-block animate-pulse"></span>
+                Live Customer Chat
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !chatSoundEnabled;
+                setChatSoundEnabled(next);
+                if (next && playIncomingMessageSound) playIncomingMessageSound(true);
+              }}
+              className="p-2 rounded-full hover:bg-white/10 text-emerald-100 transition"
+              title={chatSoundEnabled ? "Mute sound" : "Enable sound"}
+            >
+              {chatSoundEnabled ? <Volume2 className="w-4 h-4 text-[#25D366]" /> : <VolumeX className="w-4 h-4 text-emerald-300" />}
+            </button>
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="p-2 rounded-full hover:bg-red-500/20 text-emerald-100 hover:text-white transition"
+                title="Exit / Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Top Banner / Live Status Indicator (Desktop only) */}
+      {!isNativeApp && <div className="px-6 py-2.5 bg-gradient-to-r from-emerald-50 via-gray-50 to-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="relative flex h-3 w-3">
@@ -204,7 +248,7 @@ export default function LiveChatPage({
             Auto-syncing every 2s
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* 2-Column WhatsApp Web Layout */}
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
