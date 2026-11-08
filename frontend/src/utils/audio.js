@@ -1,70 +1,75 @@
-// Persistent shared AudioContext to prevent background throttling by browsers
-let sharedAudioCtx = null;
+// Preloaded HTML5 Audio element for custom notification sound
+let notificationAudio = null;
 
-function getAudioContext() {
-  try {
-    if (!sharedAudioCtx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        sharedAudioCtx = new AudioCtx();
-      }
+function getNotificationAudio() {
+  if (typeof window === "undefined") return null;
+  if (!notificationAudio) {
+    try {
+      notificationAudio = new Audio("/sounds/notification.mp3");
+      notificationAudio.preload = "auto";
+      notificationAudio.volume = 0.85;
+    } catch (e) {
+      console.warn("Failed to create notification Audio:", e);
     }
-    if (sharedAudioCtx && sharedAudioCtx.state === "suspended") {
-      sharedAudioCtx.resume().catch(() => {});
-    }
-    return sharedAudioCtx;
-  } catch (e) {
-    return null;
   }
+  return notificationAudio;
 }
 
-// Automatically unlock AudioContext on any user interaction in the app
+// User-gesture unlock
 if (typeof window !== "undefined") {
   const unlockAudio = () => {
-    const ctx = getAudioContext();
-    if (ctx && ctx.state === "suspended") {
-      ctx.resume().then(() => {
-        window.removeEventListener("click", unlockAudio);
-        window.removeEventListener("keydown", unlockAudio);
-        window.removeEventListener("touchstart", unlockAudio);
+    const audio = getNotificationAudio();
+    if (audio) {
+      // Warm up audio buffer silently on first click/touch
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
       }).catch(() => {});
+      window.removeEventListener("click", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+      window.removeEventListener("touchstart", unlockAudio);
     }
   };
-  window.addEventListener("click", unlockAudio, { passive: true });
-  window.addEventListener("keydown", unlockAudio, { passive: true });
-  window.addEventListener("touchstart", unlockAudio, { passive: true });
+  window.addEventListener("click", unlockAudio, { passive: true, once: true });
+  window.addEventListener("keydown", unlockAudio, { passive: true, once: true });
+  window.addEventListener("touchstart", unlockAudio, { passive: true, once: true });
 }
 
 export function playIncomingMessageSound(enabled = true) {
   if (!enabled) return;
   try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-
-    // In case context got suspended while tab was in background
-    if (ctx.state === "suspended") {
-      ctx.resume().catch(() => {});
+    const audio = getNotificationAudio();
+    if (audio) {
+      audio.currentTime = 0;
+      audio.play().catch((err) => {
+        // Fallback: Web Audio API ping if media autoplay policy prevents audio element
+        playSynthFallback();
+      });
+    } else {
+      playSynthFallback();
     }
+  } catch (e) {
+    playSynthFallback();
+  }
+}
 
+// Fallback synthesizer in case Audio element is blocked
+function playSynthFallback() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-
-    osc.type = "sine";
     const now = ctx.currentTime;
-    // Melodic two-tone ping: 800Hz -> 1200Hz
+    osc.type = "sine";
     osc.frequency.setValueAtTime(800, now);
     osc.frequency.exponentialRampToValueAtTime(1200, now + 0.08);
-
     gain.gain.setValueAtTime(0.3, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-
     osc.connect(gain);
     gain.connect(ctx.destination);
-
     osc.start(now);
     osc.stop(now + 0.35);
-  } catch (e) {
-    // Gracefully handle browser autoplay blocks
-    console.warn("Could not play incoming message sound:", e);
-  }
+  } catch (e) {}
 }

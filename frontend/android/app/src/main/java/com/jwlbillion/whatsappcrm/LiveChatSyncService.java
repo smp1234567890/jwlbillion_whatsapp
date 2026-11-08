@@ -5,9 +5,12 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.AudioAttributes;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -28,7 +31,7 @@ import java.net.URL;
 public class LiveChatSyncService extends Service {
     private static final String TAG = "JWL_ChatSync";
     private static final String CHANNEL_FOREGROUND = "jwl_sync_channel";
-    private static final String CHANNEL_MESSAGES = "jwl_incoming_messages";
+    private static final String CHANNEL_MESSAGES = "jwl_incoming_messages_v2";
     private static final int FOREGROUND_NOTIFICATION_ID = 1001;
 
     private Handler handler;
@@ -80,7 +83,15 @@ public class LiveChatSyncService extends Service {
             fgChannel.setShowBadge(false);
             manager.createNotificationChannel(fgChannel);
 
-            // High-priority channel with sound and vibration for new messages
+            // Custom sound uri from raw resources
+            Uri soundUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + getPackageName() + "/" + R.raw.notification);
+
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                    .build();
+
+            // High-priority channel with custom sound and vibration for new messages
             NotificationChannel msgChannel = new NotificationChannel(
                     CHANNEL_MESSAGES,
                     "Incoming WhatsApp Messages",
@@ -89,6 +100,7 @@ public class LiveChatSyncService extends Service {
             msgChannel.setDescription("Alerts for customer WhatsApp replies");
             msgChannel.enableVibration(true);
             msgChannel.enableLights(true);
+            msgChannel.setSound(soundUri, audioAttributes);
             manager.createNotificationChannel(msgChannel);
         }
     }
@@ -175,6 +187,8 @@ public class LiveChatSyncService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
+        Uri soundUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + getPackageName() + "/" + R.raw.notification);
+
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_MESSAGES)
                 .setContentTitle(customerName)
                 .setContentText(messageText)
@@ -182,8 +196,9 @@ public class LiveChatSyncService extends Service {
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
+                .setSound(soundUri)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setVibrate(new long[]{0, 200, 100, 200})
                 .build();
 
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
