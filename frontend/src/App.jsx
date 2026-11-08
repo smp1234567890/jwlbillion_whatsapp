@@ -1519,41 +1519,83 @@ export default function App() {
     }
   }, [token, activeTab, analyticsTimeRange]);
 
-  // Instant eager load & high-frequency polling for Live Two-Way Chat (2.5s on active tab, 15s in background)
+  // Real-time EventStream (SSE) for Live Two-Way Chat (instant push from Meta webhook)
   useEffect(() => {
     if (!token) return;
 
     if (activeTab === "chat") {
-      // Eager fetch immediately on switching to Live Chat tab
       fetchChatConversations(true);
       if (selectedChatPhone) {
         fetchChatMessages(selectedChatPhone, true);
       }
     }
 
-    // Fast 1s polling for both messages and conversations when active in Live Chat
-    let convTimer = null;
-    let msgTimer = null;
+    // Connect to Server-Sent Events stream for instant incoming messages
+    let eventSource = null;
+    let fallbackTimer = null;
 
-    if (activeTab === "chat") {
-      msgTimer = setInterval(() => {
-        if (selectedChatPhone) {
-          fetchChatMessages(selectedChatPhone, true);
+    try {
+      const sseUrl = `/api/chat/stream?token=${encodeURIComponent(token)}`;
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.addEventListener("new_message", (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          // If the message is for the currently open conversation, update UI immediately
+          if (selectedChatPhone && payload.customer_phone === selectedChatPhone) {
+            setChatMessages((prev) => {
+              if (prev.some((m) => m.id === payload.id)) return prev;
+              return [...prev, payload];
+            });
+            if (payload.sender_type === "CUSTOMER") {
+              playIncomingMessageSound();
+            }
+          }
+          // Refresh conversation list preview
+          fetchChatConversations(true);
+        } catch (err) {
+          console.error("SSE parse error for new_message:", err);
         }
-      }, 1000);
+      });
 
-      convTimer = setInterval(() => {
-        fetchChatConversations(true);
-      }, 1000);
-    } else {
-      convTimer = setInterval(() => {
-        fetchChatConversations(true);
-      }, 15000);
+      eventSource.addEventListener("status_update", (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload.wamid && payload.status) {
+            setChatMessages((prev) =>
+              prev.map((m) =>
+                m.meta_message_id === payload.wamid ? { ...m, status: payload.status } : m
+              )
+            );
+          }
+        } catch (err) {
+          console.error("SSE status_update parse error:", err);
+        }
+      });
+
+      eventSource.onerror = () => {
+        // EventSource automatically attempts to reconnect on transient errors
+      };
+    } catch (err) {
+      console.warn("EventSource initialization failed, using relaxed polling fallback:", err);
     }
 
+    // Relaxed safety fallback polling (every 10s if on chat tab, 30s in background)
+    const fallbackIntervalMs = activeTab === "chat" ? 10000 : 30000;
+    fallbackTimer = setInterval(() => {
+      fetchChatConversations(true);
+      if (activeTab === "chat" && selectedChatPhone) {
+        fetchChatMessages(selectedChatPhone, true);
+      }
+    }, fallbackIntervalMs);
+
     return () => {
-      if (msgTimer) clearInterval(msgTimer);
-      if (convTimer) clearInterval(convTimer);
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (fallbackTimer) {
+        clearInterval(fallbackTimer);
+      }
     };
   }, [token, selectedChatPhone, activeTab]);
 

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timedelta
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
@@ -486,5 +486,61 @@ def delete_conversation(
         "deleted_logs": deleted_log_count,
         "phone": clean_phone
     }
+
+
+@router.get("/stream")
+async def chat_events_stream(
+    request: Request,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Server-Sent Events (SSE) endpoint for live two-way chat.
+    Pushes instant incoming messages, status updates, and reactions directly to the browser
+    eliminating the need for high-frequency polling.
+    """
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication token")
+    try:
+        user = auth.get_current_user(token=token, db=db)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed")
+
+    from services.chat_broadcaster import chat_broadcaster
+    import json
+
+    async def event_generator():
+        q = chat_broadcaster.subscribe()
+        try:
+            # Send initial connected ping
+            yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    payload = await asyncio.wait_for(q.get(), timeout=15.0)
+                    evt_name = payload.get("event", "message")
+                    evt_data = json.dumps(payload.get("data", {}))
+                    yield f"event: {evt_name}\ndata: {evt_data}\n\n"
+                except asyncio.TimeoutError:
+                    # Keep-alive heartbeat comment to prevent proxy timeout
+                    yield ": ping\n\n"
+        finally:
+            chat_broadcaster.unsubscribe(q)
+
+    from starlette.responses import StreamingResponse
+    import asyncio
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
 
 

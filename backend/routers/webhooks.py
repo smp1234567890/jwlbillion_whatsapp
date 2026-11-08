@@ -1131,6 +1131,14 @@ async def receive_inbound_whatsapp_message(
                 try:
                     db.commit()
                     processed_statuses_count += 1
+                    try:
+                        from services.chat_broadcaster import chat_broadcaster
+                        chat_broadcaster.publish_sync("status_update", {
+                            "wamid": wamid,
+                            "status": new_status
+                        })
+                    except Exception as sse_err:
+                        logger.debug(f"SSE status broadcast skipped: {sse_err}")
                 except IntegrityError:
                     db.rollback()
                     logger.info(f"Duplicate Meta status update skipped: {status_event_id}")
@@ -1427,6 +1435,21 @@ async def receive_inbound_whatsapp_message(
                 try:
                     db.commit()
                     processed_messages_count += 1
+                    try:
+                        from services.chat_broadcaster import chat_broadcaster
+                        chat_broadcaster.publish_sync("new_message", {
+                            "id": new_chat_msg.id,
+                            "customer_phone": sender_phone,
+                            "sender_type": "CUSTOMER",
+                            "message_type": msg_type,
+                            "text": raw_body,
+                            "media_url": inbound_media_url,
+                            "status": "DELIVERED",
+                            "is_read": False,
+                            "created_at": new_chat_msg.created_at.isoformat() if hasattr(new_chat_msg, "created_at") and new_chat_msg.created_at else datetime.utcnow().isoformat()
+                        })
+                    except Exception as sse_err:
+                        logger.debug(f"SSE message broadcast skipped: {sse_err}")
                 except IntegrityError:
                     db.rollback()
                     logger.info(f"Duplicate ChatMessage skipped on commit: {meta_id}")
