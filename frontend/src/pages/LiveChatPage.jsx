@@ -160,10 +160,10 @@ export default function LiveChatPage({
   }, [selectedChatPhone, chatMessages]);
 
   return (
-    <div className={`bg-white overflow-hidden flex flex-col flex-1 min-h-0 w-full ${isNativeApp ? "h-screen rounded-none border-0" : "rounded-2xl border border-gray-200 shadow-sm"}`}>
-      {/* Dedicated Native WhatsApp App Top Header */}
-      {isNativeApp && (
-        <div className="bg-[#075E54] text-white px-4 pt-[max(env(safe-area-inset-top,0px),28px)] pb-3 flex items-center justify-between shadow-md shrink-0 z-30">
+    <div className={`bg-white overflow-hidden flex flex-col flex-1 min-h-0 w-full ${isNativeApp ? "h-[100dvh] rounded-none border-0" : "rounded-2xl border border-gray-200 shadow-sm"}`}>
+      {/* Dedicated Native WhatsApp App Top Header (Shown on conversation list) */}
+      {isNativeApp && !selectedChatPhone && (
+        <div className="bg-[#075E54] text-white px-4 pt-[env(safe-area-inset-top,10px)] pb-2.5 flex items-center justify-between shadow-sm shrink-0 z-30">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full bg-[#25D366] text-black font-extrabold flex items-center justify-center text-sm shadow-inner shrink-0">
               JW
@@ -413,7 +413,7 @@ export default function LiveChatPage({
 
         {/* ── Right Column: Selected Chat Thread & Reply Box ── */}
         {selectedChatPhone ? (
-          <div className="flex-1 flex flex-col bg-[#EFEAE2]/30 min-w-0 overflow-hidden">
+          <div className="flex-1 flex flex-col bg-[#EFEAE2]/30 min-w-0 overflow-hidden h-full">
             {/* Active Conversation Header */}
             {(() => {
               const activeConv = chatConversations.find(
@@ -423,7 +423,8 @@ export default function LiveChatPage({
                 (c) => c.phone === selectedChatPhone
               );
               return (
-                <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between gap-3 shadow-xs">
+                <div className={`px-4 py-2.5 bg-white border-b border-gray-200 flex items-center justify-between gap-3 shadow-xs shrink-0 z-30 ${isNativeApp ? "pt-[env(safe-area-inset-top,10px)]" : ""}`}>
+
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Mobile Back to Conversation List button */}
                     <button
@@ -546,7 +547,7 @@ export default function LiveChatPage({
               <div
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
-                className="flex-1 p-6 overflow-y-auto space-y-3 bg-[#E5DDD5]/20 min-w-0"
+                className="flex-1 p-3 sm:p-5 overflow-y-auto space-y-2.5 bg-[#E5DDD5]/20 min-w-0 overscroll-contain"
               >
                 {chatLoading && chatMessages.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-xs text-gray-400 gap-2">
@@ -874,8 +875,8 @@ export default function LiveChatPage({
               </div>
             )}
 
-            {/* Chat Input Bar */}
-            <div className="p-3 bg-white border-t border-gray-200 relative flex-shrink-0 min-w-0 w-full">
+            {/* Chat Input Bar (Sticky Fixed at bottom of chat) */}
+            <div className="p-2 sm:p-3 bg-white border-t border-gray-200 relative flex-shrink-0 min-w-0 w-full pb-[max(env(safe-area-inset-bottom,0px),8px)] z-20">
               {/* Attachment Popup Menu */}
               {showAttachMenu && (
                 <div className="absolute bottom-16 left-4 z-30 bg-white border border-gray-200 rounded-2xl shadow-xl p-2 flex flex-col gap-1 w-52 animate-in fade-in slide-in-from-bottom-2 duration-150">

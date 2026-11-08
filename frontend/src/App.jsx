@@ -179,7 +179,7 @@ export default function App() {
       try {
         const { StatusBar, Style } = await import("@capacitor/status-bar");
         await StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-        await StatusBar.setBackgroundColor({ color: "#064e3b" }).catch(() => {});
+        await StatusBar.setBackgroundColor({ color: "#075E54" }).catch(() => {});
       } catch (e) {}
 
       try {
@@ -1110,6 +1110,13 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const newMsgs = res.data || [];
+      // Prevent state update if messages did not change
+      setChatMessages((prevMsgs) => {
+        if (prevMsgs.length === newMsgs.length && prevMsgs[prevMsgs.length - 1]?.id === newMsgs[newMsgs.length - 1]?.id) {
+          return prevMsgs;
+        }
+        return newMsgs;
+      });
       
       // Secondary sound check if specific open thread receives a new message
       if (newMsgs.length > 0) {
@@ -1128,7 +1135,6 @@ export default function App() {
         }
       }
 
-      setChatMessages(newMsgs);
       // Update local unread counter for this conversation
       setChatConversations((prev) =>
         prev.map((c) => (c.customer_phone === phone ? { ...c, unread_count: 0 } : c))
@@ -1514,14 +1520,30 @@ export default function App() {
       }
     }
 
-    const pollInterval = activeTab === "chat" ? 2500 : 15000;
-    const interval = setInterval(() => {
-      fetchChatConversations(true);
-      if (activeTab === "chat" && selectedChatPhone) {
-        fetchChatMessages(selectedChatPhone, true);
-      }
-    }, pollInterval);
-    return () => clearInterval(interval);
+    // Stagger polling: messages polled every 2.5s for fast real-time chat, conversations list polled every 8s to prevent UI re-render jitter
+    let convTimer = null;
+    let msgTimer = null;
+
+    if (activeTab === "chat") {
+      msgTimer = setInterval(() => {
+        if (selectedChatPhone) {
+          fetchChatMessages(selectedChatPhone, true);
+        }
+      }, 2500);
+
+      convTimer = setInterval(() => {
+        fetchChatConversations(true);
+      }, selectedChatPhone ? 8000 : 3000);
+    } else {
+      convTimer = setInterval(() => {
+        fetchChatConversations(true);
+      }, 15000);
+    }
+
+    return () => {
+      if (msgTimer) clearInterval(msgTimer);
+      if (convTimer) clearInterval(convTimer);
+    };
   }, [token, selectedChatPhone, activeTab]);
 
   // Periodic automatic silent background refresh for all views across the platform
@@ -1911,7 +1933,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#F8F9FA] text-[#111827] relative">
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-[#F8F9FA] text-[#111827] relative">
       {/* ── Mobile Sidebar Backdrop Overlay ── */}
       {mobileMenuOpen && (
         <div
@@ -2072,7 +2094,7 @@ export default function App() {
       </aside>}
 
       {/* ── Main Content Area ── */}
-      <main className={`flex-1 flex flex-col min-w-0 ${activeTab === "chat" ? "overflow-hidden h-screen" : "overflow-y-auto"}`}>
+      <main className={`flex-1 flex flex-col min-w-0 ${activeTab === "chat" ? "overflow-hidden h-[100dvh]" : "overflow-y-auto"}`}>
         {/* Top App Bar (Sticky on mobile and desktop, with hardware punch-hole / notch safe-area offset) */}
         {!isNativePlatform && <header className="sticky top-0 z-30 pt-[max(env(safe-area-inset-top,0px),28px)] md:pt-0 pb-3 md:pb-0 h-[calc(3.5rem+max(env(safe-area-inset-top,0px),28px))] md:h-16 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0 shadow-xs">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
