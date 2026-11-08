@@ -19,6 +19,7 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.Person;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -31,7 +32,7 @@ import java.net.URL;
 public class LiveChatSyncService extends Service {
     private static final String TAG = "JWL_ChatSync";
     private static final String CHANNEL_FOREGROUND = "jwl_sync_channel";
-    private static final String CHANNEL_MESSAGES = "jwl_incoming_messages_v2";
+    private static final String CHANNEL_MESSAGES = "jwl_incoming_messages_v3";
     private static final int FOREGROUND_NOTIFICATION_ID = 1001;
 
     private Handler handler;
@@ -50,8 +51,8 @@ public class LiveChatSyncService extends Service {
             public void run() {
                 if (isRunning) {
                     new Thread(() -> checkIncomingMessages()).start();
-                    // Poll backend every 3.5 seconds
-                    handler.postDelayed(this, 3500);
+                    // Fast background poll every 1 second for instant delivery
+                    handler.postDelayed(this, 1000);
                 }
             }
         };
@@ -91,15 +92,16 @@ public class LiveChatSyncService extends Service {
                     .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
                     .build();
 
-            // High-priority channel with custom sound and vibration for new messages
+            // High-priority channel with custom sound, heads-up, badge, and vibration
             NotificationChannel msgChannel = new NotificationChannel(
                     CHANNEL_MESSAGES,
-                    "Incoming WhatsApp Messages",
+                    "WhatsApp Conversations",
                     NotificationManager.IMPORTANCE_HIGH
             );
-            msgChannel.setDescription("Alerts for customer WhatsApp replies");
+            msgChannel.setDescription("Incoming WhatsApp customer messages");
             msgChannel.enableVibration(true);
             msgChannel.enableLights(true);
+            msgChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             msgChannel.setSound(soundUri, audioAttributes);
             manager.createNotificationChannel(msgChannel);
         }
@@ -113,8 +115,8 @@ public class LiveChatSyncService extends Service {
         );
 
         return new NotificationCompat.Builder(this, CHANNEL_FOREGROUND)
-                .setContentTitle("JWL Whatsapp Active")
-                .setContentText("Connected & listening for customer WhatsApp messages")
+                .setContentTitle("JWL Whatsapp Connected")
+                .setContentText("Syncing live customer chats in real-time")
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -124,20 +126,14 @@ public class LiveChatSyncService extends Service {
 
     private void checkIncomingMessages() {
         try {
-            // Retrieve JWT token stored by webview localStorage (Bridge/Capacitor storage or fallback endpoint)
-            SharedPreferences prefs = getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
-            String token = prefs.getString("token", "");
-            if (token == null || token.isEmpty()) {
-                // Also check default preferences
-                SharedPreferences defaultPrefs = getSharedPreferences(getPackageName() + "_preferences", Context.MODE_PRIVATE);
-                token = defaultPrefs.getString("token", "");
-            }
+            SharedPreferences defaultPrefs = getSharedPreferences(getPackageName() + "_preferences", Context.MODE_PRIVATE);
+            String token = defaultPrefs.getString("token", "");
 
-            URL url = new URL("https://jwl-whatsapp-crm.onrender.com/api/chat/conversations?limit=10");
+            URL url = new URL("https://130-210-23-25.sslip.io/api/chat/conversations?limit=10");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
+            conn.setConnectTimeout(4000);
+            conn.setReadTimeout(4000);
             if (token != null && !token.isEmpty()) {
                 conn.setRequestProperty("Authorization", "Bearer " + token);
             }
@@ -165,7 +161,7 @@ public class LiveChatSyncService extends Service {
                             String sig = phone + ":" + time + ":" + text;
 
                             if (!lastKnownSignature.isEmpty() && !lastKnownSignature.equals(sig)) {
-                                showIncomingMessageNotification(name, text, phone);
+                                showWhatsAppStyleNotification(name, text, phone);
                             }
                             lastKnownSignature = sig;
                             break;
@@ -175,11 +171,11 @@ public class LiveChatSyncService extends Service {
             }
             conn.disconnect();
         } catch (Exception e) {
-            Log.d(TAG, "Sync check: " + e.getMessage());
+            Log.d(TAG, "Sync check error: " + e.getMessage());
         }
     }
 
-    private void showIncomingMessageNotification(String customerName, String messageText, String phone) {
+    private void showWhatsAppStyleNotification(String customerName, String messageText, String phone) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -189,16 +185,28 @@ public class LiveChatSyncService extends Service {
 
         Uri soundUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + getPackageName() + "/" + R.raw.notification);
 
+        // Native WhatsApp MessagingStyle notification
+        Person customer = new Person.Builder()
+                .setName(customerName)
+                .setKey(phone)
+                .build();
+
+        NotificationCompat.MessagingStyle messagingStyle = new NotificationCompat.MessagingStyle(customer)
+                .setConversationTitle(customerName)
+                .addMessage(messageText, System.currentTimeMillis(), customer);
+
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_MESSAGES)
+                .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(customerName)
                 .setContentText(messageText)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(messageText))
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setAutoCancel(true)
+                .setStyle(messagingStyle)
                 .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
                 .setSound(soundUri)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setVibrate(new long[]{0, 200, 100, 200})
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setVibrate(new long[]{0, 250, 150, 250})
                 .build();
 
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);

@@ -1531,7 +1531,7 @@ export default function App() {
       }
     }
 
-    // Stagger polling: messages polled every 2.5s for fast real-time chat, conversations list polled every 8s to prevent UI re-render jitter
+    // Fast 1s polling for both messages and conversations when active in Live Chat
     let convTimer = null;
     let msgTimer = null;
 
@@ -1540,11 +1540,11 @@ export default function App() {
         if (selectedChatPhone) {
           fetchChatMessages(selectedChatPhone, true);
         }
-      }, 2500);
+      }, 1000);
 
       convTimer = setInterval(() => {
         fetchChatConversations(true);
-      }, selectedChatPhone ? 8000 : 3000);
+      }, 1000);
     } else {
       convTimer = setInterval(() => {
         fetchChatConversations(true);

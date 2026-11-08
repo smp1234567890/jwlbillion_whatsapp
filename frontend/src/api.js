@@ -6,7 +6,7 @@ export const isNativePlatform = typeof window !== "undefined" && (
   (window.location?.protocol === "https:" && window.location?.hostname === "localhost" && !window.location?.port)
 );
 
-export const renderProductionUrl = import.meta.env.VITE_API_URL || "https://jwl-whatsapp-crm.onrender.com";
+export const renderProductionUrl = import.meta.env.VITE_API_URL || "https://130-210-23-25.sslip.io";
 
 export function getApiBaseUrl() {
   return localStorage.getItem("mg_custom_api_url") ||
