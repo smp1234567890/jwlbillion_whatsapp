@@ -208,11 +208,13 @@ export default function LiveChatPage({
 
       {/* 2-Column WhatsApp Web Layout */}
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
-        {/* ── Left Column: Conversation Sidebar (Collapsible) ── */}
+        {/* ── Left Column: Conversation Sidebar (Full-width on mobile when no chat or list active, Collapsible on desktop) ── */}
         <div
           className={`${
-            chatListCollapsed ? "w-0 md:w-0 border-r-0 overflow-hidden hidden" : "w-80 md:w-96 border-r border-gray-200"
-          } flex flex-col bg-gray-50/60 min-h-0 transition-all duration-300 ease-in-out`}
+            selectedChatPhone ? "hidden md:flex" : "flex w-full"
+          } ${
+            chatListCollapsed ? "md:w-0 md:border-r-0 md:overflow-hidden md:hidden" : "md:w-80 lg:md:w-96 md:border-r md:border-gray-200"
+          } flex-col bg-gray-50/60 min-h-0 transition-all duration-300 ease-in-out`}
         >
           {/* Search and Filters */}
           <div className="p-3 border-b border-gray-200 space-y-2 bg-white flex-shrink-0">
@@ -375,13 +377,23 @@ export default function LiveChatPage({
               return (
                 <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between gap-3 shadow-xs">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {/* Mobile Back to Conversation List button */}
+                    <button
+                      onClick={() => handleSelectConversation("")}
+                      className="md:hidden p-1.5 -ml-1 text-gray-700 hover:bg-gray-100 rounded-lg transition shrink-0 flex items-center gap-0.5 text-xs font-semibold cursor-pointer"
+                      title="Back to conversation list"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-700" />
+                    </button>
+
+                    {/* Desktop expand chat list button */}
                     {chatListCollapsed && (
                       <button
                         onClick={() => {
                           setChatListCollapsed(false);
                           localStorage.setItem("chatListCollapsed", "false");
                         }}
-                        className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition shrink-0 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                        className="hidden md:flex p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition shrink-0 items-center gap-1 text-xs font-semibold cursor-pointer"
                         title="Show conversation list"
                       >
                         <ChevronRight className="w-4 h-4" />

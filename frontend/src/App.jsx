@@ -65,7 +65,9 @@ import {
   VolumeX,
   UserCheck,
   ShoppingBag,
-  Layers
+  Layers,
+  Menu,
+  X
 } from "lucide-react";
 import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache } from "./api";
 import FlowchartCanvas from "./components/FlowchartCanvas";
@@ -165,6 +167,7 @@ export default function App() {
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     setSearchTerm("");
+    setMobileMenuOpen(false);
     localStorage.setItem("activeTab", tabId);
     window.location.hash = tabId;
   };
@@ -259,6 +262,7 @@ export default function App() {
 
   // Layout UI States
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Search filter for lists
   const [searchTerm, setSearchTerm] = useState("");
@@ -1871,17 +1875,33 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#F8F9FA] text-[#111827]">
-      {/* ── Left Sidebar (Collapsible) ── */}
+    <div className="flex h-screen w-screen overflow-hidden bg-[#F8F9FA] text-[#111827] relative">
+      {/* ── Mobile Sidebar Backdrop Overlay ── */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-xs transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* ── Left Sidebar (Responsive Drawer on Mobile, Collapsible on Desktop) ── */}
       <aside
-        className={`${
-          sidebarCollapsed ? "w-16" : "w-64"
-        } flex-shrink-0 bg-[#111827] text-gray-300 flex flex-col justify-between border-r border-gray-800 transition-all duration-300 ease-in-out relative`}
+        className={`fixed md:relative inset-y-0 left-0 z-50 md:z-auto bg-[#111827] text-gray-300 flex flex-col justify-between border-r border-gray-800 transition-all duration-300 ease-in-out ${
+          mobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"
+        } ${sidebarCollapsed ? "md:w-16" : "md:w-64"}`}
       >
-        {/* Sidebar Collapse / Expand Floating Toggle */}
+        {/* Mobile Close Button */}
+        <button
+          onClick={() => setMobileMenuOpen(false)}
+          className="md:hidden absolute right-3 top-4 text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Sidebar Collapse / Expand Floating Toggle (Desktop only) */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="absolute -right-3 top-6 z-30 w-6 h-6 rounded-full bg-[#F5A623] hover:bg-[#E67E22] text-black flex items-center justify-center shadow-md transition transform hover:scale-110"
+          className="hidden md:flex absolute -right-3 top-6 z-30 w-6 h-6 rounded-full bg-[#F5A623] hover:bg-[#E67E22] text-black items-center justify-center shadow-md transition transform hover:scale-110"
           title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {sidebarCollapsed ? (
@@ -2014,11 +2034,20 @@ export default function App() {
       </aside>
 
       {/* ── Main Content Area ── */}
-      <main className={`flex-1 flex flex-col ${activeTab === "chat" ? "overflow-hidden h-screen" : "overflow-y-auto"}`}>
+      <main className={`flex-1 flex flex-col min-w-0 ${activeTab === "chat" ? "overflow-hidden h-screen" : "overflow-y-auto"}`}>
         {/* Top App Bar */}
-        <header className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-gray-900 capitalize">
+        <header className="h-14 sm:h-16 bg-white border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Mobile Menu Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-1.5 -ml-1 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+              title="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 capitalize truncate">
               {activeTab === "opt_out"
                 ? "Opt-Out (DND) Registry"
                 : activeTab === "chat"
@@ -2040,35 +2069,37 @@ export default function App() {
                 : activeTab.replace("_", " ")}
             </h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {activeTab !== "campaigns" && (
               <button
                 onClick={fetchData}
                 disabled={loading}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition"
+                className="p-1.5 sm:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition"
                 title="Refresh data"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? "animate-spin" : ""}`} />
               </button>
             )}
 
             {activeTab === "automations" && (
               <button
                 onClick={handleOpenNewJourneyModal}
-                className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition"
+                className="flex items-center gap-1.5 sm:gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow-xs transition"
               >
-                <Plus className="w-4 h-4" />
-                <span>Create Journey Flow</span>
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Create Journey Flow</span>
+                <span className="sm:hidden">New Flow</span>
               </button>
             )}
 
             {activeTab === "dashboard" && (
               <button
                 onClick={handleOpenCampaignModal}
-                className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition shadow-green-500/20"
+                className="flex items-center gap-1.5 sm:gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-xs transition shadow-green-500/20"
               >
-                <Plus className="w-4 h-4" />
-                New Broadcast Campaign
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">New Broadcast Campaign</span>
+                <span className="sm:hidden">Broadcast</span>
               </button>
             )}
           </div>
@@ -2076,14 +2107,14 @@ export default function App() {
 
         {/* Action Toast / Success Banner */}
         {actionSuccessMsg && (
-          <div className="mx-8 mt-4 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center justify-between">
+          <div className="mx-3.5 sm:mx-6 md:mx-8 mt-4 p-3 sm:p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center justify-between">
             <span>{actionSuccessMsg}</span>
             <button onClick={() => setActionSuccessMsg("")} className="text-emerald-600 font-bold"></button>
           </div>
         )}
 
         {/* Dynamic Views */}
-        <div className={activeTab === "chat" ? "p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-8 space-y-6"}>
+        <div className={activeTab === "chat" ? "p-2 sm:p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6"}>
           {activeTab === "dashboard" && (
             <DashboardPage
               workflowFlows={workflowFlows}
