@@ -1925,31 +1925,33 @@ export default function App() {
           <X className="w-5 h-5" />
         </button>
 
-        {/* Sidebar Collapse / Expand Floating Toggle (Desktop only) */}
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="hidden md:flex absolute -right-3 top-6 z-30 w-6 h-6 rounded-full bg-[#F5A623] hover:bg-[#E67E22] text-black items-center justify-center shadow-md transition transform hover:scale-110"
-          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {sidebarCollapsed ? (
-            <ChevronRight className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronLeft className="w-3.5 h-3.5" />
-          )}
-        </button>
-
         <div>
           {/* Brand Header */}
-          <div className={`p-4 flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3"} border-b border-gray-800`}>
-            <div className="w-10 h-10 rounded-lg bg-[#F5A623] flex items-center justify-center font-bold text-black text-xl shadow-md flex-shrink-0">
-              S
-            </div>
-            {!sidebarCollapsed && (
-              <div className="overflow-hidden whitespace-nowrap">
-                <h1 className="font-bold text-white text-base leading-tight">Scalifts</h1>
-                <span className="text-xs text-[#F5A623] font-medium tracking-wide">WhatsApp CRM</span>
+          <div className={`p-4 flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} border-b border-gray-800`}>
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-9 h-9 rounded-lg bg-[#F5A623] flex items-center justify-center font-bold text-black text-lg shadow-md flex-shrink-0">
+                S
               </div>
-            )}
+              {!sidebarCollapsed && (
+                <div className="overflow-hidden whitespace-nowrap">
+                  <h1 className="font-bold text-white text-sm leading-tight">Scalifts</h1>
+                  <span className="text-[11px] text-[#F5A623] font-medium tracking-wide">WhatsApp CRM</span>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Collapse / Expand Button cleanly integrated inside header */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden md:flex p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-4 h-4 text-[#F5A623]" />
+              ) : (
+                <ChevronLeft className="w-4 h-4" />
+              )}
+            </button>
           </div>
 
           {/* Navigation Links */}
