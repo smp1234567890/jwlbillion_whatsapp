@@ -1913,14 +1913,14 @@ export default function App() {
 
       {/* ── Left Sidebar (Responsive Drawer on Mobile, Collapsible on Desktop) ── */}
       <aside
-        className={`fixed md:relative inset-y-0 left-0 z-50 md:z-auto bg-[#111827] text-gray-300 flex flex-col justify-between border-r border-gray-800 transition-all duration-300 ease-in-out ${
+        className={`fixed md:relative inset-y-0 left-0 z-50 md:z-auto bg-[#111827] text-gray-300 flex flex-col justify-between border-r border-gray-800 transition-all duration-300 ease-in-out pt-[max(env(safe-area-inset-top,0px),8px)] md:pt-0 ${
           mobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"
         } ${sidebarCollapsed ? "md:w-16" : "md:w-64"}`}
       >
         {/* Mobile Close Button */}
         <button
           onClick={() => setMobileMenuOpen(false)}
-          className="md:hidden absolute right-3 top-4 text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition"
+          className="md:hidden absolute right-3 top-[max(env(safe-area-inset-top,0px),16px)] text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition"
         >
           <X className="w-5 h-5" />
         </button>
@@ -2064,13 +2064,13 @@ export default function App() {
 
       {/* ── Main Content Area ── */}
       <main className={`flex-1 flex flex-col min-w-0 ${activeTab === "chat" ? "overflow-hidden h-screen" : "overflow-y-auto"}`}>
-        {/* Top App Bar (Sticky on mobile and desktop) */}
-        <header className="sticky top-0 z-30 h-14 sm:h-16 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0 shadow-xs">
+        {/* Top App Bar (Sticky on mobile and desktop, with hardware punch-hole / notch safe-area offset) */}
+        <header className="sticky top-0 z-30 pt-[max(env(safe-area-inset-top,0px),28px)] md:pt-0 pb-3 md:pb-0 h-[calc(3.5rem+max(env(safe-area-inset-top,0px),28px))] md:h-16 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0 shadow-xs">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Mobile Menu Hamburger Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-1.5 -ml-1 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+              className="md:hidden p-2 -ml-1 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition shrink-0 active:scale-95"
               title="Open Navigation Menu"
             >
               <Menu className="w-5 h-5" />
