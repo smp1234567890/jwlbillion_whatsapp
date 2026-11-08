@@ -255,6 +255,29 @@ export default function App() {
     playMessageSoundHelper(chatSoundEnabled);
   };
 
+  // Push / System Notification for Live Chat Incoming Messages
+  const showChatNotification = (senderName, messageText) => {
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(`New WhatsApp from ${senderName || "Customer"}`, {
+          body: messageText || "Sent you a message",
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          vibrate: [200, 100, 200]
+        });
+      }
+    } catch (e) {
+      console.warn("Notification trigger failed:", e);
+    }
+  };
+
+  // Request browser/system notification permission on mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
   // WhatsApp Delivery & Engagement Analytics States
   const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsTimeRange, setAnalyticsTimeRange] = useState("30d");
@@ -1057,6 +1080,10 @@ export default function App() {
         } else if (lastKnownIncomingSignatureRef.current !== signature) {
           lastKnownIncomingSignatureRef.current = signature;
           playIncomingMessageSound();
+          showChatNotification(
+            latestCustomerMsg.customer_name || latestCustomerMsg.customer_phone,
+            latestCustomerMsg.last_message_text
+          );
         }
       }
     } catch (err) {
