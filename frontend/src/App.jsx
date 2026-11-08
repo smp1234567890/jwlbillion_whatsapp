@@ -186,6 +186,17 @@ export default function App() {
         const { SplashScreen } = await import("@capacitor/splash-screen");
         await SplashScreen.hide().catch(() => {});
       } catch (e) {}
+
+      // Start Native Background Live Chat Sync Service
+      try {
+        if (window.Capacitor?.registerPlugin) {
+          const LiveChatSync = window.Capacitor.registerPlugin("LiveChatSync");
+          const storedToken = localStorage.getItem("token") || "";
+          await LiveChatSync.startSync({ token: storedToken }).catch(() => {});
+        }
+      } catch (e) {
+        console.warn("LiveChatSync start error:", e);
+      }
     };
     initMobileDevice();
   }, []);

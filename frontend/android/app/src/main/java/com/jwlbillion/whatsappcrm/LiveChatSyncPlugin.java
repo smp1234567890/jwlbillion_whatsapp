@@ -1,0 +1,43 @@
+package com.jwlbillion.whatsappcrm;
+
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Build;
+import android.util.Log;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+@CapacitorPlugin(name = "LiveChatSync")
+public class LiveChatSyncPlugin extends Plugin {
+    private static final String TAG = "LiveChatSyncPlugin";
+
+    @PluginMethod
+    public void startSync(PluginCall call) {
+        try {
+            String token = call.getString("token", "");
+            if (token != null && !token.isEmpty()) {
+                SharedPreferences prefs = getContext().getSharedPreferences(getContext().getPackageName() + "_preferences", Context.MODE_PRIVATE);
+                prefs.edit().putString("token", token).apply();
+            }
+
+            Intent serviceIntent = new Intent(getContext(), LiveChatSyncService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getContext().startForegroundService(serviceIntent);
+            } else {
+                getContext().startService(serviceIntent);
+            }
+
+            JSObject ret = new JSObject();
+            ret.put("status", "running");
+            call.resolve(ret);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start LiveChatSyncService: " + e.getMessage());
+            call.reject("Failed to start sync service", e);
+        }
+    }
+}
