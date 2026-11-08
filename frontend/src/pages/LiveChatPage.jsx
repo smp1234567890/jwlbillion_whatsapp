@@ -908,6 +908,7 @@ export default function LiveChatPage({
               {/* Form Bar */}
               <form
                 onSubmit={(e) => {
+                  e.preventDefault();
                   isNearBottomRef.current = true;
                   if (selectedFile) {
                     handleSendMediaSubmit(e);
@@ -916,13 +917,13 @@ export default function LiveChatPage({
                   }
                   setTimeout(() => scrollToBottom("smooth"), 50);
                 }}
-                className="flex items-center gap-2 min-w-0 w-full"
+                className="flex items-end gap-2 min-w-0 w-full"
               >
                 {/* Paperclip Button */}
                 <button
                   type="button"
                   onClick={() => setShowAttachMenu((prev) => !prev)}
-                  className={`p-2.5 rounded-xl border transition cursor-pointer shrink-0 ${
+                  className={`p-2.5 rounded-xl border transition cursor-pointer shrink-0 mb-0.5 ${
                     showAttachMenu || selectedFile
                       ? "bg-emerald-100 text-emerald-800 border-emerald-300"
                       : "bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200 border-gray-200"
@@ -932,13 +933,13 @@ export default function LiveChatPage({
                   <Paperclip className="w-4 h-4" />
                 </button>
 
-                {/* Input Field: caption if file selected, else regular text */}
-                <input
-                  type="text"
+                {/* Multiline Textarea: Enter creates a new line, only clicking Send will dispatch */}
+                <textarea
+                  rows={1}
                   placeholder={
                     selectedFile
                       ? `Add caption for this ${selectedFileType} (optional)...`
-                      : "Type a message to reply on WhatsApp..."
+                      : "Type a message to reply on WhatsApp (Enter for new line)..."
                   }
                   value={selectedFile ? mediaCaption : chatReplyText}
                   onChange={(e) => {
@@ -947,15 +948,24 @@ export default function LiveChatPage({
                     } else {
                       setChatReplyText(e.target.value);
                     }
+                    // Auto-expand up to 5 rows
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                  }}
+                  onKeyDown={(e) => {
+                    // Do NOT send on Enter; Enter always creates a new line
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.stopPropagation();
+                    }
                   }}
                   disabled={chatSending}
-                  className="flex-1 min-w-0 px-4 py-2 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366]"
+                  className="flex-1 min-w-0 px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none max-h-32 leading-relaxed"
                 />
 
                 <button
                   type="submit"
                   disabled={(!selectedFile && !chatReplyText.trim()) || chatSending}
-                  className="px-5 py-2 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer"
+                  className="px-5 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer mb-0.5"
                 >
                   {chatSending ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
