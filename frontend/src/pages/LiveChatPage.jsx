@@ -73,6 +73,7 @@ export default function LiveChatPage({
   const [selectedFileType, setSelectedFileType] = useState("document");
   const [mediaCaption, setMediaCaption] = useState("");
   const fileInputRef = useRef(null);
+  const replyInputRef = useRef(null);
 
   const handleFilePicked = (e, forcedType = null) => {
     const file = e.target.files?.[0];
@@ -141,6 +142,9 @@ export default function LiveChatPage({
       isNearBottomRef.current = true;
       setShowScrollBottomBtn(false);
       prevMessagesLengthRef.current = chatMessages.length;
+      if (replyInputRef.current) {
+        replyInputRef.current.style.height = "auto";
+      }
       scrollToBottom("auto");
       return;
     }
@@ -959,6 +963,7 @@ export default function LiveChatPage({
                   } else {
                     handleSendChatMessage(e);
                   }
+                  if (replyInputRef.current) { replyInputRef.current.style.height = "auto"; }
                   setTimeout(() => scrollToBottom("smooth"), 50);
                 }}
                 className="flex items-end gap-2 min-w-0 w-full"
@@ -979,6 +984,7 @@ export default function LiveChatPage({
 
                 {/* Multiline Textarea: Enter creates a new line, only clicking Send will dispatch */}
                 <textarea
+                  ref={replyInputRef}
                   rows={1}
                   placeholder={
                     selectedFile
@@ -992,9 +998,10 @@ export default function LiveChatPage({
                     } else {
                       setChatReplyText(e.target.value);
                     }
-                    // Auto-expand up to 5 rows
                     e.target.style.height = "auto";
-                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                    if (e.target.value) {
+                      e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                    }
                   }}
                   onKeyDown={(e) => {
                     // Do NOT send on Enter; Enter always creates a new line
@@ -1003,7 +1010,7 @@ export default function LiveChatPage({
                     }
                   }}
                   disabled={chatSending}
-                  className="flex-1 min-w-0 px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none max-h-32 leading-relaxed"
+                  className="flex-1 min-w-0 h-[42px] px-4 py-2 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none max-h-32 leading-relaxed box-border overflow-y-auto"
                 />
 
                 <button
