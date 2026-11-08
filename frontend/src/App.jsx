@@ -2035,8 +2035,8 @@ export default function App() {
 
       {/* ── Main Content Area ── */}
       <main className={`flex-1 flex flex-col min-w-0 ${activeTab === "chat" ? "overflow-hidden h-screen" : "overflow-y-auto"}`}>
-        {/* Top App Bar */}
-        <header className="h-14 sm:h-16 bg-white border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0">
+        {/* Top App Bar (Sticky on mobile and desktop) */}
+        <header className="sticky top-0 z-30 h-14 sm:h-16 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0 shadow-xs">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Mobile Menu Hamburger Button */}
             <button
