@@ -202,7 +202,20 @@ export default function App() {
   }, []);
 
 
-  const [campaigns, setCampaigns] = useState([]);
+  // Synchronize Native Android Background Live Chat Sync Service whenever auth token changes
+  useEffect(() => {
+    if (!token) return;
+    try {
+      if (window.Capacitor?.registerPlugin) {
+        const LiveChatSync = window.Capacitor.registerPlugin("LiveChatSync");
+        LiveChatSync.startSync({ token }).catch((err) => {
+          console.warn("LiveChatSync token update failed:", err);
+        });
+      }
+    } catch (e) {
+      console.warn("LiveChatSync error:", e);
+    }
+  }, [token]);
   const [contacts, setContacts] = useState([]);
   const [discountCodes, setDiscountCodes] = useState([]);
   const [cartEvents, setCartEvents] = useState([]);
@@ -873,6 +886,12 @@ export default function App() {
       if (res.data.refresh_token) {
         localStorage.setItem("refresh_token", res.data.refresh_token);
       }
+      try {
+        if (window.Capacitor?.registerPlugin) {
+          const LiveChatSync = window.Capacitor.registerPlugin("LiveChatSync");
+          LiveChatSync.startSync({ token: jwt }).catch(() => {});
+        }
+      } catch (e) {}
     } catch (err) {
       if (!err.response) {
         setLoginError(
@@ -904,6 +923,12 @@ export default function App() {
       if (res.data.refresh_token) {
         localStorage.setItem("refresh_token", res.data.refresh_token);
       }
+      try {
+        if (window.Capacitor?.registerPlugin) {
+          const LiveChatSync = window.Capacitor.registerPlugin("LiveChatSync");
+          LiveChatSync.startSync({ token: jwt }).catch(() => {});
+        }
+      } catch (e) {}
       setTwoFactorRequired(false);
       setTwoFactorTempToken("");
       setTwoFactorCode("");

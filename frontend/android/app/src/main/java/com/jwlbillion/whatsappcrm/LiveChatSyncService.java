@@ -128,6 +128,10 @@ public class LiveChatSyncService extends Service {
         try {
             SharedPreferences defaultPrefs = getSharedPreferences(getPackageName() + "_preferences", Context.MODE_PRIVATE);
             String token = defaultPrefs.getString("token", "");
+            if (token == null || token.isEmpty()) {
+                // If not yet saved in preferences, skip network call to prevent 401s
+                return;
+            }
 
             URL url = new URL("https://130-210-23-25.sslip.io/api/chat/conversations?limit=10");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
