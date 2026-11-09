@@ -40,4 +40,19 @@ public class LiveChatSyncPlugin extends Plugin {
             call.reject("Failed to start sync service", e);
         }
     }
+
+    @PluginMethod
+    public void getPendingChat(PluginCall call) {
+        try {
+            SharedPreferences prefs = getContext().getSharedPreferences(getContext().getPackageName() + "_preferences", Context.MODE_PRIVATE);
+            String phone = prefs.getString("pending_chat_phone", "");
+            prefs.edit().remove("pending_chat_phone").apply();
+
+            JSObject ret = new JSObject();
+            ret.put("phone", phone);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Failed to get pending chat", e);
+        }
+    }
 }

@@ -872,7 +872,7 @@ export default function LiveChatPage({
             )}
 
             {/* Chat Input Bar (Sticky Fixed at bottom of chat) */}
-            <div className="p-2 sm:p-3 bg-white border-t border-gray-200 relative flex-shrink-0 min-w-0 w-full pb-[max(env(safe-area-inset-bottom,0px),8px)] z-20">
+            <div className="p-2 sm:p-3 bg-white border-t border-gray-200 relative flex-shrink-0 min-w-0 w-full pb-2 z-20">
               {/* Attachment Popup Menu */}
               {showAttachMenu && (
                 <div className="absolute bottom-16 left-4 z-30 bg-white border border-gray-200 rounded-2xl shadow-xl p-2 flex flex-col gap-1 w-52 animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -985,8 +985,8 @@ export default function LiveChatPage({
                   rows={1}
                   placeholder={
                     selectedFile
-                      ? `Add caption for this ${selectedFileType} (optional)...`
-                      : "Type a message to reply on WhatsApp (Enter for new line)..."
+                      ? `Add caption for this ${selectedFileType}...`
+                      : "Type a message..."
                   }
                   value={selectedFile ? mediaCaption : chatReplyText}
                   onChange={(e) => {
@@ -1007,7 +1007,7 @@ export default function LiveChatPage({
                     }
                   }}
                   disabled={chatSending}
-                  className="flex-1 min-w-0 h-[42px] px-4 py-2 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none max-h-32 leading-relaxed box-border overflow-y-auto"
+                  className="flex-1 min-w-0 h-[42px] px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none max-h-32 leading-snug box-border overflow-hidden whitespace-nowrap"
                 />
 
                 <button

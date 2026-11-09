@@ -182,6 +182,7 @@ public class LiveChatSyncService extends Service {
     private void showWhatsAppStyleNotification(String customerName, String messageText, String phone) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.putExtra("chat_phone", phone);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this, (int) System.currentTimeMillis(), intent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT

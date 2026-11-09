@@ -211,6 +211,17 @@ export default function App() {
         LiveChatSync.startSync({ token }).catch((err) => {
           console.warn("LiveChatSync token update failed:", err);
         });
+
+        // Check if app was opened via notification tap for a specific conversation
+        LiveChatSync.getPendingChat()
+          .then((res) => {
+            if (res && res.phone) {
+              setActiveTab("chat");
+              setSelectedChatPhone(res.phone);
+              fetchChatMessages(res.phone, false);
+            }
+          })
+          .catch(() => {});
       }
     } catch (e) {
       console.warn("LiveChatSync error:", e);
@@ -239,9 +250,10 @@ export default function App() {
   const [chatConversations, setChatConversations] = useState([]);
   const [selectedChatPhone, setSelectedChatPhone] = useState(null);
 
-  // Android Hardware Back Button Handling
+  // Android Hardware Back Button Handling & Resume Handling
   useEffect(() => {
     let unlisten = null;
+    let resumeUnlisten = null;
     const registerBackButton = async () => {
       try {
         const { App: CapApp } = await import("@capacitor/app");
@@ -261,11 +273,30 @@ export default function App() {
           }
         });
         unlisten = () => listener.remove();
+
+        const resumeListener = await CapApp.addListener("appStateChange", ({ isActive }) => {
+          if (isActive && window.Capacitor?.registerPlugin) {
+            try {
+              const LiveChatSync = window.Capacitor.registerPlugin("LiveChatSync");
+              LiveChatSync.getPendingChat()
+                .then((res) => {
+                  if (res && res.phone) {
+                    setActiveTab("chat");
+                    setSelectedChatPhone(res.phone);
+                    fetchChatMessages(res.phone, false);
+                  }
+                })
+                .catch(() => {});
+            } catch (err) {}
+          }
+        });
+        resumeUnlisten = () => resumeListener.remove();
       } catch (e) {}
     };
     registerBackButton();
     return () => {
       if (unlisten) unlisten();
+      if (resumeUnlisten) resumeUnlisten();
     };
   }, [activeTab, selectedChatPhone]);
   const [chatMessages, setChatMessages] = useState([]);
