@@ -62,6 +62,61 @@ export function getTodayISTDateString() {
   return formatter.format(now); // "YYYY-MM-DD"
 }
 
+export function formatChatDateDivider(dateStr) {
+  if (!dateStr) return "";
+  let s = String(dateStr).trim();
+  if (!s.endsWith("Z") && !s.includes("+") && !s.slice(10).includes("-")) {
+    s += "Z";
+  }
+  const msgDate = new Date(s);
+  if (isNaN(msgDate.getTime())) return "";
+
+  // Get current date in IST
+  const now = new Date();
+  const istFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+
+  const msgISTDate = istFormatter.format(msgDate); // "YYYY-MM-DD"
+  const todayISTDate = istFormatter.format(now);
+
+  const yesterday = new Date(now.getTime() - 86400000);
+  const yesterdayISTDate = istFormatter.format(yesterday);
+
+  if (msgISTDate === todayISTDate) {
+    return "Today";
+  }
+  if (msgISTDate === yesterdayISTDate) {
+    return "Yesterday";
+  }
+
+  return msgDate.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+export function getMessageISTDateKey(dateStr) {
+  if (!dateStr) return "";
+  let s = String(dateStr).trim();
+  if (!s.endsWith("Z") && !s.includes("+") && !s.slice(10).includes("-")) {
+    s += "Z";
+  }
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(d);
+}
+
 export function formatScheduleDisplay(dateStr) {
   if (!dateStr) return null;
   let s = String(dateStr).trim();

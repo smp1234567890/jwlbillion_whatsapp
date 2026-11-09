@@ -32,7 +32,7 @@ import {
   ThumbsDown,
   LogOut
 } from "lucide-react";
-import { formatToISTTime } from "../utils/dateUtils";
+import { formatToISTTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
 import { getApiBaseUrl } from "../api";
 
 export default function LiveChatPage({
@@ -561,11 +561,23 @@ export default function LiveChatPage({
                 ) : (
                   chatMessages.map((msg, index) => {
                     const isAgent = msg.sender_type === "AGENT";
+                    const currentDateKey = getMessageISTDateKey(msg.created_at);
+                    const prevDateKey = index > 0 ? getMessageISTDateKey(chatMessages[index - 1]?.created_at) : null;
+                    const showDateDivider = index === 0 || (currentDateKey && currentDateKey !== prevDateKey);
+                    const dividerText = showDateDivider ? formatChatDateDivider(msg.created_at) : "";
+
                     return (
-                      <div
-                        key={msg.id || index}
-                        className={`flex group/msg ${isAgent ? "justify-end" : "justify-start"} mb-1.5`}
-                      >
+                      <React.Fragment key={msg.id || index}>
+                        {showDateDivider && dividerText && (
+                          <div className="flex justify-center my-3 select-none">
+                            <span className="bg-white/80 backdrop-blur-xs text-gray-500 text-[11px] font-semibold px-3 py-1 rounded-full shadow-xs border border-gray-200/60 uppercase tracking-wider">
+                              {dividerText}
+                            </span>
+                          </div>
+                        )}
+                        <div
+                          className={`flex group/msg ${isAgent ? "justify-end" : "justify-start"} mb-1.5`}
+                        >
                         <div
                           className={`max-w-[85%] md:max-w-lg break-words rounded-2xl px-4 py-2.5 shadow-xs text-sm relative group ${
                             isAgent
@@ -780,7 +792,8 @@ export default function LiveChatPage({
                           </div>
                         </div>
                       </div>
-                    );
+                    </React.Fragment>
+                  );
                   })
                 )}
                 <div ref={messagesEndRef} />
