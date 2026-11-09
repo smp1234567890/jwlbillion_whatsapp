@@ -885,7 +885,7 @@ export default function LiveChatPage({
             )}
 
             {/* Chat Input Bar (Sticky Fixed at bottom of chat) */}
-            <div className="p-2 sm:p-3 bg-white border-t border-gray-200 relative flex-shrink-0 min-w-0 w-full pb-2 z-20">
+            <div className="p-2 sm:p-3 bg-white border-t border-gray-200 relative flex-shrink-0 min-w-0 w-full pb-[max(env(safe-area-inset-bottom,0px),16px)] z-20">
               {/* Attachment Popup Menu */}
               {showAttachMenu && (
                 <div className="absolute bottom-16 left-4 z-30 bg-white border border-gray-200 rounded-2xl shadow-xl p-2 flex flex-col gap-1 w-52 animate-in fade-in slide-in-from-bottom-2 duration-150">
