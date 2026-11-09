@@ -74,14 +74,16 @@ public class LiveChatSyncService extends Service {
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager == null) return;
 
-            // Low-priority silent channel for background sync indicator
+            // Minimum-priority silent channel for background sync indicator
             NotificationChannel fgChannel = new NotificationChannel(
                     CHANNEL_FOREGROUND,
                     "Live Sync Service",
-                    NotificationManager.IMPORTANCE_LOW
+                    NotificationManager.IMPORTANCE_MIN
             );
             fgChannel.setDescription("Keeps JWL Whatsapp connected to receive messages when closed");
             fgChannel.setShowBadge(false);
+            fgChannel.setSound(null, null);
+            fgChannel.enableVibration(false);
             manager.createNotificationChannel(fgChannel);
 
             // Custom sound uri from raw resources
@@ -120,7 +122,8 @@ public class LiveChatSyncService extends Service {
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
                 .build();
     }
 
