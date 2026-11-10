@@ -62,7 +62,16 @@ public class LiveChatSyncService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (!isRunning) {
             isRunning = true;
-            startForeground(FOREGROUND_NOTIFICATION_ID, buildForegroundNotification());
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(FOREGROUND_NOTIFICATION_ID, buildForegroundNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+                } else {
+                    startForeground(FOREGROUND_NOTIFICATION_ID, buildForegroundNotification());
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error starting foreground service: " + e.getMessage());
+                startForeground(FOREGROUND_NOTIFICATION_ID, buildForegroundNotification());
+            }
             handler.post(pollRunnable);
             Log.i(TAG, "LiveChatSyncService started in foreground");
         }
@@ -78,7 +87,7 @@ public class LiveChatSyncService extends Service {
             NotificationChannel fgChannel = new NotificationChannel(
                     CHANNEL_FOREGROUND,
                     "Live Sync Service",
-                    NotificationManager.IMPORTANCE_MIN
+                    NotificationManager.IMPORTANCE_LOW
             );
             fgChannel.setDescription("Keeps JWL Whatsapp connected to receive messages when closed");
             fgChannel.setShowBadge(false);
@@ -122,8 +131,7 @@ public class LiveChatSyncService extends Service {
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_MIN)
-                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build();
     }
 
