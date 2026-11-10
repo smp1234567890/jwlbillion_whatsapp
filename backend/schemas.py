@@ -374,6 +374,12 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class DeviceTokenRegisterRequest(BaseModel):
+    token: str = Field(..., min_length=10, description="FCM device token")
+    platform: Optional[str] = Field("android", description="Device platform (android / ios / web)")
+    device_name: Optional[str] = Field(None, description="Optional device model or browser info")
+
+
 class TwoFactorSetupResponse(BaseModel):
     secret: str
     otpauth_url: str

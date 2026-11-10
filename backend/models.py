@@ -438,3 +438,20 @@ class LinkClick(Base):
     ip_address = Column(String(50), nullable=True)
     clicked_at = Column(DateTime, default=datetime.utcnow, index=True)
 
+
+class DeviceToken(Base):
+    """
+    Stores registered FCM device tokens for mobile agents/admins.
+    Enables instant high-priority push notifications when messages arrive on WhatsApp.
+    """
+    __tablename__ = "device_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    token = Column(String(512), unique=True, index=True, nullable=False)
+    platform = Column(String(20), default="android")  # "android", "ios", "web"
+    device_name = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+

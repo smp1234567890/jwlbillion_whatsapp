@@ -1450,6 +1450,19 @@ async def receive_inbound_whatsapp_message(
                         })
                     except Exception as sse_err:
                         logger.debug(f"SSE message broadcast skipped: {sse_err}")
+
+                    # Trigger WhatsApp FCM Push Notification to wake up all registered Android agent devices
+                    try:
+                        from services.fcm_service import send_chat_push_notification
+                        push_name = existing_contact.name if existing_contact else profile_name
+                        send_chat_push_notification(
+                            db=db,
+                            customer_name=push_name or sender_phone,
+                            message_text=raw_body or f"Sent a {msg_type}",
+                            customer_phone=sender_phone
+                        )
+                    except Exception as fcm_err:
+                        logger.warning(f"FCM push dispatch failed: {fcm_err}")
                 except IntegrityError:
                     db.rollback()
                     logger.info(f"Duplicate ChatMessage skipped on commit: {meta_id}")

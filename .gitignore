@@ -40,3 +40,9 @@ Thumbs.db
 uploads/
 backend/uploads/
 
+# Firebase & Secret credentials
+*firebase-adminsdk*.json
+google-services.json
+database.db
+*.apk
+

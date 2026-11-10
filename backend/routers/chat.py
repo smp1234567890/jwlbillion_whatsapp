@@ -543,4 +543,24 @@ async def chat_events_stream(
     )
 
 
+@router.post("/register-device-token")
+def register_device_token_endpoint(
+    req: schemas.DeviceTokenRegisterRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Registers or updates an FCM device token for push notifications.
+    Associates the token with the authenticated agent/admin user.
+    """
+    from services.fcm_service import register_device_token
+    token_record = register_device_token(
+        db=db,
+        token=req.token,
+        user_id=current_user.id,
+        platform=req.platform or "android"
+    )
+    return {"status": "ok", "message": "Device token registered successfully", "id": token_record.id if token_record else None}
+
+
 

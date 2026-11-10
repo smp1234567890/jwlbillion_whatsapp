@@ -197,6 +197,48 @@ export default function App() {
       } catch (e) {
         console.warn("LiveChatSync start error:", e);
       }
+
+      // Initialize Firebase Cloud Messaging (FCM) Push Notifications
+      try {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        let permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive === "prompt") {
+          permStatus = await PushNotifications.requestPermissions();
+        }
+        if (permStatus.receive === "granted") {
+          await PushNotifications.register();
+
+          // Listen for registration success to register device token
+          PushNotifications.addListener("registration", async (tokenData) => {
+            console.log("FCM Device Token registered:", tokenData.value);
+            const currentJwt = localStorage.getItem("token");
+            if (currentJwt && tokenData.value) {
+              try {
+                await axios.post(
+                  "/api/chat/register-device-token",
+                  { token: tokenData.value, platform: "android" },
+                  { headers: { Authorization: `Bearer ${currentJwt}` } }
+                );
+              } catch (regErr) {
+                console.warn("FCM token backend sync failed:", regErr);
+              }
+            }
+          });
+
+          // Handle Notification Click (user taps FCM push)
+          PushNotifications.addListener("pushNotificationActionPerformed", (notification) => {
+            const data = notification?.notification?.data;
+            const chatPhone = data?.chat_phone;
+            if (chatPhone) {
+              setActiveTab("chat");
+              setSelectedChatPhone(chatPhone);
+              fetchChatMessages(chatPhone, false);
+            }
+          });
+        }
+      } catch (pushErr) {
+        console.warn("PushNotifications initialization skipped/failed:", pushErr);
+      }
     };
     initMobileDevice();
   }, []);
