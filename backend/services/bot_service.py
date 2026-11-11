@@ -26,17 +26,20 @@ from whatsapp_service import send_whatsapp_free_text, send_whatsapp_interactive,
 logger = logging.getLogger("bot_service")
 
 GREETING_WORDS = {
-    "hi", "hello", "hey", "namaste", "kem cho", "kemcho", "halo", "ola",
+    "hi", "hello", "hey", "namaste", "namaskar", "kya haal", "kya haal hai", "kaisa hai", "kaise ho",
+    "ram ram", "radhe radhe", "jai shri krishna", "pranam", "salaam", "adaab",
     "hi there", "hey there", "heya", "hiya", "howdy", "sup", "yo", "yoo", "yoyoo",
     "good morning", "good afternoon", "good evening", "good night", "start", "menu"
 }
 
 GREETING_PHRASES = [
-    "hi there", "hey there", "good morning", "good afternoon", "good evening", "good night", "kem cho", "help with my order"
+    "hi there", "hey there", "good morning", "good afternoon", "good evening", "good night",
+    "kaise ho", "kya haal", "namaste", "help with my order"
 ]
 
 ORDER_QUERY_TRIGGERS = [
-    "order", "track", "tracking", "status", "where is my order", "parcel", "shipment", "delivery", "kaha hai", "dispatch"
+    "order", "track", "tracking", "status", "where is my order", "parcel", "shipment", "delivery",
+    "kaha hai", "kaha pahucha", "kab aayega", "kab milega", "dispatch"
 ]
 
 
@@ -576,9 +579,9 @@ def handle_inbound_auto_reply(
         return res
 
     # -------------------------------------------------------------
-    # 5. Check for Designs / Catalog Inquiry (e.g. "design", "designs", "photo", "catalog")
+    # 6. Check for Designs / Catalog Inquiry (e.g. "design", "designs", "photo", "catalog", "bhejo", "dikhao")
     # -------------------------------------------------------------
-    is_design_query = bool(re.search(r"\b(?:design|designs|catalog|photos?|pics?|collection|sample|samples)\b", text_clean))
+    is_design_query = bool(re.search(r"\b(?:design|designs|catalog|photos?|pics?|collection|sample|samples|bhejo|dikhao|dekhao|photo bhejo|design bhejo|tasveer)\b", text_clean))
     if is_design_query:
         shopify_res = fetch_shopify_products(limit=10)
         products = shopify_res.get("products", [])
