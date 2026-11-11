@@ -346,8 +346,15 @@ def handle_inbound_auto_reply(
                     f"• Price: ₹{float(p_first.get('price') or 0):,.0f}\n"
                     f"• View Design: {p_first.get('product_url') or 'https://jwlbillion.com/'}"
                 )
-                send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
-                _save_bot_message(db, sender_phone, f"[Photo] {p_cap}", None)
+                media_res = send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
+                _save_bot_message(
+                    db,
+                    sender_phone,
+                    f"*{p_first['title']}*\nPrice: ₹{float(p_first.get('price') or 0):,.0f}",
+                    media_res.get("message_id"),
+                    media_url=p_first["image_url"],
+                    message_type="image"
+                )
 
             msg = "💎 *JWL Billion Trending Pendant Set Designs* 💎\n\nHere are some of our top pendant designs:\n\n"
             for i, p in enumerate(items_to_show, 1):
@@ -375,8 +382,15 @@ def handle_inbound_auto_reply(
                         f"• Price: ₹{float(first_p.get('price') or 0):,.0f}\n"
                         f"• View Design: {first_p.get('product_url') or 'https://jwlbillion.com/'}"
                     )
-                    send_whatsapp_media(sender_phone, "image", media_url=first_img, caption=caption_first, db=db)
-                    _save_bot_message(db, sender_phone, f"[Photo] {caption_first}", None)
+                    media_res = send_whatsapp_media(sender_phone, "image", media_url=first_img, caption=caption_first, db=db)
+                    _save_bot_message(
+                        db,
+                        sender_phone,
+                        f"*{first_p['title']}*\nPrice: ₹{float(first_p.get('price') or 0):,.0f}",
+                        media_res.get("message_id"),
+                        media_url=first_img,
+                        message_type="image"
+                    )
 
                 msg = "🌟 *JWL Billion Bestselling Designs* 🌟\n\nHere are our top customer favorites:\n\n"
                 for i, p in enumerate(products[:4], 1):
@@ -492,8 +506,15 @@ def handle_inbound_auto_reply(
                 f"• Price: ₹{float(p_first.get('price') or 0):,.0f}\n"
                 f"• View Design: {p_first.get('product_url') or 'https://jwlbillion.com/'}"
             )
-            send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
-            _save_bot_message(db, sender_phone, f"[Photo] {p_cap}", None)
+            media_res = send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
+            _save_bot_message(
+                db,
+                sender_phone,
+                f"*{p_first['title']}*\nPrice: ₹{float(p_first.get('price') or 0):,.0f}",
+                media_res.get("message_id"),
+                media_url=p_first["image_url"],
+                message_type="image"
+            )
 
         msg = "💎 *JWL Billion Pendant Sets & Necklaces* 💎\n\nHere are some of our trending designs:\n\n"
         for i, p in enumerate(items_to_show, 1):
@@ -531,8 +552,15 @@ def handle_inbound_auto_reply(
                 f"• Price: ₹{float(c_first.get('price') or 0):,.0f}\n"
                 f"• Link: {c_first.get('product_url') or 'https://jwlbillion.com/'}"
             )
-            send_whatsapp_media(sender_phone, "image", media_url=c_first["image_url"], caption=c_cap, db=db)
-            _save_bot_message(db, sender_phone, f"[Photo] {c_cap}", None)
+            media_res = send_whatsapp_media(sender_phone, "image", media_url=c_first["image_url"], caption=c_cap, db=db)
+            _save_bot_message(
+                db,
+                sender_phone,
+                f"*{c_first['title']}*\nPrice: ₹{float(c_first.get('price') or 0):,.0f}",
+                media_res.get("message_id"),
+                media_url=c_first["image_url"],
+                message_type="image"
+            )
 
         msg = "⛓️ *JWL Billion Chains & Necklaces Collection* ⛓️\n\nHere are some of our popular designs:\n\n"
         for i, p in enumerate(items_to_show, 1):
@@ -561,8 +589,15 @@ def handle_inbound_auto_reply(
                 f"• Price: ₹{float(first_p.get('price') or 0):,.0f}\n"
                 f"• View Design: {first_p.get('product_url') or 'https://jwlbillion.com/'}"
             )
-            send_whatsapp_media(sender_phone, "image", media_url=first_p["image_url"], caption=first_cap, db=db)
-            _save_bot_message(db, sender_phone, f"[Photo] {first_cap}", None)
+            media_res = send_whatsapp_media(sender_phone, "image", media_url=first_p["image_url"], caption=first_cap, db=db)
+            _save_bot_message(
+                db,
+                sender_phone,
+                f"*{first_p['title']}*\nPrice: ₹{float(first_p.get('price') or 0):,.0f}",
+                media_res.get("message_id"),
+                media_url=first_p["image_url"],
+                message_type="image"
+            )
 
         msg = "✨ *JWL Billion Handcrafted Jewelry Designs* ✨\n\nHere are some of our trending designs:\n\n"
         for i, p in enumerate(products[:4], 1):
@@ -621,15 +656,23 @@ def _format_order_details(order: Optional[dict], order_num: str) -> str:
         )
 
 
-def _save_bot_message(db: Optional[Session], sender_phone: str, text: str, msg_id: Optional[str]):
+def _save_bot_message(
+    db: Optional[Session],
+    sender_phone: str,
+    text: str,
+    msg_id: Optional[str],
+    media_url: Optional[str] = None,
+    message_type: str = "text"
+):
     if not db:
         return
     try:
         chat_entry = models.ChatMessage(
             customer_phone=sender_phone,
             sender_type="AGENT",
-            message_type="text",
+            message_type=message_type,
             text=text,
+            media_url=media_url,
             meta_message_id=msg_id,
             status="SENT" if msg_id and not msg_id.startswith("sim_") else "DELIVERED",
             is_read=True

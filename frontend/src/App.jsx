@@ -1274,6 +1274,8 @@ export default function App() {
   };
 
   const handleSelectConversation = (phone) => {
+    isInitialChatLoadRef.current = true;
+    lastProcessedMessageIdRef.current = null;
     setSelectedChatPhone(phone);
     try {
       const cached = localStorage.getItem(`cached_msgs_${phone}`);
@@ -1281,6 +1283,7 @@ export default function App() {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setChatMessages(parsed);
+          lastProcessedMessageIdRef.current = parsed[parsed.length - 1]?.id;
         }
       }
     } catch {}
