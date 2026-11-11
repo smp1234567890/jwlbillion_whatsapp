@@ -42,6 +42,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Default FCM notification channel with sound & high priority -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="jwl_incoming_messages_v4" />
     </application>
 
     <!-- Permissions -->

@@ -288,8 +288,15 @@ export default function App() {
   const [testEmailLoading, setTestEmailLoading] = useState(false);
   const [testEmailFeedback, setTestEmailFeedback] = useState(null);
 
-  // Two-Way WhatsApp Live Chat States
-  const [chatConversations, setChatConversations] = useState([]);
+  // Two-Way WhatsApp Live Chat States (cached in localStorage for instant 0ms first render)
+  const [chatConversations, setChatConversations] = useState(() => {
+    try {
+      const cached = localStorage.getItem("cached_chat_conversations");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [selectedChatPhone, setSelectedChatPhone] = useState(null);
 
   // Android Hardware Back Button Handling & Resume Handling
@@ -1094,6 +1101,11 @@ export default function App() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
 
+      // On native mobile app, load chat conversations FIRST and immediately
+      if (isNativePlatform || activeTab === "chat") {
+        fetchChatConversations(true);
+      }
+
       // ── Priority 1: Instant First Paint Data ──
       // Fetch only what's required for dashboard/initial navigation
       const [contRes, wfRes, tmplRes, campRes] = await Promise.all([
@@ -1184,6 +1196,9 @@ export default function App() {
       });
       const convs = res.data || [];
       setChatConversations(convs);
+      try {
+        localStorage.setItem("cached_chat_conversations", JSON.stringify(convs.slice(0, 100)));
+      } catch {}
 
       // Global check across all conversations for any new incoming customer message:
       const latestCustomerMsg = convs.find(

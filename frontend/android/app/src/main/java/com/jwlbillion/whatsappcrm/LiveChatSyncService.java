@@ -32,7 +32,7 @@ import java.net.URL;
 public class LiveChatSyncService extends Service {
     private static final String TAG = "JWL_ChatSync";
     private static final String CHANNEL_FOREGROUND = "jwl_sync_channel";
-    private static final String CHANNEL_MESSAGES = "jwl_incoming_messages_v3";
+    private static final String CHANNEL_MESSAGES = "jwl_incoming_messages_v4";
     private static final int FOREGROUND_NOTIFICATION_ID = 1001;
 
     private Handler handler;

@@ -89,7 +89,8 @@ def send_chat_push_notification(db: Session, customer_name: str, message_text: s
                 icon="ic_launcher",
                 color="#064e3b",
                 sound="notification",
-                channel_id="jwl_incoming_messages_v3",
+                channel_id="jwl_incoming_messages_v4",
+                visibility="public",
                 click_action="FLUTTER_NOTIFICATION_CLICK"
             ),
             data={
@@ -137,3 +138,4 @@ def send_chat_push_notification(db: Session, customer_name: str, message_text: s
     except Exception as e:
         logger.error(f"FCM broadcast error: {e}", exc_info=True)
         return 0
+
