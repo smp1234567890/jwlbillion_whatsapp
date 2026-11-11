@@ -119,6 +119,16 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                     "title": "Shop & Explore",
                     "rows": [
                         {
+                            "id": "menu_products_list",
+                            "title": "🛍️ Which Products You Have",
+                            "description": "Categories & jewellery we offer"
+                        },
+                        {
+                            "id": "menu_pendant_sets",
+                            "title": "💎 Pendant Set Design",
+                            "description": "View trending pendant necklace sets"
+                        },
+                        {
                             "id": "menu_bestsellers",
                             "title": "🌟 See Bestsellers",
                             "description": "View our top-rated jewelry designs"
@@ -130,7 +140,7 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                         },
                         {
                             "id": "menu_price_avail",
-                            "title": "💎 Price & Availability",
+                            "title": "🏷️ Price & Availability",
                             "description": "Check pricing & stock on designs"
                         },
                         {
@@ -299,6 +309,59 @@ def handle_inbound_auto_reply(
             _save_bot_message(db, sender_phone, text_reply, res.get("message_id"))
             return res
 
+        elif sel_id == "menu_products_list":
+            text_reply = (
+                "🛍️ *JWL Billion Jewelry Collections* 🛍️\n\n"
+                "We craft premium, high-quality jewelry across multiple categories:\n\n"
+                "• *Pendant Sets & Necklaces* — American diamond & gold-plated\n"
+                "• *Chains & Mala* — Classic, box chain, double ball drops\n"
+                "• *Earrings & Studs* — Daily wear & bridal designs\n"
+                "• *Bangles & Kadas* — Traditional & modern styles\n"
+                "• *Bracelets & Anklets* — Elegant charms & luxury links\n"
+                "• *Rings* — Adjustable & statement stones\n"
+                "• *Healing Crystals & Stones* — Natural energy stones\n\n"
+                "🔗 *Explore full catalogue:* https://jwlbillion.com/\n\n"
+                "Tell us which category you'd like to see, and we'll share photos & prices right here!"
+            )
+            res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
+            _save_bot_message(db, sender_phone, text_reply, res.get("message_id"))
+            return res
+
+        elif sel_id == "menu_pendant_sets":
+            shopify_res = fetch_shopify_products(limit=50)
+            all_prods = shopify_res.get("products", [])
+            pendants = [
+                p for p in all_prods
+                if "pendant" in p.get("title", "").lower()
+                or "pendant" in str(p.get("tags", "")).lower()
+                or "necklace" in p.get("title", "").lower()
+            ]
+            items_to_show = pendants[:4] if pendants else all_prods[:4]
+
+            # Send photo of the first pendant design if available
+            if items_to_show and items_to_show[0].get("image_url"):
+                p_first = items_to_show[0]
+                p_cap = (
+                    f"💎 *{p_first['title']}*\n"
+                    f"• Price: ₹{float(p_first.get('price') or 0):,.0f}\n"
+                    f"• View Design: {p_first.get('product_url') or 'https://jwlbillion.com/'}"
+                )
+                send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
+                _save_bot_message(db, sender_phone, f"[Photo] {p_cap}", None)
+
+            msg = "💎 *JWL Billion Trending Pendant Set Designs* 💎\n\nHere are some of our top pendant designs:\n\n"
+            for i, p in enumerate(items_to_show, 1):
+                price_val = f"₹{float(p.get('price') or 0):,.0f}"
+                msg += f"*{i}. {p['title']}*\n"
+                msg += f"• Price: {price_val}\n"
+                if p.get("product_url"):
+                    msg += f"• Link: {p['product_url']}\n"
+                msg += "\n"
+            msg += "Explore all pendant sets: https://jwlbillion.com/\n\nWant to see any of these in a live video call or check stock? Just reply here!"
+            res = send_whatsapp_free_text(sender_phone, msg, db=db)
+            _save_bot_message(db, sender_phone, msg, res.get("message_id"))
+            return res
+
         elif sel_id == "menu_bestsellers" or sel_id == "menu_new_collection":
             shopify_res = fetch_shopify_products(limit=8)
             products = shopify_res.get("products", [])
@@ -409,7 +472,44 @@ def handle_inbound_auto_reply(
             return res
 
     # -------------------------------------------------------------
-    # 4. Check for Chains Inquiry (e.g. "chains", "show chain", "gold chain")
+    # 4. Check for Pendant Sets Inquiry (e.g. "pendant", "pendant set", "pendants")
+    # -------------------------------------------------------------
+    is_pendant_query = bool(re.search(r"\b(?:pendant|pendants|pendant set|pendant sets)\b", text_clean))
+    if is_pendant_query:
+        shopify_res = fetch_shopify_products(limit=50)
+        all_prods = shopify_res.get("products", [])
+        pendants = [
+            p for p in all_prods
+            if "pendant" in p.get("title", "").lower()
+            or "pendant" in str(p.get("tags", "")).lower()
+        ]
+        items_to_show = pendants[:4] if pendants else all_prods[:4]
+
+        if items_to_show and items_to_show[0].get("image_url"):
+            p_first = items_to_show[0]
+            p_cap = (
+                f"💎 *{p_first['title']}*\n"
+                f"• Price: ₹{float(p_first.get('price') or 0):,.0f}\n"
+                f"• View Design: {p_first.get('product_url') or 'https://jwlbillion.com/'}"
+            )
+            send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
+            _save_bot_message(db, sender_phone, f"[Photo] {p_cap}", None)
+
+        msg = "💎 *JWL Billion Pendant Sets & Necklaces* 💎\n\nHere are some of our trending designs:\n\n"
+        for i, p in enumerate(items_to_show, 1):
+            price_val = f"₹{float(p.get('price') or 0):,.0f}"
+            msg += f"*{i}. {p['title']}*\n"
+            msg += f"• Price: {price_val}\n"
+            if p.get("product_url"):
+                msg += f"• Link: {p['product_url']}\n"
+            msg += "\n"
+        msg += "Explore all pendant sets: https://jwlbillion.com/\n\nNeed assistance or live video viewing? We're here to help!"
+        res = send_whatsapp_free_text(sender_phone, msg, db=db)
+        _save_bot_message(db, sender_phone, msg, res.get("message_id"))
+        return res
+
+    # -------------------------------------------------------------
+    # 5. Check for Chains Inquiry (e.g. "chains", "show chain", "gold chain")
     # -------------------------------------------------------------
     is_chain_query = bool(re.search(r"\b(?:chain|chains|kanthi|mala|necklace)\b", text_clean))
     if is_chain_query:
