@@ -187,72 +187,66 @@ export default function App() {
         await SplashScreen.hide().catch(() => {});
       } catch (e) {}
 
-      // Start Native Background Live Chat Sync Service
-      try {
-        if (window.Capacitor?.registerPlugin) {
-          const LiveChatSync = window.Capacitor.registerPlugin("LiveChatSync");
-          const storedToken = localStorage.getItem("token") || "";
-          await LiveChatSync.startSync({ token: storedToken }).catch(() => {});
-        }
-      } catch (e) {
-        console.warn("LiveChatSync start error:", e);
-      }
+      // Start Native Background Live Chat Sync Service (Android APK only)
+      if (isNativePlatform) {
+        try {
+          if (window.Capacitor?.registerPlugin) {
+            const LiveChatSync = window.Capacitor.registerPlugin("LiveChatSync");
+            const storedToken = localStorage.getItem("token") || "";
+            await LiveChatSync.startSync({ token: storedToken }).catch(() => {});
+          }
+        } catch (e) {}
 
-      // Initialize Firebase Cloud Messaging (FCM) Push Notifications
-      try {
-        const { PushNotifications } = await import("@capacitor/push-notifications");
-        let permStatus = await PushNotifications.checkPermissions();
-        if (permStatus.receive === "prompt") {
-          permStatus = await PushNotifications.requestPermissions();
-        }
-        if (permStatus.receive === "granted") {
-          await PushNotifications.register();
+        // Initialize Firebase Cloud Messaging (FCM) Push Notifications
+        try {
+          const { PushNotifications } = await import("@capacitor/push-notifications");
+          let permStatus = await PushNotifications.checkPermissions();
+          if (permStatus.receive === "prompt") {
+            permStatus = await PushNotifications.requestPermissions();
+          }
+          if (permStatus.receive === "granted") {
+            await PushNotifications.register();
 
-          // Listen for registration success to register device token
-          PushNotifications.addListener("registration", async (tokenData) => {
-            console.log("FCM Device Token registered:", tokenData.value);
-            const currentJwt = localStorage.getItem("token");
-            if (currentJwt && tokenData.value) {
-              try {
-                await axios.post(
-                  "/api/chat/register-device-token",
-                  { token: tokenData.value, platform: "android" },
-                  { headers: { Authorization: `Bearer ${currentJwt}` } }
-                );
-              } catch (regErr) {
-                console.warn("FCM token backend sync failed:", regErr);
+            // Listen for registration success to register device token
+            PushNotifications.addListener("registration", async (tokenData) => {
+              console.log("FCM Device Token registered:", tokenData.value);
+              const currentJwt = localStorage.getItem("token");
+              if (currentJwt && tokenData.value) {
+                try {
+                  await axios.post(
+                    "/api/chat/register-device-token",
+                    { token: tokenData.value, platform: "android" },
+                    { headers: { Authorization: `Bearer ${currentJwt}` } }
+                  );
+                } catch (regErr) {}
               }
-            }
-          });
+            });
 
-          // Handle Notification Click (user taps FCM push)
-          PushNotifications.addListener("pushNotificationActionPerformed", (notification) => {
-            const data = notification?.notification?.data;
-            const chatPhone = data?.chat_phone;
-            if (chatPhone) {
-              setActiveTab("chat");
-              setSelectedChatPhone(chatPhone);
-              fetchChatMessages(chatPhone, false);
-            }
-          });
-        }
-      } catch (pushErr) {
-        console.warn("PushNotifications initialization skipped/failed:", pushErr);
+            // Handle Notification Click (user taps FCM push)
+            PushNotifications.addListener("pushNotificationActionPerformed", (notification) => {
+              const data = notification?.notification?.data;
+              const chatPhone = data?.chat_phone;
+              if (chatPhone) {
+                setActiveTab("chat");
+                setSelectedChatPhone(chatPhone);
+                fetchChatMessages(chatPhone, false);
+              }
+            });
+          }
+        } catch (pushErr) {}
       }
     };
     initMobileDevice();
   }, []);
 
 
-  // Synchronize Native Android Background Live Chat Sync Service whenever auth token changes
+  // Synchronize Native Android Background Live Chat Sync Service whenever auth token changes (Android APK only)
   useEffect(() => {
-    if (!token) return;
+    if (!token || !isNativePlatform) return;
     try {
       if (window.Capacitor?.registerPlugin) {
         const LiveChatSync = window.Capacitor.registerPlugin("LiveChatSync");
-        LiveChatSync.startSync({ token }).catch((err) => {
-          console.warn("LiveChatSync token update failed:", err);
-        });
+        LiveChatSync.startSync({ token }).catch(() => {});
 
         // Check if app was opened via notification tap for a specific conversation
         LiveChatSync.getPendingChat()
@@ -265,9 +259,7 @@ export default function App() {
           })
           .catch(() => {});
       }
-    } catch (e) {
-      console.warn("LiveChatSync error:", e);
-    }
+    } catch (e) {}
   }, [token]);
   const [contacts, setContacts] = useState([]);
   const [discountCodes, setDiscountCodes] = useState([]);
@@ -1657,56 +1649,6 @@ export default function App() {
       if (selectedChatPhone) {
         fetchChatMessages(selectedChatPhone, true);
       }
-    }
-
-    // Connect to Server-Sent Events stream for instant incoming messages
-    let eventSource = null;
-    let fallbackTimer = null;
-
-    try {
-      const sseUrl = `/api/chat/stream?token=${encodeURIComponent(token)}`;
-      eventSource = new EventSource(sseUrl);
-
-      eventSource.addEventListener("new_message", (e) => {
-        try {
-          const payload = JSON.parse(e.data);
-          // If the message is for the currently open conversation, update UI immediately
-          if (selectedChatPhone && payload.customer_phone === selectedChatPhone) {
-            setChatMessages((prev) => {
-              if (prev.some((m) => m.id === payload.id)) return prev;
-              return [...prev, payload];
-            });
-            if (payload.sender_type === "CUSTOMER") {
-              playIncomingMessageSound();
-            }
-          }
-          // Refresh conversation list preview
-          fetchChatConversations(true);
-        } catch (err) {
-          console.error("SSE parse error for new_message:", err);
-        }
-      });
-
-      eventSource.addEventListener("status_update", (e) => {
-        try {
-          const payload = JSON.parse(e.data);
-          if (payload.wamid && payload.status) {
-            setChatMessages((prev) =>
-              prev.map((m) =>
-                m.meta_message_id === payload.wamid ? { ...m, status: payload.status } : m
-              )
-            );
-          }
-        } catch (err) {
-          console.error("SSE status_update parse error:", err);
-        }
-      });
-
-      eventSource.onerror = () => {
-        // EventSource automatically attempts to reconnect on transient errors
-      };
-    } catch (err) {
-      console.warn("EventSource initialization failed, using relaxed polling fallback:", err);
     }
 
     // Relaxed safety fallback polling (every 10s if on chat tab, 30s in background)
