@@ -554,6 +554,13 @@ app.include_router(segments_router.router)
 app.include_router(billing_router.router)
 app.include_router(redirect_router.router)
 
+import mimetypes
+mimetypes.init()
+mimetypes.add_type("audio/ogg", ".bin")
+mimetypes.add_type("audio/ogg", ".ogg")
+mimetypes.add_type("audio/ogg", ".opus")
+mimetypes.add_type("audio/mp4", ".m4a")
+
 from fastapi.staticfiles import StaticFiles
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -1132,7 +1132,15 @@ def download_meta_media(media_id: str, output_dir: str = "uploads") -> Optional[
 
             os.makedirs(output_dir, exist_ok=True)
             import mimetypes
-            ext = mimetypes.guess_extension(mime_type) or ".bin"
+            clean_mime = mime_type.split(";")[0].strip().lower()
+            if "audio/ogg" in clean_mime or "audio/opus" in clean_mime or "audio/ogg" in mime_type.lower():
+                ext = ".ogg"
+            elif "audio/mp4" in clean_mime or "audio/aac" in clean_mime:
+                ext = ".m4a"
+            elif "audio/mpeg" in clean_mime or "audio/mp3" in clean_mime:
+                ext = ".mp3"
+            else:
+                ext = mimetypes.guess_extension(clean_mime) or mimetypes.guess_extension(mime_type) or ".bin"
             if ext == ".jpe":
                 ext = ".jpg"
             saved_filename = f"{media_id}{ext}"

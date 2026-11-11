@@ -27,11 +27,18 @@ public class MainActivity extends BridgeActivity {
         createNotificationChannels();
         handleIntent(getIntent());
 
-        // Explicitly request POST_NOTIFICATIONS on Android 13+ (API 33+)
+        // Explicitly request permissions (POST_NOTIFICATIONS on Android 13+, RECORD_AUDIO for voice notes)
+        java.util.List<String> perms = new java.util.ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+                perms.add(Manifest.permission.POST_NOTIFICATIONS);
             }
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            perms.add(Manifest.permission.RECORD_AUDIO);
+        }
+        if (!perms.isEmpty()) {
+            ActivityCompat.requestPermissions(this, perms.toArray(new String[0]), 101);
         }
     }
 

@@ -30,7 +30,9 @@ import {
   Smile,
   ThumbsUp,
   ThumbsDown,
-  LogOut
+  LogOut,
+  Mic,
+  Square
 } from "lucide-react";
 import { formatToISTTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
 import { getApiBaseUrl } from "../api";
@@ -72,8 +74,120 @@ export default function LiveChatPage({
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileType, setSelectedFileType] = useState("document");
   const [mediaCaption, setMediaCaption] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
   const fileInputRef = useRef(null);
   const replyInputRef = useRef(null);
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf("image") !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          const ext = file.type.split("/")[1] || "png";
+          const imageFile = new File([file], `pasted_image_${Date.now()}.${ext}`, { type: file.type });
+          setSelectedFile(imageFile);
+          setSelectedFileType("image");
+          setShowAttachMenu(false);
+          break;
+        }
+      }
+    }
+  };
+
+  const startVoiceRecording = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Microphone is not supported in this browser or environment.");
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+
+      let mimeType = "audio/webm";
+      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+        mimeType = "audio/webm;codecs=opus";
+      } else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) {
+        mimeType = "audio/ogg;codecs=opus";
+      } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+        mimeType = "audio/mp4";
+      }
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        if (audioChunksRef.current.length > 0 && recorder.__sendOnStop) {
+          const actualMime = recorder.mimeType || mimeType || "audio/webm";
+          const ext = actualMime.includes("ogg") ? "ogg" : actualMime.includes("mp4") ? "m4a" : "webm";
+          const audioBlob = new Blob(audioChunksRef.current, { type: actualMime });
+          const audioFile = new File([audioBlob], `voice_note_${Date.now()}.${ext}`, { type: actualMime });
+          if (handleSendChatMedia) {
+            await handleSendChatMedia({
+              file: audioFile,
+              mediaType: "audio",
+              caption: ""
+            });
+            setTimeout(() => scrollToBottom("smooth"), 100);
+          }
+        }
+        audioChunksRef.current = [];
+        setIsRecording(false);
+        setRecordingSeconds(0);
+      };
+
+      recorder.__sendOnStop = true;
+      recorder.start(250);
+      setIsRecording(true);
+      setRecordingSeconds(0);
+
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Failed to start voice recording:", err);
+      alert("Microphone access was denied or is unavailable: " + (err.message || err));
+    }
+  };
+
+  const stopVoiceRecording = (send = true) => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.__sendOnStop = send;
+      mediaRecorderRef.current.stop();
+    } else {
+      setIsRecording(false);
+      setRecordingSeconds(0);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.__sendOnStop = false;
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   const handleFilePicked = (e, forcedType = null) => {
     const file = e.target.files?.[0];
@@ -703,12 +817,12 @@ export default function LiveChatPage({
                                 )}
 
                                 {msg.message_type === "audio" && (
-                                  <div className="py-1">
+                                  <div className="py-1 min-w-[220px] sm:min-w-[260px]">
                                     <audio
                                       src={fullUrl}
                                       controls
                                       preload="metadata"
-                                      className="w-full max-w-xs h-9"
+                                      className="w-full h-10 rounded-lg"
                                     />
                                   </div>
                                 )}
@@ -992,49 +1106,96 @@ export default function LiveChatPage({
                   <Paperclip className="w-4 h-4" />
                 </button>
 
-                {/* Multiline Textarea: Enter creates a new line, only clicking Send will dispatch */}
-                <textarea
-                  ref={replyInputRef}
-                  rows={1}
-                  placeholder={
-                    selectedFile
-                      ? `Add caption for this ${selectedFileType}...`
-                      : "Type a message..."
-                  }
-                  value={selectedFile ? mediaCaption : chatReplyText}
-                  onChange={(e) => {
-                    if (selectedFile) {
-                      setMediaCaption(e.target.value);
-                    } else {
-                      setChatReplyText(e.target.value);
-                    }
-                    e.target.style.height = "auto";
-                    if (e.target.value) {
-                      e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    // Do NOT send on Enter; Enter always creates a new line
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.stopPropagation();
-                    }
-                  }}
-                  disabled={chatSending}
-                  className="flex-1 min-w-0 h-[42px] px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none max-h-32 leading-snug box-border overflow-hidden whitespace-nowrap"
-                />
+                {/* Recording Active Bar */}
+                {isRecording ? (
+                  <div className="flex-1 flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-2 animate-pulse">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
+                      <span className="text-xs font-bold text-red-700">
+                        Recording {Math.floor(recordingSeconds / 60)}:
+                        {(recordingSeconds % 60).toString().padStart(2, "0")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => stopVoiceRecording(false)}
+                        className="px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition"
+                        title="Cancel voice recording"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => stopVoiceRecording(true)}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center gap-1"
+                        title="Finish and send voice note"
+                      >
+                        <Send className="w-3 h-3" /> Send
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Multiline Textarea: Enter creates a new line, pasting an image attaches it */}
+                    <textarea
+                      ref={replyInputRef}
+                      rows={1}
+                      placeholder={
+                        selectedFile
+                          ? `Add caption for this ${selectedFileType}...`
+                          : "Type a message or paste image..."
+                      }
+                      value={selectedFile ? mediaCaption : chatReplyText}
+                      onPaste={handlePaste}
+                      onChange={(e) => {
+                        if (selectedFile) {
+                          setMediaCaption(e.target.value);
+                        } else {
+                          setChatReplyText(e.target.value);
+                        }
+                        e.target.style.height = "auto";
+                        if (e.target.value) {
+                          e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Do NOT send on Enter; Enter always creates a new line
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.stopPropagation();
+                        }
+                      }}
+                      disabled={chatSending}
+                      className="flex-1 min-w-0 h-[42px] px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none max-h-32 leading-snug box-border overflow-hidden whitespace-nowrap"
+                    />
 
-                <button
-                  type="submit"
-                  disabled={(!selectedFile && !chatReplyText.trim()) || chatSending}
-                  className="px-5 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer mb-0.5"
-                >
-                  {chatSending ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  {selectedFile ? "Send Media" : "Send"}
-                </button>
+                    {/* Microphone Voice Note Button (shown when no text/file, or quick tap) */}
+                    {!selectedFile && !chatReplyText.trim() && (
+                      <button
+                        type="button"
+                        onClick={startVoiceRecording}
+                        disabled={chatSending}
+                        className="p-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-[#25D366] hover:border-emerald-300 transition shrink-0 mb-0.5 cursor-pointer"
+                        title="Record voice note"
+                      >
+                        <Mic className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={(!selectedFile && !chatReplyText.trim()) || chatSending}
+                      className="px-5 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer mb-0.5"
+                    >
+                      {chatSending ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      {selectedFile ? "Send Media" : "Send"}
+                    </button>
+                  </>
+                )}
               </form>
             </div>
           </div>
