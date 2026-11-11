@@ -1241,6 +1241,9 @@ export default function App() {
         }
         return newMsgs;
       });
+      try {
+        localStorage.setItem(`cached_msgs_${phone}`, JSON.stringify(newMsgs.slice(-50)));
+      } catch {}
       
       // Secondary sound check if specific open thread receives a new message
       if (newMsgs.length > 0) {
@@ -1272,6 +1275,15 @@ export default function App() {
 
   const handleSelectConversation = (phone) => {
     setSelectedChatPhone(phone);
+    try {
+      const cached = localStorage.getItem(`cached_msgs_${phone}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setChatMessages(parsed);
+        }
+      }
+    } catch {}
     fetchChatMessages(phone, false);
   };
 

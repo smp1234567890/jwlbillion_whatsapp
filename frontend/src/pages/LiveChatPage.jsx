@@ -933,7 +933,7 @@ export default function LiveChatPage({
                 <Sparkles className="w-3 h-3 text-[#F5A623]" /> Quick replies:
               </span>
               {[
-                "Hello! Welcome to JWL Billion. How can we assist you today?",
+                "Hello! Welcome to JWL Billion. How can we assist you today?\nVisit our website: https://jwlbillion.com/",
                 "Your order has been confirmed and is being processed for dispatch.",
                 "Thank you for reaching out! A representative will connect with you shortly.",
                 "Here is your special discount code: WELCOME (7% OFF)",
