@@ -34,7 +34,7 @@ import {
   Mic,
   Square
 } from "lucide-react";
-import { formatToISTTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
+import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
 import { getApiBaseUrl } from "../api";
 
 export default function LiveChatPage({
@@ -890,7 +890,7 @@ export default function LiveChatPage({
                             }`}
                           >
                             <span>
-                              {formatToISTTime(msg.created_at)}
+                              {formatToISTDateTime(msg.created_at)}
                             </span>
                             {isAgent && (
                               <span>

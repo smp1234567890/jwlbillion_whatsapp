@@ -19,6 +19,28 @@ export function formatToIST(dateStr) {
   }) + " IST";
 }
 
+export function formatToISTDateTime(dateStr) {
+  if (!dateStr) return "";
+  let s = String(dateStr).trim();
+  if (!s.endsWith("Z") && !s.includes("+") && !s.slice(10).includes("-")) {
+    s += "Z";
+  }
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return String(dateStr);
+  const datePart = d.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short"
+  });
+  const timePart = d.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  });
+  return `${datePart}, ${timePart}`;
+}
+
 export function formatToISTTime(dateStr) {
   if (!dateStr) return "";
   let s = String(dateStr).trim();
