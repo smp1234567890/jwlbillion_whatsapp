@@ -120,8 +120,8 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                     "rows": [
                         {
                             "id": "menu_products_list",
-                            "title": "🛍️ Which Products You Have",
-                            "description": "Categories & jewellery we offer"
+                            "title": "🛍️ All Products",
+                            "description": "Which products we have & categories"
                         },
                         {
                             "id": "menu_pendant_sets",
