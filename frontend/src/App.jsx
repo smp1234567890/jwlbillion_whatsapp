@@ -275,6 +275,7 @@ export default function App() {
   const [messageLogs, setMessageLogs] = useState([]);
   const [optOuts, setOptOuts] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [externalDataSources, setExternalDataSources] = useState([]);
   const [automationRules, setAutomationRules] = useState([]);
   const [workflowFlows, setWorkflowFlows] = useState([]);
