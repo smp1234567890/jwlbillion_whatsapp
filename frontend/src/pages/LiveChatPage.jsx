@@ -39,6 +39,7 @@ import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessage
 import { getApiBaseUrl } from "../api";
 import axios from "axios";
 import { getStoredQuickReplies } from "../utils/quickRepliesStorage";
+import ChatInputBox from "../components/ChatInputBox";
 
 export default function LiveChatPage({
   chatConversations = [],
@@ -1143,23 +1144,7 @@ export default function LiveChatPage({
               )}
 
               {/* Form Bar */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  isNearBottomRef.current = true;
-                  if (selectedFile) {
-                    handleSendMediaSubmit(e);
-                  } else {
-                    if (handleSendChatMessage) {
-                      handleSendChatMessage(e, localInputText);
-                    }
-                    setLocalInputText("");
-                  }
-                  if (replyInputRef.current) { replyInputRef.current.style.height = "auto"; }
-                  setTimeout(() => scrollToBottom("smooth"), 50);
-                }}
-                className="flex items-end gap-2 min-w-0 w-full"
-              >
+              <div className="flex items-end gap-2 min-w-0 w-full">
                 {/* Paperclip Button */}
                 <button
                   type="button"
@@ -1204,68 +1189,24 @@ export default function LiveChatPage({
                     </div>
                   </div>
                 ) : (
-                  <>
-                    {/* Multiline Textarea: Native CSS fluid auto-sizing with zero DOM reflow thrashing */}
-                    <textarea
-                      ref={replyInputRef}
-                      rows={1}
-                      placeholder={
-                        selectedFile
-                          ? `Add caption for this ${selectedFileType}...`
-                          : "Type a message or paste image..."
-                      }
-                      value={selectedFile ? mediaCaption : localInputText}
-                      onPaste={handlePaste}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (selectedFile) {
-                          setMediaCaption(val);
-                        } else {
-                          setLocalInputText(val);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        // Do NOT send on Enter; Enter always creates a new line
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.stopPropagation();
-                        }
-                      }}
-                      disabled={chatSending}
-                      autoComplete="off"
-                      autoCorrect="off"
-                      spellCheck="false"
-                      style={{ fieldSizing: "content" }}
-                      className="flex-1 min-w-0 min-h-[42px] max-h-32 px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none leading-snug box-border overflow-y-auto"
-                    />
-
-                    {/* Microphone Voice Note Button (shown when no text/file, or quick tap) */}
-                    {!selectedFile && !localInputText.trim() && (
-                      <button
-                        type="button"
-                        onClick={startVoiceRecording}
-                        disabled={chatSending}
-                        className="p-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-[#25D366] hover:border-emerald-300 transition shrink-0 mb-0.5 cursor-pointer"
-                        title="Record voice note"
-                      >
-                        <Mic className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={(!selectedFile && !localInputText.trim()) || chatSending}
-                      className="px-5 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer mb-0.5"
-                    >
-                      {chatSending ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4" />
-                      )}
-                      {selectedFile ? "Send Media" : "Send"}
-                    </button>
-                  </>
+                  <ChatInputBox
+                    selectedFile={selectedFile}
+                    mediaCaption={mediaCaption}
+                    setMediaCaption={setMediaCaption}
+                    chatSending={chatSending}
+                    handlePaste={handlePaste}
+                    handleSendChatMessage={handleSendChatMessage}
+                    handleSendMediaSubmit={handleSendMediaSubmit}
+                    startVoiceRecording={startVoiceRecording}
+                    scrollToBottom={scrollToBottom}
+                    isNearBottomRef={isNearBottomRef}
+                    selectedFileType={selectedFileType}
+                    replyInputRef={replyInputRef}
+                    initialText={localInputText}
+                    onInputTextChange={(val) => setLocalInputText(val)}
+                  />
                 )}
-              </form>
+              </div>
             </div>
           </div>
         ) : (

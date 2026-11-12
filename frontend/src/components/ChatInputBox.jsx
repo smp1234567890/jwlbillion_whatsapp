@@ -1,0 +1,118 @@
+import React, { useState, useEffect, useRef } from "react";
+import { Send, RefreshCw, Mic } from "lucide-react";
+
+export default function ChatInputBox({
+  selectedFile,
+  mediaCaption,
+  setMediaCaption,
+  chatSending,
+  handlePaste,
+  handleSendChatMessage,
+  handleSendMediaSubmit,
+  startVoiceRecording,
+  scrollToBottom,
+  isNearBottomRef,
+  selectedFileType,
+  replyInputRef,
+  initialText = "",
+  onInputTextChange
+}) {
+  const [text, setText] = useState(initialText);
+
+  // Sync external text changes (e.g. when a quick reply button is tapped)
+  useEffect(() => {
+    if (initialText !== undefined && initialText !== null) {
+      setText(initialText);
+      if (replyInputRef?.current && !selectedFile) {
+        replyInputRef.current.value = initialText;
+      }
+    }
+  }, [initialText, selectedFile, replyInputRef]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (isNearBottomRef) isNearBottomRef.current = true;
+    if (selectedFile) {
+      handleSendMediaSubmit(e);
+    } else {
+      const trimmed = text.trim();
+      if (!trimmed || chatSending) return;
+      if (handleSendChatMessage) {
+        handleSendChatMessage(e, trimmed);
+      }
+      setText("");
+      if (onInputTextChange) onInputTextChange("");
+    }
+    if (replyInputRef?.current) {
+      replyInputRef.current.style.height = "auto";
+    }
+    if (scrollToBottom) {
+      setTimeout(() => scrollToBottom("smooth"), 50);
+    }
+  };
+
+  const hasContent = selectedFile ? Boolean(mediaCaption && mediaCaption.trim()) : Boolean(text && text.trim());
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-end gap-2 min-w-0 w-full">
+      <textarea
+        ref={replyInputRef}
+        rows={1}
+        placeholder={
+          selectedFile
+            ? `Add caption for this ${selectedFileType}...`
+            : "Type a message or paste image..."
+        }
+        value={selectedFile ? mediaCaption : text}
+        onPaste={handlePaste}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (selectedFile) {
+            setMediaCaption(val);
+          } else {
+            setText(val);
+            if (onInputTextChange) onInputTextChange(val);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.stopPropagation();
+          }
+        }}
+        disabled={chatSending}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck="false"
+        style={{ fieldSizing: "content" }}
+        className="flex-1 min-w-0 min-h-[42px] max-h-32 px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none leading-snug box-border overflow-y-auto"
+      />
+
+      {/* Microphone Voice Note Button (shown when input is empty) */}
+      {!hasContent && (
+        <button
+          type="button"
+          onClick={startVoiceRecording}
+          disabled={chatSending}
+          className="p-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-[#25D366] hover:border-emerald-300 transition shrink-0 mb-0.5 cursor-pointer"
+          title="Record voice note"
+        >
+          <Mic className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Send Button */}
+      <button
+        type="submit"
+        disabled={!hasContent || chatSending}
+        className="px-5 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer mb-0.5"
+      >
+        {chatSending ? (
+          <RefreshCw className="w-4 h-4 animate-spin" />
+        ) : (
+          <Send className="w-4 h-4" />
+        )}
+        {selectedFile ? "Send Media" : "Send"}
+      </button>
+    </form>
+  );
+}
