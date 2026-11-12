@@ -14,8 +14,7 @@ export default function ChatInputBox({
   isNearBottomRef,
   selectedFileType,
   replyInputRef,
-  initialText = "",
-  onInputTextChange
+  initialText = ""
 }) {
   const textRef = useRef(initialText || "");
   const [hasText, setHasText] = useState(Boolean(initialText && initialText.trim()));
@@ -33,7 +32,7 @@ export default function ChatInputBox({
   }, [initialText, selectedFile, replyInputRef]);
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (isNearBottomRef) isNearBottomRef.current = true;
     if (selectedFile) {
       handleSendMediaSubmit(e);
@@ -49,7 +48,6 @@ export default function ChatInputBox({
         replyInputRef.current.value = "";
       }
       setHasText(false);
-      if (onInputTextChange) onInputTextChange("");
     }
     if (replyInputRef?.current) {
       replyInputRef.current.style.height = "auto";
@@ -81,14 +79,12 @@ export default function ChatInputBox({
           } else {
             textRef.current = val;
             const isNonEmpty = Boolean(val.trim());
+            // Only trigger a React state change when switching between empty/non-empty for Send/Mic button
             if (isNonEmpty !== hasText) {
               clearTimeout(debounceRef.current);
               debounceRef.current = setTimeout(() => {
                 setHasText(Boolean(replyInputRef?.current?.value?.trim()));
-              }, 40);
-            }
-            if (onInputTextChange) {
-              onInputTextChange(val);
+              }, 100);
             }
           }
         }}

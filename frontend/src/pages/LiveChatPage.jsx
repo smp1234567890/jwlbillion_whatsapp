@@ -1203,7 +1203,6 @@ export default function LiveChatPage({
                     selectedFileType={selectedFileType}
                     replyInputRef={replyInputRef}
                     initialText={localInputText}
-                    onInputTextChange={(val) => setLocalInputText(val)}
                   />
                 )}
               </div>
