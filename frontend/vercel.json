@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://jwl-whatsapp-crm.onrender.com/api/:path*"
+      "destination": "https://130-210-23-25.sslip.io/api/:path*"
     },
     {
       "source": "/(.*)",

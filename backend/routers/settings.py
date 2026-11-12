@@ -271,7 +271,7 @@ def get_quick_replies(
 @router.put("/api/quick-replies")
 def save_quick_replies(
     payload: list,
-    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
+    current_user: models.User = Depends(auth.require_roles("admin", "manager", "agent")),
     db: Session = Depends(get_db)
 ):
     import json

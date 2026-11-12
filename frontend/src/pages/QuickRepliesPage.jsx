@@ -32,14 +32,14 @@ export default function QuickRepliesPage({ token, onQuickRepliesUpdated }) {
         const res = await axios.get("/api/quick-replies", {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           setQuickReplies(res.data);
           saveStoredQuickReplies(res.data);
           return;
         }
       }
     } catch (err) {
-      // Server returned 404/error, seamlessly fallback to localStorage
+      // Server returned error, seamlessly fallback to localStorage
     }
     const local = getStoredQuickReplies();
     setQuickReplies(local);
