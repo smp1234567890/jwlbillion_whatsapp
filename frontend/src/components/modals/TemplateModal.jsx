@@ -308,6 +308,84 @@ export default function TemplateModal({
     validationErrors.push(`Meta requires sample text for all ${bodyVariables.length} variable(s) before submission.`);
   }
 
+  // Helper to wrap selected text with markdown or insert placeholder
+  const applyFormattingToBody = (wrapper, placeholder = "text") => {
+    const textarea = document.getElementById("template-body-textarea");
+    if (!textarea) {
+      setNewTemplate((prev) => ({ ...prev, body_text: (prev.body_text || "") + `${wrapper}${placeholder}${wrapper}` }));
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const current = newTemplate.body_text || "";
+    const selected = current.substring(start, end);
+
+    let replacement = "";
+    let newCursorPos = start;
+
+    if (selected.length > 0) {
+      // Toggle off if already wrapped with this wrapper
+      const wLen = wrapper.length;
+      if (selected.startsWith(wrapper) && selected.endsWith(wrapper) && selected.length >= wLen * 2) {
+        replacement = selected.substring(wLen, selected.length - wLen);
+      } else {
+        replacement = `${wrapper}${selected}${wrapper}`;
+      }
+      newCursorPos = start + replacement.length;
+    } else {
+      replacement = `${wrapper}${placeholder}${wrapper}`;
+      newCursorPos = start + replacement.length;
+    }
+
+    const updated = current.substring(0, start) + replacement + current.substring(end);
+    setNewTemplate((prev) => ({ ...prev, body_text: updated }));
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        selected.length > 0 ? start : start + wrapper.length,
+        selected.length > 0 ? start + replacement.length : start + wrapper.length + placeholder.length
+      );
+    }, 10);
+  };
+
+  // Helper for Carousel Card body formatting
+  const applyFormattingToCardBody = (cardIdx, wrapper, placeholder = "text") => {
+    const textarea = document.getElementById(`carousel-card-body-${cardIdx}`);
+    const card = (newTemplate.carousel_cards || [])[cardIdx];
+    const current = card?.body_text || "";
+
+    if (!textarea) {
+      updateCarouselCard(cardIdx, "body_text", current + `${wrapper}${placeholder}${wrapper}`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = current.substring(start, end);
+
+    let replacement = "";
+    if (selected.length > 0) {
+      const wLen = wrapper.length;
+      if (selected.startsWith(wrapper) && selected.endsWith(wrapper) && selected.length >= wLen * 2) {
+        replacement = selected.substring(wLen, selected.length - wLen);
+      } else {
+        replacement = `${wrapper}${selected}${wrapper}`;
+      }
+    } else {
+      replacement = `${wrapper}${placeholder}${wrapper}`;
+    }
+
+    const updated = current.substring(0, start) + replacement + current.substring(end);
+    updateCarouselCard(cardIdx, "body_text", updated);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        selected.length > 0 ? start : start + wrapper.length,
+        selected.length > 0 ? start + replacement.length : start + wrapper.length + placeholder.length
+      );
+    }, 10);
+  };
+
   // Helper to insert markdown or variables into body textarea
   const insertIntoBody = (textToInsert) => {
     const textarea = document.getElementById("template-body-textarea");
@@ -371,6 +449,49 @@ export default function TemplateModal({
       const copy = [...(prev.buttons || [])];
       copy[idx] = { ...copy[idx], [field]: val };
       return { ...prev, buttons: copy };
+    });
+  };
+
+  // Render WhatsApp markdown (*bold*, **bold**, _italic_, ~strike~, ```code```) to React elements
+  const renderFormattedWhatsAppText = (rawText) => {
+    if (!rawText) return null;
+    const lines = rawText.split("\n");
+    return lines.map((line, lineIdx) => {
+      // Regex parsing double or single asterisk bold, italic, strike, code
+      const parts = [];
+      const regex = /(\*{1,2}[^\*]+\*{1,2}|_[^_]+_|~[^~]+~|```[^`]+```)/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(line)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(line.substring(lastIndex, match.index));
+        }
+        const token = match[0];
+        if (token.startsWith("**") && token.endsWith("**") && token.length >= 4) {
+          parts.push(<strong key={`${lineIdx}-${match.index}`} className="font-extrabold text-gray-950">{token.slice(2, -2)}</strong>);
+        } else if (token.startsWith("*") && token.endsWith("*") && token.length >= 2) {
+          parts.push(<strong key={`${lineIdx}-${match.index}`} className="font-bold text-gray-950">{token.slice(1, -1)}</strong>);
+        } else if (token.startsWith("_") && token.endsWith("_")) {
+          parts.push(<em key={`${lineIdx}-${match.index}`} className="italic">{token.slice(1, -1)}</em>);
+        } else if (token.startsWith("~") && token.endsWith("~")) {
+          parts.push(<del key={`${lineIdx}-${match.index}`} className="line-through opacity-75">{token.slice(1, -1)}</del>);
+        } else if (token.startsWith("```") && token.endsWith("```")) {
+          parts.push(<code key={`${lineIdx}-${match.index}`} className="font-mono bg-gray-100 px-1 py-0.5 rounded text-[11px] text-gray-800">{token.slice(3, -3)}</code>);
+        } else {
+          parts.push(token);
+        }
+        lastIndex = regex.lastIndex;
+      }
+      if (lastIndex < line.length) {
+        parts.push(line.substring(lastIndex));
+      }
+
+      return (
+        <React.Fragment key={lineIdx}>
+          {parts.length > 0 ? parts : "\u00A0"}
+          {lineIdx < lines.length - 1 && <br />}
+        </React.Fragment>
+      );
     });
   };
 
@@ -1048,7 +1169,49 @@ export default function TemplateModal({
                               <label className="text-[11px] font-bold text-gray-700 uppercase">Card Body Text</label>
                               <span className="text-[10px] text-gray-400 font-mono">{(card.body_text || "").length}/160</span>
                             </div>
+
+                            {/* Card Formatting Toolbar */}
+                            <div className="flex items-center gap-1 p-1 bg-gray-50 border border-gray-200 rounded-lg text-gray-600">
+                              <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyFormattingToCardBody(cIdx, "*", "bold")}
+                                title="Bold (*selected text*)"
+                                className="px-1.5 py-0.5 rounded hover:bg-gray-200 text-xs font-bold flex items-center gap-0.5"
+                              >
+                                <Bold className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyFormattingToCardBody(cIdx, "_", "italic")}
+                                title="Italic (_selected text_)"
+                                className="px-1.5 py-0.5 rounded hover:bg-gray-200 text-xs flex items-center gap-0.5"
+                              >
+                                <Italic className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyFormattingToCardBody(cIdx, "~", "strike")}
+                                title="Strikethrough (~selected text~)"
+                                className="px-1.5 py-0.5 rounded hover:bg-gray-200 text-xs flex items-center gap-0.5"
+                              >
+                                <Strikethrough className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyFormattingToCardBody(cIdx, "```", "code")}
+                                title="Monospace (```selected text```)"
+                                className="px-1.5 py-0.5 rounded hover:bg-gray-200 text-xs flex items-center gap-0.5"
+                              >
+                                <Code className="w-3 h-3" />
+                              </button>
+                            </div>
+
                             <textarea
+                              id={`carousel-card-body-${cIdx}`}
                               rows={2}
                               maxLength={160}
                               placeholder="e.g. ✨ Gold Plated Tennis Bracelet - ₹899 (Special 20% OFF)"
@@ -1134,32 +1297,36 @@ export default function TemplateModal({
                     <div className="flex items-center gap-1 text-gray-600">
                       <button
                         type="button"
-                        onClick={() => insertIntoBody("*bold*")}
-                        title="Bold (*text*)"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyFormattingToBody("*", "bold")}
+                        title="Bold (*selected text*)"
                         className="p-1 rounded hover:bg-gray-200 text-xs font-bold"
                       >
                         <Bold className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
-                        onClick={() => insertIntoBody("_italic_")}
-                        title="Italic (_text_)"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyFormattingToBody("_", "italic")}
+                        title="Italic (_selected text_)"
                         className="p-1 rounded hover:bg-gray-200 text-xs"
                       >
                         <Italic className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
-                        onClick={() => insertIntoBody("~strike~")}
-                        title="Strikethrough (~text~)"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyFormattingToBody("~", "strike")}
+                        title="Strikethrough (~selected text~)"
                         className="p-1 rounded hover:bg-gray-200 text-xs"
                       >
                         <Strikethrough className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
-                        onClick={() => insertIntoBody("```code```")}
-                        title="Monospace"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyFormattingToBody("```", "code")}
+                        title="Monospace (```selected text```)"
                         className="p-1 rounded hover:bg-gray-200 text-xs"
                       >
                         <Code className="w-3.5 h-3.5" />
@@ -1168,6 +1335,7 @@ export default function TemplateModal({
 
                     <button
                       type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={handleAddNextVariable}
                       className="flex items-center gap-1 bg-white hover:bg-gray-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-2xs"
                     >
@@ -1602,7 +1770,7 @@ export default function TemplateModal({
                                 </div>
                               )}
                               <div className="p-2 text-[11px] text-gray-800 leading-snug">
-                                {c.body_text || "Card description..."}
+                                {c.body_text ? renderFormattedWhatsAppText(c.body_text) : "Card description..."}
                               </div>
                             </div>
                             {displayBtns.length > 0 && (
@@ -1629,8 +1797,8 @@ export default function TemplateModal({
                 )}
 
                 {/* Message Body */}
-                <div className="p-4 text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words">
-                  {getRenderedPreviewBody()}
+                <div className="p-4 text-xs leading-relaxed text-gray-800 break-words">
+                  {renderFormattedWhatsAppText(getRenderedPreviewBody())}
                   <div className="flex justify-end items-center gap-1 mt-2 text-[10px] text-gray-400">
                     <span>11:59 AM</span>
                     <span className="text-[#53bdeb]">✓✓</span>
