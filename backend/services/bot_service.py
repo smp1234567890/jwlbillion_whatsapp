@@ -162,6 +162,11 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                             "description": "Live status of recent purchases"
                         },
                         {
+                            "id": "menu_request_voice_call",
+                            "title": "📞 Request WhatsApp Call",
+                            "description": "Allow our team to call you on WhatsApp"
+                        },
+                        {
                             "id": "menu_talk_agent",
                             "title": "👤 Talk to Customer Rep",
                             "description": "Connect with a live jewelry consultant"
@@ -447,6 +452,41 @@ def handle_inbound_auto_reply(
             res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
             _save_bot_message(db, sender_phone, text_reply, res.get("message_id"))
             return res
+
+        elif sel_id == "menu_request_voice_call":
+            # Send native Call Permission Request so user can tap Allow
+            clean_p = sender_phone.replace("+", "").replace(" ", "").replace("-", "")
+            perm_payload = {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": clean_p,
+                "type": "interactive",
+                "interactive": {
+                    "type": "call_permission_request",
+                    "action": {
+                        "name": "call_permission_request"
+                    },
+                    "body": {
+                        "text": "Our jewelry support team is ready to call you on WhatsApp. Please tap Allow below to grant voice call permission."
+                    }
+                }
+            }
+            try:
+                import requests, config
+                url = f"https://graph.facebook.com/v21.0/{config.WHATSAPP_PHONE_NUMBER_ID}/messages"
+                headers = {
+                    "Authorization": f"Bearer {config.WHATSAPP_API_TOKEN}",
+                    "Content-Type": "application/json"
+                }
+                r = requests.post(url, json=perm_payload, headers=headers, timeout=10)
+                _save_bot_message(db, sender_phone, "Sent WhatsApp Call Permission Request card", r.json().get("messages", [{}])[0].get("id"))
+                return r.json()
+            except Exception as e:
+                logger.error(f"Error sending call permission via bot: {e}")
+                err_text = "We are preparing your call request. A representative will connect with you shortly!"
+                res = send_whatsapp_free_text(sender_phone, err_text, db=db)
+                _save_bot_message(db, sender_phone, err_text, res.get("message_id"))
+                return res
 
         elif sel_id == "menu_talk_agent":
             text_reply = (
