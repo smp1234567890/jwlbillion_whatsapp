@@ -313,6 +313,14 @@ export default function LiveChatPage({
         }
       };
 
+      // Detect when peer connection disconnects or closes
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === "disconnected" || pc.connectionState === "closed" || pc.connectionState === "failed") {
+          setCallStatusMsg("Call ended by customer.");
+          handleEndCall();
+        }
+      };
+
       // Create WebRTC Offer
       const offer = await pc.createOffer({
         offerToReceiveAudio: true
@@ -338,11 +346,12 @@ export default function LiveChatPage({
           setCallDuration((prev) => prev + 1);
         }, 1000);
 
-        // Poll for WebRTC SDP answer from Meta
+        // Poll for WebRTC SDP answer from Meta and monitor termination
         let pollCount = 0;
         const answerPoll = setInterval(async () => {
           pollCount += 1;
-          if (pollCount > 30 || !peerConnectionRef.current) {
+          // Keep polling for up to 2 hours (7200s) while active
+          if (pollCount > 7200 || !peerConnectionRef.current) {
             clearInterval(answerPoll);
             return;
           }
@@ -358,11 +367,10 @@ export default function LiveChatPage({
                 sdp: ev.sdp
               }));
               setCallStatusMsg("Connected! Live WhatsApp call active.");
-              clearInterval(answerPoll);
             } else if (ev?.event === "terminate" || ev?.event === "reject") {
-              setCallStatusMsg("Customer declined or call ended.");
+              setCallStatusMsg("Call ended.");
               clearInterval(answerPoll);
-              setTimeout(() => handleEndCall(), 2000);
+              setTimeout(() => handleEndCall(), 1200);
             }
           } catch (pe) {}
         }, 1000);
