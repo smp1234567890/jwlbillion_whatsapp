@@ -700,7 +700,7 @@ def _format_order_details(order: Optional[dict], order_num: str) -> str:
         return reply
     else:
         return (
-            f"🔍 We couldn't find an order matching *#{order_num}* in our Shopify store records.\n\n"
+            f"🔍 We couldn't find an order matching *#{order_num}* in our JWL Billion Store records.\n\n"
             "Please check the order number sent in your confirmation message, or reply with your registered email."
         )
 
