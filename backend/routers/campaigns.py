@@ -357,12 +357,48 @@ def send_test_campaign_message(
             db.add(new_c)
             db.commit()
 
+    # Resolve recipient contact and map template parameters dynamically
+    contact = db.query(models.Contact).filter(models.Contact.phone.contains(clean_phone[-10:])).first()
+    resolved_params = {}
+    if tmpl:
+        # Check variable mappings first
+        body_mappings = {
+            k: v for k, v in (tmpl.variable_mappings or {}).items()
+            if k != "header" and isinstance(v, dict)
+        } if isinstance(tmpl.variable_mappings, dict) else {}
+
+        customer_name = contact.name if contact and contact.name else "Customer"
+
+        if body_mappings:
+            for idx_str, m_def in body_mappings.items():
+                m_type = m_def.get("type")
+                m_val = m_def.get("value")
+                if m_type == "contact_field":
+                    if m_val == "phone":
+                        val_str = clean_phone
+                    elif m_val == "city":
+                        val_str = contact.city if contact and contact.city else "Bhavnagar"
+                    elif m_val == "total_orders":
+                        val_str = str(contact.total_orders) if contact else "1"
+                    else:
+                        val_str = customer_name
+                elif m_type == "static":
+                    val_str = str(m_val) if m_val else ""
+                else:
+                    val_str = customer_name
+                resolved_params[f"param_{idx_str}"] = val_str
+        elif tmpl.body_text:
+            # Fallback to positional placeholders
+            matches = re.findall(r"\{\{(\d+)\}\}", tmpl.body_text)
+            for m in matches:
+                resolved_params[f"param_{m}"] = customer_name if m == "1" else f"Val{m}"
+
     idempotency_key = f"test_campaign_{template_name}_{clean_phone}_{int(datetime.utcnow().timestamp())}"
     res = send_whatsapp_template(
         recipient_phone=clean_phone,
         template_name=template_name,
         language=language,
-        parameters={},
+        parameters=resolved_params,
         header_media=header_media,
         sender_user=f"Test Send ({getattr(current_user, 'username', 'admin')})",
         idempotency_key=idempotency_key,

@@ -463,6 +463,9 @@ def send_whatsapp_template(
                 if not img_param.get("id"):
                     if c_url:
                         img_param["link"] = c_url
+                    elif card_def.get("header_handle"):
+                        # If local URL is absent, use the exact Meta header_handle saved from template creation
+                        img_param["link"] = card_def["header_handle"]
                     else:
                         img_param["link"] = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&q=80"
 

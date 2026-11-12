@@ -113,15 +113,32 @@ def execute_sync_meta_templates(db: Session) -> dict:
             ).first()
 
             if existing:
+                # Retain existing local header media if Meta didn't return one or only returned TEXT
+                if not (header_text and (header_text.startswith("http") or header_text.startswith("/uploads/"))):
+                    if existing.header_text and (existing.header_text.startswith("http") or existing.header_text.startswith("/uploads/")):
+                        header_text = existing.header_text
+                        header_type = existing.header_type
+
                 existing.header_text = header_text
                 existing.header_type = header_type
                 existing.body_text = body_text
                 existing.footer_text = footer_text
                 existing.category = category
                 existing.status = tmpl_status
+
                 if sub_type == "CAROUSEL":
                     existing.sub_type = "CAROUSEL"
-                    existing.carousel_cards = carousel_cards
+                    # Merge and preserve previously uploaded header_url and crop_size for each card
+                    merged_cards = []
+                    existing_cards = existing.carousel_cards or []
+                    for idx, c_new in enumerate(carousel_cards):
+                        old_c = existing_cards[idx] if idx < len(existing_cards) else {}
+                        merged_cards.append({
+                            **c_new,
+                            "header_url": old_c.get("header_url") or c_new.get("header_url") or "",
+                            "crop_size": old_c.get("crop_size") or c_new.get("crop_size") or "1125x600"
+                        })
+                    existing.carousel_cards = merged_cards
                 if buttons:
                     existing.buttons = buttons
             else:

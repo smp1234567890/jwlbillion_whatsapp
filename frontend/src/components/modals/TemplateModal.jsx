@@ -1129,11 +1129,15 @@ export default function TemplateModal({
                               />
                             </div>
 
-                            {card.header_url && (
+                            {(card.header_url || card.header_handle) && (
                               <div className="flex items-center gap-3">
                                 <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white shrink-0">
                                   <img
-                                    src={card.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + card.header_url : card.header_url}
+                                    src={
+                                      (card.header_url && card.header_url.startsWith("/uploads/"))
+                                        ? "https://130-210-23-25.sslip.io" + card.header_url
+                                        : (card.header_url || card.header_handle)
+                                    }
                                     alt={"Card " + (cIdx + 1)}
                                     className="w-full h-full object-cover"
                                   />
@@ -1152,9 +1156,9 @@ export default function TemplateModal({
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const fullUrl = card.header_url.startsWith("/uploads/")
+                                      const fullUrl = (card.header_url && card.header_url.startsWith("/uploads/"))
                                         ? "https://130-210-23-25.sslip.io" + card.header_url
-                                        : card.header_url;
+                                        : (card.header_url || card.header_handle);
                                       setCropModalState({
                                         isOpen: true,
                                         imageSrc: fullUrl,
@@ -1768,9 +1772,13 @@ export default function TemplateModal({
                             className="min-w-[185px] max-w-[185px] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden shrink-0 flex flex-col justify-between"
                           >
                             <div>
-                              {c.header_url ? (
+                              {(c.header_url || c.header_handle) ? (
                                 <img
-                                  src={c.header_url.startsWith("/uploads/") ? "https://130-210-23-25.sslip.io" + c.header_url : c.header_url}
+                                  src={
+                                    (c.header_url && c.header_url.startsWith("/uploads/"))
+                                      ? "https://130-210-23-25.sslip.io" + c.header_url
+                                      : (c.header_url || c.header_handle)
+                                  }
                                   alt={"Card " + (i + 1)}
                                   className="w-full aspect-[1.91/1] object-cover bg-black/5"
                                 />
