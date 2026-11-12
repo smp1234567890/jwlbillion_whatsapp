@@ -318,10 +318,9 @@ export default function TemplateModal({
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const current = newTemplate.body_text || "";
-    const selected = current.substring(start, end);
+    let selected = current.substring(start, end);
 
     let replacement = "";
-    let newCursorPos = start;
 
     if (selected.length > 0) {
       // Toggle off if already wrapped with this wrapper
@@ -329,12 +328,17 @@ export default function TemplateModal({
       if (selected.startsWith(wrapper) && selected.endsWith(wrapper) && selected.length >= wLen * 2) {
         replacement = selected.substring(wLen, selected.length - wLen);
       } else {
-        replacement = `${wrapper}${selected}${wrapper}`;
+        // WhatsApp punctuation cleanup: move trailing punctuation (: ! ? . ,) outside the bold/italic stars
+        let trailingPunct = "";
+        const punctMatch = selected.match(/([:!?,.]+)\s*$/);
+        if (punctMatch) {
+          trailingPunct = punctMatch[0];
+          selected = selected.substring(0, selected.length - trailingPunct.length);
+        }
+        replacement = `${wrapper}${selected}${wrapper}${trailingPunct}`;
       }
-      newCursorPos = start + replacement.length;
     } else {
       replacement = `${wrapper}${placeholder}${wrapper}`;
-      newCursorPos = start + replacement.length;
     }
 
     const updated = current.substring(0, start) + replacement + current.substring(end);
@@ -361,7 +365,7 @@ export default function TemplateModal({
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const selected = current.substring(start, end);
+    let selected = current.substring(start, end);
 
     let replacement = "";
     if (selected.length > 0) {
@@ -369,7 +373,13 @@ export default function TemplateModal({
       if (selected.startsWith(wrapper) && selected.endsWith(wrapper) && selected.length >= wLen * 2) {
         replacement = selected.substring(wLen, selected.length - wLen);
       } else {
-        replacement = `${wrapper}${selected}${wrapper}`;
+        let trailingPunct = "";
+        const punctMatch = selected.match(/([:!?,.]+)\s*$/);
+        if (punctMatch) {
+          trailingPunct = punctMatch[0];
+          selected = selected.substring(0, selected.length - trailingPunct.length);
+        }
+        replacement = `${wrapper}${selected}${wrapper}${trailingPunct}`;
       }
     } else {
       replacement = `${wrapper}${placeholder}${wrapper}`;

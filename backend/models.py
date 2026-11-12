@@ -216,6 +216,7 @@ class Template(Base):
     sample_values = Column(JSON, nullable=True)         # samples for Meta review {body: [...], header: [...]}
     validity_period_minutes = Column(Integer, nullable=True)  # TTL for utility/auth
     auth_config = Column(JSON, nullable=True)           # package_name, app_signature_hash, otp_type
+    carousel_cards = Column(JSON, nullable=True)        # 2-10 cards with header, body, and action buttons for CAROUSEL templates
     status = Column(String(50), default="APPROVED")     # APPROVED, PENDING, REJECTED
     # Configure-Once-Use-Everywhere: maps {{1}}, {{2}} ... to contact/cart/coupon/static fields
     variable_mappings = Column(JSON, nullable=True)     # e.g. {"1": {"type": "contact_field", "value": "name"}, "2": {...}}

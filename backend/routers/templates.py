@@ -60,12 +60,15 @@ def execute_sync_meta_templates(db: Session) -> dict:
             language = item.get("language", "en")
             tmpl_status = item.get("status", "APPROVED")
 
-            # Extract header, body, footer, buttons from components
+            # Extract header, body, footer, buttons, and carousel cards from components
             header_text = ""
             header_type = "NONE"
             body_text = ""
             footer_text = ""
             buttons = []
+            carousel_cards = []
+            sub_type = "DEFAULT"
+
             for comp in item.get("components", []):
                 ctype = comp.get("type")
                 if ctype == "HEADER":
@@ -78,6 +81,30 @@ def execute_sync_meta_templates(db: Session) -> dict:
                 elif ctype == "BUTTONS":
                     for btn in comp.get("buttons", []):
                         buttons.append(btn)
+                elif ctype == "CAROUSEL":
+                    sub_type = "CAROUSEL"
+                    cards_raw = comp.get("cards", [])
+                    for c_idx, c_obj in enumerate(cards_raw):
+                        card_item = {
+                            "card_index": c_idx,
+                            "header_type": "IMAGE",
+                            "header_url": "",
+                            "header_handle": "",
+                            "body_text": "",
+                            "buttons": []
+                        }
+                        for c_sub in c_obj.get("components", []):
+                            stype = c_sub.get("type")
+                            if stype == "HEADER":
+                                card_item["header_type"] = c_sub.get("format", "IMAGE")
+                                h_ex = c_sub.get("example", {}).get("header_handle", [])
+                                if h_ex:
+                                    card_item["header_handle"] = h_ex[0]
+                            elif stype == "BODY":
+                                card_item["body_text"] = c_sub.get("text", "")
+                            elif stype == "BUTTONS":
+                                card_item["buttons"] = c_sub.get("buttons", [])
+                        carousel_cards.append(card_item)
 
             # Check existing
             existing = db.query(models.Template).filter(
@@ -92,18 +119,23 @@ def execute_sync_meta_templates(db: Session) -> dict:
                 existing.footer_text = footer_text
                 existing.category = category
                 existing.status = tmpl_status
+                if sub_type == "CAROUSEL":
+                    existing.sub_type = "CAROUSEL"
+                    existing.carousel_cards = carousel_cards
                 if buttons:
                     existing.buttons = buttons
             else:
                 new_tmpl = models.Template(
                     template_name=name,
                     category=category,
+                    sub_type=sub_type,
                     language=language,
                     header_type=header_type,
                     header_text=header_text,
                     body_text=body_text,
                     footer_text=footer_text,
                     buttons=buttons if buttons else None,
+                    carousel_cards=carousel_cards if carousel_cards else None,
                     status=tmpl_status
                 )
                 db.add(new_tmpl)
@@ -216,7 +248,8 @@ def create_template(
         buttons=payload.buttons,
         sample_values=payload.sample_values,
         validity_period_minutes=payload.validity_period_minutes,
-        auth_config=payload.auth_config
+        auth_config=payload.auth_config,
+        carousel_cards=payload.carousel_cards
     )
 
     if "error" in meta_result and meta_result.get("status") == "FAILED":
@@ -239,6 +272,7 @@ def create_template(
         existing.sample_values = payload.sample_values
         existing.validity_period_minutes = payload.validity_period_minutes
         existing.auth_config = payload.auth_config
+        existing.carousel_cards = payload.carousel_cards
         existing.status = status_val
         if payload.variable_mappings is not None:
             existing.variable_mappings = payload.variable_mappings
@@ -259,6 +293,7 @@ def create_template(
         sample_values=payload.sample_values,
         validity_period_minutes=payload.validity_period_minutes,
         auth_config=payload.auth_config,
+        carousel_cards=payload.carousel_cards,
         status=status_val,
         variable_mappings=payload.variable_mappings or {}
     )

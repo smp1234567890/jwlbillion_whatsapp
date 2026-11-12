@@ -80,6 +80,8 @@ def get_template_spec(template_name: str, db: Optional[Session] = None) -> dict:
                 "language": tmpl_rec.language,
                 "body_param_count": len(placeholders),
                 "header_type": (tmpl_rec.header_type or "NONE").upper(),
+                "sub_type": (tmpl_rec.sub_type or "DEFAULT").upper(),
+                "carousel_cards": tmpl_rec.carousel_cards or [],
                 "sample_values": tmpl_rec.sample_values or {},
                 "source": "db"
             }
@@ -427,6 +429,77 @@ def send_whatsapp_template(
                 ]
             })
 
+        # ── 3. CAROUSEL Component for WhatsApp Messages API ──
+        carousel_cards_spec = tmpl_spec.get("carousel_cards") or []
+        if (tmpl_spec.get("sub_type") == "CAROUSEL" or carousel_cards_spec) and len(carousel_cards_spec) >= 2:
+            cards_payload = []
+            for c_idx, card_def in enumerate(carousel_cards_spec[:10]):
+                card_components = []
+                c_url = card_def.get("header_url") or ""
+                if c_url.startswith("/uploads/"):
+                    c_url = f"https://130-210-23-25.sslip.io{c_url}"
+
+                # Card Header Media
+                img_param = {}
+                # Resolve local file if possible to get media id or use URL link
+                local_rel = None
+                if c_url.startswith("https://130-210-23-25.sslip.io/uploads/"):
+                    local_rel = os.path.join("uploads", c_url.split("/uploads/")[-1])
+                elif c_url.startswith("/uploads/"):
+                    local_rel = os.path.join("uploads", c_url[len("/uploads/"):])
+                elif os.path.exists(c_url):
+                    local_rel = c_url
+
+                if local_rel and os.path.exists(local_rel):
+                    try:
+                        with open(local_rel, "rb") as f_in:
+                            b = f_in.read()
+                        up_res = upload_media_to_meta(b, "image/jpeg", os.path.basename(local_rel))
+                        if up_res.get("status") == "success" and up_res.get("media_id"):
+                            img_param["id"] = up_res["media_id"]
+                    except Exception as e:
+                        logger.warning(f"Failed to upload card {c_idx} media: {e}")
+
+                if not img_param.get("id"):
+                    if c_url:
+                        img_param["link"] = c_url
+                    else:
+                        img_param["link"] = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&q=80"
+
+                card_components.append({
+                    "type": "header",
+                    "parameters": [{
+                        "type": "image",
+                        "image": img_param
+                    }]
+                })
+
+                # Card Buttons (e.g. URL or Quick Reply)
+                c_btns = card_def.get("buttons") or []
+                for b_idx, btn_def in enumerate(c_btns[:2]):
+                    b_type = (btn_def.get("type") or "URL").upper()
+                    if b_type == "URL" and "{{" in btn_def.get("url", ""):
+                        card_components.append({
+                            "type": "button",
+                            "sub_type": "url",
+                            "index": b_idx,
+                            "parameters": [{
+                                "type": "text",
+                                "text": "item"
+                            }]
+                        })
+
+                cards_payload.append({
+                    "card_index": c_idx,
+                    "components": card_components
+                })
+
+            if cards_payload:
+                components.append({
+                    "type": "carousel",
+                    "cards": cards_payload
+                })
+
         payload = {
             "messaging_product": "whatsapp",
             "to": clean_recipient_phone.replace("+", "").strip(),
@@ -561,11 +634,12 @@ def create_meta_template(
     buttons: Optional[List[dict]] = None,
     sample_values: Optional[dict] = None,
     validity_period_minutes: Optional[int] = None,
-    auth_config: Optional[dict] = None
+    auth_config: Optional[dict] = None,
+    carousel_cards: Optional[List[dict]] = None
 ) -> dict:
     """
     Submits a rich WhatsApp message template to Meta Graph API.
-    Handles Marketing, Utility, and Authentication categories,
+    Handles Marketing, Utility, Authentication, and Carousel categories,
     Header formats (TEXT, IMAGE, VIDEO, DOCUMENT, LOCATION),
     Review samples (Meta required when variables are present),
     Buttons (Quick reply, URL, Phone, Copy Code, Flows),
@@ -593,112 +667,199 @@ def create_meta_template(
 
     components = []
 
-    # 1. HEADER Component
-    norm_header_type = (header_type or "NONE").upper()
-    if norm_header_type == "TEXT" and header_text:
-        header_comp = {
-            "type": "HEADER",
-            "format": "TEXT",
-            "text": header_text
+    # ── CAROUSEL TEMPLATE HANDLING ──
+    norm_subtype = (sub_type or "DEFAULT").upper()
+    if norm_subtype == "CAROUSEL" and carousel_cards and len(carousel_cards) >= 2:
+        # 1. Main BODY Component
+        body_comp = {
+            "type": "BODY",
+            "text": body_text
         }
-        # If header contains variables, add sample
-        header_matches = re.findall(r"\{\{(\d+)\}\}", header_text)
-        if header_matches:
-            samples = []
-            if sample_values and "header" in sample_values:
-                samples = sample_values["header"]
-            if not samples:
-                samples = ["Sample Header"]
-            header_comp["example"] = {"header_text": samples}
-        components.append(header_comp)
-    elif norm_header_type in ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]:
-        header_comp = {
-            "type": "HEADER",
-            "format": norm_header_type
-        }
-        if sample_values and "header_handle" in sample_values:
-            header_comp["example"] = {"header_handle": [sample_values["header_handle"]]}
-        components.append(header_comp)
-    elif header_text and norm_header_type == "NONE":
-        # Backward compatibility for plain header text
-        components.append({
-            "type": "HEADER",
-            "format": "TEXT",
-            "text": header_text
-        })
+        body_matches = sorted(list(set(re.findall(r"\{\{(\d+)\}\}", body_text or ""))), key=lambda x: int(x))
+        if body_matches:
+            samples = (sample_values and sample_values.get("body")) or [f"sample_{i}" for i in range(1, len(body_matches) + 1)]
+            body_comp["example"] = {"body_text": [samples]}
+        components.append(body_comp)
 
-    # 2. BODY Component
-    body_comp = {
-        "type": "BODY",
-        "text": body_text
-    }
-    # Check for body variable placeholders {{1}}, {{2}}...
-    body_matches = sorted(list(set(re.findall(r"\{\{(\d+)\}\}", body_text or ""))), key=lambda x: int(x))
-    if body_matches:
-        samples = []
-        if sample_values and "body" in sample_values:
-            samples = sample_values["body"]
-        if not samples or len(samples) < len(body_matches):
-            # Fallback default samples if none provided so Meta doesn't reject
-            samples = [f"sample_{i}" for i in range(1, len(body_matches) + 1)]
-        body_comp["example"] = {"body_text": [samples]}
-    components.append(body_comp)
+        # 2. CAROUSEL Component containing 2 to 10 cards
+        meta_cards = []
+        for c_idx, card in enumerate(carousel_cards[:10]):
+            card_components = []
 
-    # 3. FOOTER Component
-    if footer_text:
-        components.append({
-            "type": "FOOTER",
-            "text": footer_text
-        })
+            # Card Header (IMAGE or VIDEO)
+            c_header_type = (card.get("header_type") or "IMAGE").upper()
+            c_header_comp = {
+                "type": "HEADER",
+                "format": c_header_type
+            }
+            # Handle sample handle
+            c_handle = card.get("header_handle")
+            if not c_handle and card.get("header_url"):
+                # If local file exists, attempt auto-uploading to obtain handle
+                local_rel = card.get("header_url").lstrip("/")
+                if os.path.exists(local_rel):
+                    try:
+                        with open(local_rel, "rb") as f_img:
+                            f_bytes = f_img.read()
+                        mime = "image/jpeg" if local_rel.lower().endswith((".jpg", ".jpeg")) else "image/png"
+                        up_res = upload_template_sample_to_meta(f_bytes, mime, os.path.basename(local_rel))
+                        if up_res.get("header_handle"):
+                            c_handle = up_res["header_handle"]
+                    except Exception as err:
+                        logger.warning(f"Could not auto-upload sample handle for card {c_idx}: {err}")
 
-    # 4. BUTTONS Component
-    if buttons and isinstance(buttons, list) and len(buttons) > 0:
-        meta_buttons = []
-        for btn in buttons[:10]:
-            b_type = (btn.get("type") or "QUICK_REPLY").upper()
-            text_val = btn.get("text") or "Button"
+            if c_handle:
+                c_header_comp["example"] = {"header_handle": [c_handle]}
+            card_components.append(c_header_comp)
 
-            if b_type in ["QUICK_REPLY", "CUSTOM"]:
-                meta_buttons.append({
-                    "type": "QUICK_REPLY",
-                    "text": text_val
-                })
-            elif b_type in ["URL", "VISIT_WEBSITE"]:
-                url_btn = {
-                    "type": "URL",
-                    "text": text_val,
-                    "url": btn.get("url", "https://example.com")
-                }
-                if "{{" in btn.get("url", ""):
-                    url_sample = btn.get("example") or ["order123"]
-                    url_btn["example"] = url_sample if isinstance(url_sample, list) else [url_sample]
-                meta_buttons.append(url_btn)
-            elif b_type in ["PHONE_NUMBER", "CALL_PHONE"]:
-                meta_buttons.append({
-                    "type": "PHONE_NUMBER",
-                    "text": text_val,
-                    "phone_number": btn.get("phone_number", "+919876543210")
-                })
-            elif b_type in ["COPY_CODE", "OTP"]:
-                meta_buttons.append({
-                    "type": "COPY_CODE",
-                    "example": btn.get("example") or "OFFER20"
-                })
-            elif b_type in ["FLOW", "COMPLETE_FLOW"]:
-                flow_btn = {
-                    "type": "FLOW",
-                    "text": text_val,
-                    "navigate_screen": btn.get("navigate_screen", "START")
-                }
-                if btn.get("flow_id"):
-                    flow_btn["flow_id"] = btn.get("flow_id")
-                meta_buttons.append(flow_btn)
+            # Card Body Text
+            c_body_text = card.get("body_text") or f"Card {c_idx + 1}"
+            c_body_comp = {
+                "type": "BODY",
+                "text": c_body_text
+            }
+            c_body_matches = sorted(list(set(re.findall(r"\{\{(\d+)\}\}", c_body_text))), key=lambda x: int(x))
+            if c_body_matches:
+                c_body_comp["example"] = {"body_text": [[f"item_{i}" for i in range(1, len(c_body_matches) + 1)]]}
+            card_components.append(c_body_comp)
 
-        if meta_buttons:
-            components.append({
-                "type": "BUTTONS",
-                "buttons": meta_buttons
+            # Card Buttons (up to 2 buttons per card)
+            c_buttons = card.get("buttons") or []
+            if c_buttons:
+                meta_card_btns = []
+                for b in c_buttons[:2]:
+                    b_type = (b.get("type") or "URL").upper()
+                    if b_type == "URL":
+                        url_btn = {
+                            "type": "URL",
+                            "text": b.get("text") or "Shop Now",
+                            "url": b.get("url") or "https://jwlbillion.com"
+                        }
+                        if "{{" in url_btn["url"]:
+                            url_btn["example"] = ["item1"]
+                        meta_card_btns.append(url_btn)
+                    elif b_type == "QUICK_REPLY":
+                        meta_card_btns.append({
+                            "type": "QUICK_REPLY",
+                            "text": b.get("text") or "Select"
+                        })
+                    elif b_type == "PHONE_NUMBER":
+                        meta_card_btns.append({
+                            "type": "PHONE_NUMBER",
+                            "text": b.get("text") or "Call Us",
+                            "phone_number": b.get("phone_number") or "+919876543210"
+                        })
+                if meta_card_btns:
+                    card_components.append({
+                        "type": "BUTTONS",
+                        "buttons": meta_card_btns
+                    })
+
+            meta_cards.append({
+                "components": card_components
             })
+
+        components.append({
+            "type": "CAROUSEL",
+            "cards": meta_cards
+        })
+
+    else:
+        # Standard Non-Carousel Template Construction
+        # 1. HEADER Component
+        norm_header_type = (header_type or "NONE").upper()
+        if norm_header_type == "TEXT" and header_text:
+            header_comp = {
+                "type": "HEADER",
+                "format": "TEXT",
+                "text": header_text
+            }
+            header_matches = re.findall(r"\{\{(\d+)\}\}", header_text)
+            if header_matches:
+                samples = (sample_values and sample_values.get("header")) or ["Sample Header"]
+                header_comp["example"] = {"header_text": samples}
+            components.append(header_comp)
+        elif norm_header_type in ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]:
+            header_comp = {
+                "type": "HEADER",
+                "format": norm_header_type
+            }
+            if sample_values and "header_handle" in sample_values:
+                header_comp["example"] = {"header_handle": [sample_values["header_handle"]]}
+            components.append(header_comp)
+        elif header_text and norm_header_type == "NONE":
+            components.append({
+                "type": "HEADER",
+                "format": "TEXT",
+                "text": header_text
+            })
+
+        # 2. BODY Component
+        body_comp = {
+            "type": "BODY",
+            "text": body_text
+        }
+        body_matches = sorted(list(set(re.findall(r"\{\{(\d+)\}\}", body_text or ""))), key=lambda x: int(x))
+        if body_matches:
+            samples = (sample_values and sample_values.get("body")) or [f"sample_{i}" for i in range(1, len(body_matches) + 1)]
+            body_comp["example"] = {"body_text": [samples]}
+        components.append(body_comp)
+
+        # 3. FOOTER Component
+        if footer_text:
+            components.append({
+                "type": "FOOTER",
+                "text": footer_text
+            })
+
+        # 4. BUTTONS Component
+        if buttons and isinstance(buttons, list) and len(buttons) > 0:
+            meta_buttons = []
+            for btn in buttons[:10]:
+                b_type = (btn.get("type") or "QUICK_REPLY").upper()
+                text_val = btn.get("text") or "Button"
+
+                if b_type in ["QUICK_REPLY", "CUSTOM"]:
+                    meta_buttons.append({
+                        "type": "QUICK_REPLY",
+                        "text": text_val
+                    })
+                elif b_type in ["URL", "VISIT_WEBSITE"]:
+                    url_btn = {
+                        "type": "URL",
+                        "text": text_val,
+                        "url": btn.get("url", "https://example.com")
+                    }
+                    if "{{" in btn.get("url", ""):
+                        url_sample = btn.get("example") or ["order123"]
+                        url_btn["example"] = url_sample if isinstance(url_sample, list) else [url_sample]
+                    meta_buttons.append(url_btn)
+                elif b_type in ["PHONE_NUMBER", "CALL_PHONE"]:
+                    meta_buttons.append({
+                        "type": "PHONE_NUMBER",
+                        "text": text_val,
+                        "phone_number": btn.get("phone_number", "+919876543210")
+                    })
+                elif b_type in ["COPY_CODE", "OTP"]:
+                    meta_buttons.append({
+                        "type": "COPY_CODE",
+                        "example": btn.get("example") or "OFFER20"
+                    })
+                elif b_type in ["FLOW", "COMPLETE_FLOW"]:
+                    flow_btn = {
+                        "type": "FLOW",
+                        "text": text_val,
+                        "navigate_screen": btn.get("navigate_screen", "START")
+                    }
+                    if btn.get("flow_id"):
+                        flow_btn["flow_id"] = btn.get("flow_id")
+                    meta_buttons.append(flow_btn)
+
+            if meta_buttons:
+                components.append({
+                    "type": "BUTTONS",
+                    "buttons": meta_buttons
+                })
 
     payload = {
         "name": template_name.lower().replace(" ", "_"),

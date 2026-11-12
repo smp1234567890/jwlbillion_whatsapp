@@ -313,6 +313,7 @@ class TemplateCreate(BaseModel):
     sample_values: Optional[Dict[str, Any]] = None
     validity_period_minutes: Optional[int] = None
     auth_config: Optional[Dict[str, Any]] = None
+    carousel_cards: Optional[List[Dict[str, Any]]] = None
     variable_mappings: Optional[Dict[str, Any]] = None  # {"1": {"type": "contact_field", "value": "name"}, ...}
 
 
