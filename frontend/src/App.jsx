@@ -1655,7 +1655,7 @@ export default function App() {
 
     // Relaxed safety fallback polling (every 10s if on chat tab, 30s in background)
     const fallbackIntervalMs = activeTab === "chat" ? 10000 : 30000;
-    fallbackTimer = setInterval(() => {
+    const fallbackTimer = setInterval(() => {
       fetchChatConversations(true);
       if (activeTab === "chat" && selectedChatPhone) {
         fetchChatMessages(selectedChatPhone, true);
@@ -1663,9 +1663,6 @@ export default function App() {
     }, fallbackIntervalMs);
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
       if (fallbackTimer) {
         clearInterval(fallbackTimer);
       }
