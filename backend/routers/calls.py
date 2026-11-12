@@ -187,3 +187,42 @@ async def initiate_whatsapp_call(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class TerminateCallRequest(BaseModel):
+    call_id: str
+
+@router.post("/terminate")
+async def terminate_whatsapp_call(
+    req: TerminateCallRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Terminates an active WhatsApp voice call.
+    """
+    phone_id = config.WHATSAPP_PHONE_NUMBER_ID
+    token = config.WHATSAPP_API_TOKEN
+
+    url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{phone_id}/calls"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "call_id": req.call_id,
+        "action": "terminate"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            data = resp.json()
+            return {"status": "success", "data": data}
+    except Exception as e:
+        logger.error(f"Error terminating call: {e}")
+        return {"status": "error", "detail": str(e)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -87,6 +87,13 @@ export default function LiveChatPage({
   const [callPermStatus, setCallPermStatus] = useState(null); // null | "checking" | "granted" | "no_permission" | "requesting"
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [callStatusMsg, setCallStatusMsg] = useState("");
+  const [isCalling, setIsCalling] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [activeCallId, setActiveCallId] = useState(null);
+  const peerConnectionRef = useRef(null);
+  const localAudioStreamRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+  const callTimerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
@@ -274,6 +281,96 @@ export default function LiveChatPage({
       const msg = err.response?.data?.detail || "Failed to send call request";
       setCallStatusMsg(`Error: ${msg}`);
     }
+  };
+
+  const handleStartWhatsAppCall = async () => {
+    if (!selectedChatPhone) return;
+    try {
+      setIsCalling(true);
+      setCallStatusMsg("Requesting microphone access...");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localAudioStreamRef.current = stream;
+
+      setCallStatusMsg("Initializing WebRTC audio session...");
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" }
+        ]
+      });
+      peerConnectionRef.current = pc;
+
+      // Add local audio tracks
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+
+      // Handle remote incoming audio from customer
+      pc.ontrack = (event) => {
+        if (remoteAudioRef.current && event.streams[0]) {
+          remoteAudioRef.current.srcObject = event.streams[0];
+          remoteAudioRef.current.play().catch(() => {});
+        }
+      };
+
+      // Create WebRTC Offer
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true
+      });
+      await pc.setLocalDescription(offer);
+
+      setCallStatusMsg("Dialing customer on WhatsApp (+91 88660 22206)...");
+      const token = localStorage.getItem("token");
+      const res = await axios.post("/api/calls/initiate", {
+        customer_phone: selectedChatPhone,
+        sdp_offer: offer.sdp
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      if (res.data?.call_id) {
+        setActiveCallId(res.data.call_id);
+        setCallStatusMsg("Ringing on customer's WhatsApp...");
+        setCallDuration(0);
+        if (callTimerRef.current) clearInterval(callTimerRef.current);
+        callTimerRef.current = setInterval(() => {
+          setCallDuration((prev) => prev + 1);
+        }, 1000);
+      } else {
+        setCallStatusMsg("Calling initiated. Waiting for response...");
+      }
+    } catch (err) {
+      console.error("Call error:", err);
+      const msg = err.response?.data?.detail || err.message || "Failed to connect call";
+      setCallStatusMsg(`Call failed: ${msg}`);
+      handleEndCall();
+    }
+  };
+
+  const handleEndCall = async () => {
+    if (callTimerRef.current) {
+      clearInterval(callTimerRef.current);
+      callTimerRef.current = null;
+    }
+    if (localAudioStreamRef.current) {
+      localAudioStreamRef.current.getTracks().forEach((t) => t.stop());
+      localAudioStreamRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (activeCallId) {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post("/api/calls/terminate", { call_id: activeCallId }, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      } catch (e) {}
+      setActiveCallId(null);
+    }
+    setIsCalling(false);
+    setCallDuration(0);
   };
 
   const handleFilePicked = (e, forcedType = null) => {
@@ -1342,16 +1439,39 @@ export default function LiveChatPage({
                 <p className="text-xs text-gray-600 leading-relaxed">
                   Your microphone will be used to stream audio directly into the customer's WhatsApp call.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCallStatusMsg("Connecting WebRTC call to customer's WhatsApp...");
-                  }}
-                  className="w-full py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <PhoneCall className="w-4 h-4" />
-                  Start WhatsApp Call
-                </button>
+
+                {callStatusMsg && (
+                  <div className="text-xs p-2.5 rounded-lg bg-gray-100 text-gray-800 font-medium animate-pulse">
+                    {callStatusMsg}
+                  </div>
+                )}
+
+                {isCalling ? (
+                  <div className="flex flex-col gap-2 pt-2">
+                    <div className="text-center font-mono text-sm font-bold text-emerald-600">
+                      Duration: {Math.floor(callDuration / 60).toString().padStart(2, "0")}:{(callDuration % 60).toString().padStart(2, "0")}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleEndCall}
+                      className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Ban className="w-4 h-4" />
+                      End Call
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleStartWhatsAppCall}
+                    className="w-full py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <PhoneCall className="w-4 h-4" />
+                    Start WhatsApp Call
+                  </button>
+                )}
+                {/* Hidden audio element to play remote customer voice */}
+                <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
               </div>
             ) : (
               <div className="flex flex-col gap-3 py-1">
