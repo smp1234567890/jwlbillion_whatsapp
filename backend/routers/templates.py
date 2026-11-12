@@ -226,6 +226,26 @@ def list_templates(
     return query.order_by(models.Template.template_name.asc()).all()
 
 
+def sanitize_whatsapp_markdown(text_val: Optional[str]) -> Optional[str]:
+    """
+    Sanitizes markdown for WhatsApp:
+    1. Converts standard markdown double asterisks (**bold**) to single asterisks (*bold*).
+    2. Moves trailing punctuation (: ! ? . ,) outside the asterisks (*word:* -> *word*:)
+       so WhatsApp's mobile app renders clean bold text without showing literal asterisks.
+    3. Moves leading punctuation outside the asterisks.
+    """
+    if not text_val or not isinstance(text_val, str):
+        return text_val
+    import re
+    # Convert **bold** to *bold*
+    cleaned = re.sub(r'\*\*([^\*\n]+?)\*\*', r'*\1*', text_val)
+    # Move trailing punctuation outside asterisks
+    cleaned = re.sub(r'\*([^\*\n]+?)([:!?,.]+)\*', r'*\1*\2', cleaned)
+    # Move leading punctuation outside asterisks
+    cleaned = re.sub(r'\*([:!?,.]+)([^\*\n]+?)\*', r'\1*\2*', cleaned)
+    return cleaned
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_template(
     payload: schemas.TemplateCreate,
@@ -236,12 +256,26 @@ def create_template(
     Submits a new WhatsApp template to Meta Graph API and saves it in the database.
     """
     clean_name = payload.template_name.strip().lower().replace(" ", "_")
+    sanitized_body = sanitize_whatsapp_markdown(payload.body_text) or payload.body_text
+    sanitized_header = sanitize_whatsapp_markdown(payload.header_text)
+
+    # Sanitize card body texts if carousel
+    clean_cards = payload.carousel_cards
+    if clean_cards and isinstance(clean_cards, list):
+        clean_cards = [
+            {
+                **card,
+                "body_text": sanitize_whatsapp_markdown(card.get("body_text")) or card.get("body_text")
+            }
+            for card in clean_cards
+        ]
+
     meta_result = create_meta_template(
         template_name=clean_name,
         category=payload.category,
         language=payload.language,
-        body_text=payload.body_text,
-        header_text=payload.header_text,
+        body_text=sanitized_body,
+        header_text=sanitized_header,
         footer_text=payload.footer_text,
         sub_type=payload.sub_type or "DEFAULT",
         header_type=payload.header_type or "NONE",
@@ -249,7 +283,7 @@ def create_template(
         sample_values=payload.sample_values,
         validity_period_minutes=payload.validity_period_minutes,
         auth_config=payload.auth_config,
-        carousel_cards=payload.carousel_cards
+        carousel_cards=clean_cards
     )
 
     if "error" in meta_result and meta_result.get("status") == "FAILED":
@@ -265,14 +299,14 @@ def create_template(
         existing.category = payload.category
         existing.sub_type = payload.sub_type or "DEFAULT"
         existing.header_type = payload.header_type or "NONE"
-        existing.body_text = payload.body_text
-        existing.header_text = payload.header_text
+        existing.body_text = sanitized_body
+        existing.header_text = sanitized_header
         existing.footer_text = payload.footer_text
         existing.buttons = payload.buttons
         existing.sample_values = payload.sample_values
         existing.validity_period_minutes = payload.validity_period_minutes
         existing.auth_config = payload.auth_config
-        existing.carousel_cards = payload.carousel_cards
+        existing.carousel_cards = clean_cards
         existing.status = status_val
         if payload.variable_mappings is not None:
             existing.variable_mappings = payload.variable_mappings
@@ -286,14 +320,14 @@ def create_template(
         sub_type=payload.sub_type or "DEFAULT",
         language=payload.language,
         header_type=payload.header_type or "NONE",
-        body_text=payload.body_text,
-        header_text=payload.header_text,
+        body_text=sanitized_body,
+        header_text=sanitized_header,
         footer_text=payload.footer_text,
         buttons=payload.buttons,
         sample_values=payload.sample_values,
         validity_period_minutes=payload.validity_period_minutes,
         auth_config=payload.auth_config,
-        carousel_cards=payload.carousel_cards,
+        carousel_cards=clean_cards,
         status=status_val,
         variable_mappings=payload.variable_mappings or {}
     )

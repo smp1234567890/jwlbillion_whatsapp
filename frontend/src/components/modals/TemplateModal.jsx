@@ -1929,6 +1929,28 @@ export default function TemplateModal({
                       });
                     }
                   }
+                  // Frontend auto-clean: convert **bold** -> *bold* and fix punctuation inside asterisks (*word:* -> *word*:)
+                  const sanitizeForWhatsApp = (textVal) => {
+                    if (!textVal) return textVal;
+                    return textVal
+                      .replace(/\*\*([^\*\n]+?)\*\*/g, "*$1*")
+                      .replace(/\*([^\*\n]+?)([:!?,.]+)\*/g, "*$1*$2")
+                      .replace(/\*([:!?,.]+)([^\*\n]+?)\*/g, "$1*$2*");
+                  };
+
+                  if (newTemplate.body_text) {
+                    newTemplate.body_text = sanitizeForWhatsApp(newTemplate.body_text);
+                  }
+                  if (newTemplate.header_text) {
+                    newTemplate.header_text = sanitizeForWhatsApp(newTemplate.header_text);
+                  }
+                  if (Array.isArray(newTemplate.carousel_cards)) {
+                    newTemplate.carousel_cards = newTemplate.carousel_cards.map(c => ({
+                      ...c,
+                      body_text: sanitizeForWhatsApp(c.body_text)
+                    }));
+                  }
+
                   onSubmit(e);
                 }}
                 className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-6 py-2 rounded-lg text-xs font-bold shadow-md transition"
