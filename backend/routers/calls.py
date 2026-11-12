@@ -60,13 +60,18 @@ async def check_call_permission(
 
             permission_info = data.get("permission", {})
             status_val = permission_info.get("status", "no_permission")
+            # Meta returns 'temporary' (7-day permission) or 'permanent' when user tapped Allow
+            if status_val in ["temporary", "permanent", "granted"]:
+                status_val = "granted"
             actions = data.get("actions", [])
             can_request = any(a.get("action_name") == "send_call_permission_request" and a.get("can_perform_action") for a in actions)
+            can_call = any(a.get("action_name") == "start_call" and a.get("can_perform_action") for a in actions)
 
             return {
                 "status": "success",
                 "phone": clean_phone,
                 "permission_status": status_val, # "granted", "no_permission", "pending", "expired"
+                "can_start_call": can_call or (status_val == "granted"),
                 "can_request_permission": can_request,
                 "raw": data
             }

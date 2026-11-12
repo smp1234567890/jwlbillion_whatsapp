@@ -241,7 +241,12 @@ export default function LiveChatPage({
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (isMounted) {
-          setCallPermStatus(res.data.permission_status || "no_permission");
+          const perm = res.data.permission_status;
+          if (perm === "temporary" || perm === "permanent" || perm === "granted" || res.data.can_start_call) {
+            setCallPermStatus("granted");
+          } else {
+            setCallPermStatus(perm || "no_permission");
+          }
         }
       } catch (err) {
         if (isMounted) setCallPermStatus("no_permission");
