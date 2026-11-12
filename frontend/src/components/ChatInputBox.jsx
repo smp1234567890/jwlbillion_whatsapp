@@ -17,15 +17,18 @@ export default function ChatInputBox({
   initialText = "",
   onInputTextChange
 }) {
-  const [text, setText] = useState(initialText);
+  const textRef = useRef(initialText || "");
+  const [hasText, setHasText] = useState(Boolean(initialText && initialText.trim()));
+  const debounceRef = useRef(null);
 
-  // Sync external text changes (e.g. when a quick reply button is tapped)
+  // Sync external text changes (e.g. quick reply clicked or initialText prop updated)
   useEffect(() => {
     if (initialText !== undefined && initialText !== null) {
-      setText(initialText);
+      textRef.current = initialText;
       if (replyInputRef?.current && !selectedFile) {
         replyInputRef.current.value = initialText;
       }
+      setHasText(Boolean(initialText.trim()));
     }
   }, [initialText, selectedFile, replyInputRef]);
 
@@ -35,12 +38,17 @@ export default function ChatInputBox({
     if (selectedFile) {
       handleSendMediaSubmit(e);
     } else {
-      const trimmed = text.trim();
+      const currentVal = replyInputRef?.current ? replyInputRef.current.value : textRef.current;
+      const trimmed = currentVal ? currentVal.trim() : "";
       if (!trimmed || chatSending) return;
       if (handleSendChatMessage) {
         handleSendChatMessage(e, trimmed);
       }
-      setText("");
+      textRef.current = "";
+      if (replyInputRef?.current) {
+        replyInputRef.current.value = "";
+      }
+      setHasText(false);
       if (onInputTextChange) onInputTextChange("");
     }
     if (replyInputRef?.current) {
@@ -51,7 +59,7 @@ export default function ChatInputBox({
     }
   };
 
-  const hasContent = selectedFile ? Boolean(mediaCaption && mediaCaption.trim()) : Boolean(text && text.trim());
+  const hasContent = selectedFile ? Boolean(mediaCaption && mediaCaption.trim()) : hasText;
 
   return (
     <form onSubmit={handleSubmit} className="flex items-end gap-2 min-w-0 w-full">
@@ -63,20 +71,31 @@ export default function ChatInputBox({
             ? `Add caption for this ${selectedFileType}...`
             : "Type a message or paste image..."
         }
-        value={selectedFile ? mediaCaption : text}
+        defaultValue={selectedFile ? undefined : (initialText || "")}
+        value={selectedFile ? mediaCaption : undefined}
         onPaste={handlePaste}
-        onChange={(e) => {
+        onInput={(e) => {
           const val = e.target.value;
           if (selectedFile) {
             setMediaCaption(val);
           } else {
-            setText(val);
-            if (onInputTextChange) onInputTextChange(val);
+            textRef.current = val;
+            const isNonEmpty = Boolean(val.trim());
+            if (isNonEmpty !== hasText) {
+              clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => {
+                setHasText(Boolean(replyInputRef?.current?.value?.trim()));
+              }, 40);
+            }
+            if (onInputTextChange) {
+              onInputTextChange(val);
+            }
           }
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
-            e.stopPropagation();
+            e.preventDefault();
+            handleSubmit(e);
           }
         }}
         disabled={chatSending}
