@@ -34,7 +34,9 @@ GREETING_WORDS = {
 
 GREETING_PHRASES = [
     "hi there", "hey there", "good morning", "good afternoon", "good evening", "good night",
-    "kaise ho", "kya haal", "namaste", "help with my order"
+    "kaise ho", "kya haal", "namaste", "help with my order",
+    "more info", "more information", "can i get more info", "can i get more info on this",
+    "details please", "tell me more", "more details", "product details", "interested in this"
 ]
 
 ORDER_QUERY_TRIGGERS = [
@@ -656,18 +658,22 @@ def handle_inbound_auto_reply(
         return res
 
     # -------------------------------------------------------------
-    # 6. Check for Greeting or General Help -> Show Interactive Menu
+    # 6. Check for Greeting, Info Request, or General Help -> Show Interactive Menu
     # -------------------------------------------------------------
     words = [w.strip() for w in re.split(r"[^\w#]+", text_clean) if w.strip()]
     normalized_words = [re.sub(r'(.)\1{1,}', r'\1', w) for w in words]
+    is_info_request = any(phrase in text_clean for phrase in [
+        "more info", "more information", "can i get more info", "info on this", "details", "jankari"
+    ])
     is_greeting = (
         any(w in GREETING_WORDS for w in words)
         or any(nw in GREETING_WORDS for nw in normalized_words)
         or any(phrase in text_clean for phrase in GREETING_PHRASES)
         or text_clean in ["help", "need help", "support", "hi", "hello"]
+        or is_info_request
     )
 
-    if is_greeting and len(words) <= 6:
+    if (is_greeting and len(words) <= 12) or is_info_request:
         menu_payload = build_main_menu_list(customer_name)
         res = send_whatsapp_interactive(sender_phone, menu_payload, db=db)
         _save_bot_message(db, sender_phone, "Sent interactive main menu", res.get("message_id"))
