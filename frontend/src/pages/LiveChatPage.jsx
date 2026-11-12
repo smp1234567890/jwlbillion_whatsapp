@@ -33,6 +33,8 @@ import {
   LogOut,
   Mic,
   Square,
+  Volume,
+  Volume1,
   Ban
 } from "lucide-react";
 import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
@@ -89,6 +91,7 @@ export default function LiveChatPage({
   const [isCalling, setIsCalling] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [activeCallId, setActiveCallId] = useState(null);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const peerConnectionRef = useRef(null);
   const localAudioStreamRef = useRef(null);
   const remoteAudioRef = useRef(null);
@@ -389,8 +392,34 @@ export default function LiveChatPage({
       } catch (e) {}
       setActiveCallId(null);
     }
+    // Reset speakerphone on call end
+    try {
+      if (window.Capacitor?.Plugins?.LiveChatSync?.setSpeakerphoneOn) {
+        window.Capacitor.Plugins.LiveChatSync.setSpeakerphoneOn({ enabled: true });
+      }
+    } catch (e) {}
+    setIsSpeakerOn(true);
     setIsCalling(false);
     setCallDuration(0);
+  };
+
+  const toggleSpeakerphone = async () => {
+    const nextState = !isSpeakerOn;
+    setIsSpeakerOn(nextState);
+
+    // 1. Android Native AudioManager route via LiveChatSync plugin
+    try {
+      if (window.Capacitor?.Plugins?.LiveChatSync?.setSpeakerphoneOn) {
+        await window.Capacitor.Plugins.LiveChatSync.setSpeakerphoneOn({ enabled: nextState });
+      }
+    } catch (e) {
+      console.warn("Native speaker toggle error:", e);
+    }
+
+    // 2. Adjust volume on HTML audio element (low/earpiece simulation for browser/web)
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.volume = nextState ? 1.0 : 0.25;
+    }
   };
 
   const handleFilePicked = (e, forcedType = null) => {
@@ -1467,10 +1496,37 @@ export default function LiveChatPage({
                 )}
 
                 {isCalling ? (
-                  <div className="flex flex-col gap-2 pt-2">
-                    <div className="text-center font-mono text-sm font-bold text-emerald-600">
+                  <div className="flex flex-col gap-3 pt-2">
+                    <div className="text-center font-mono text-base font-bold text-emerald-600 bg-emerald-50 py-1.5 rounded-lg border border-emerald-100">
                       Duration: {Math.floor(callDuration / 60).toString().padStart(2, "0")}:{(callDuration % 60).toString().padStart(2, "0")}
                     </div>
+
+                    {/* Speakerphone Toggle (Loud Speaker / Ear Speaker) */}
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={toggleSpeakerphone}
+                        className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${
+                          isSpeakerOn
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-800 shadow-xs"
+                            : "bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"
+                        }`}
+                        title={isSpeakerOn ? "Speaker is LOUD. Tap for earpiece/quiet" : "Speaker is normal/earpiece. Tap for LOUD speaker"}
+                      >
+                        {isSpeakerOn ? (
+                          <>
+                            <Volume2 className="w-4 h-4 text-emerald-600" />
+                            <span>Loud Speaker: <strong>ON</strong></span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume1 className="w-4 h-4 text-gray-500" />
+                            <span>Loud Speaker: <strong>OFF</strong></span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
                     <button
                       type="button"
                       onClick={handleEndCall}

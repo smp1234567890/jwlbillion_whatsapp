@@ -3,6 +3,7 @@ package com.jwlbillion.whatsappcrm;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.AudioManager;
 import android.os.Build;
 import android.util.Log;
 
@@ -15,6 +16,25 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "LiveChatSync")
 public class LiveChatSyncPlugin extends Plugin {
     private static final String TAG = "LiveChatSyncPlugin";
+
+    @PluginMethod
+    public void setSpeakerphoneOn(PluginCall call) {
+        try {
+            boolean enabled = call.getBoolean("enabled", true);
+            Context ctx = getContext();
+            AudioManager audioManager = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+            if (audioManager != null) {
+                audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                audioManager.setSpeakerphoneOn(enabled);
+            }
+            JSObject ret = new JSObject();
+            ret.put("speakerphoneOn", enabled);
+            call.resolve(ret);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to toggle speakerphone: " + e.getMessage());
+            call.reject("Failed to toggle speakerphone", e);
+        }
+    }
 
     @PluginMethod
     public void startSync(PluginCall call) {
