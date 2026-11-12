@@ -79,7 +79,8 @@ export default function LiveChatPage({
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileType, setSelectedFileType] = useState("document");
   const [mediaCaption, setMediaCaption] = useState("");
-  const [localInputText, setLocalInputText] = useState("");
+  const [hasInputText, setHasInputText] = useState(false);
+  const typingDebounceTimerRef = useRef(null);
   const [serverQuickReplies, setServerQuickReplies] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -1150,10 +1151,16 @@ export default function LiveChatPage({
                   if (selectedFile) {
                     handleSendMediaSubmit(e);
                   } else {
+                    const textToSend = replyInputRef.current ? replyInputRef.current.value : "";
                     if (handleSendChatMessage) {
-                      handleSendChatMessage(e, localInputText);
+                      handleSendChatMessage(e, textToSend);
                     }
-                    setLocalInputText("");
+                    if (replyInputRef.current) {
+                      replyInputRef.current.value = "";
+                      replyInputRef.current.style.height = "auto";
+                    }
+                    setHasInputText(false);
+                    if (setChatReplyText) setChatReplyText("");
                   }
                   if (replyInputRef.current) { replyInputRef.current.style.height = "auto"; }
                   setTimeout(() => scrollToBottom("smooth"), 50);
@@ -1205,7 +1212,7 @@ export default function LiveChatPage({
                   </div>
                 ) : (
                   <>
-                    {/* Multiline Textarea: Native CSS fluid auto-sizing with zero DOM reflow thrashing */}
+                    {/* Multiline Textarea: Native unmanaged typing for 0ms Android keyboard latency */}
                     <textarea
                       ref={replyInputRef}
                       rows={1}
@@ -1214,14 +1221,20 @@ export default function LiveChatPage({
                           ? `Add caption for this ${selectedFileType}...`
                           : "Type a message or paste image..."
                       }
-                      value={selectedFile ? mediaCaption : localInputText}
+                      defaultValue=""
                       onPaste={handlePaste}
-                      onChange={(e) => {
+                      onInput={(e) => {
                         const val = e.target.value;
                         if (selectedFile) {
                           setMediaCaption(val);
                         } else {
-                          setLocalInputText(val);
+                          // Debounce state update to prevent UI re-renders on every keystroke
+                          if (typingDebounceTimerRef.current) {
+                            clearTimeout(typingDebounceTimerRef.current);
+                          }
+                          typingDebounceTimerRef.current = setTimeout(() => {
+                            setHasInputText(Boolean(val && val.trim()));
+                          }, 80);
                         }
                       }}
                       onKeyDown={(e) => {
@@ -1239,7 +1252,7 @@ export default function LiveChatPage({
                     />
 
                     {/* Microphone Voice Note Button (shown when no text/file, or quick tap) */}
-                    {!selectedFile && !localInputText.trim() && (
+                    {!selectedFile && !hasInputText && (
                       <button
                         type="button"
                         onClick={startVoiceRecording}
@@ -1253,7 +1266,7 @@ export default function LiveChatPage({
 
                     <button
                       type="submit"
-                      disabled={(!selectedFile && !localInputText.trim()) || chatSending}
+                      disabled={(!selectedFile && !hasInputText) || chatSending}
                       className="px-5 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer mb-0.5"
                     >
                       {chatSending ? (
