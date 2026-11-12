@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request, Body
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session
@@ -269,12 +269,25 @@ def get_quick_replies(
     return DEFAULT_QUICK_REPLIES
 
 @router.put("/api/quick-replies")
-def save_quick_replies(
-    payload: list,
+async def save_quick_replies(
+    request: Request,
     current_user: models.User = Depends(auth.require_roles("admin", "manager", "agent")),
     db: Session = Depends(get_db)
 ):
     import json
+    try:
+        body = await request.json()
+    except Exception:
+        body = []
+    
+    # Accept either direct list or dict with 'payload' / 'quick_replies'
+    if isinstance(body, dict):
+        payload = body.get("payload") or body.get("quick_replies") or []
+    elif isinstance(body, list):
+        payload = body
+    else:
+        payload = []
+
     data_str = json.dumps(payload)
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "quick_replies_json").first()
     if not setting:
