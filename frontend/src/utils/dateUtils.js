@@ -49,12 +49,18 @@ export function formatToISTTime(dateStr) {
   }
   const d = new Date(s);
   if (isNaN(d.getTime())) return String(dateStr);
-  return d.toLocaleTimeString("en-US", {
+  const datePart = d.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short"
+  });
+  const timePart = d.toLocaleTimeString("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true
   });
+  return `${datePart}, ${timePart}`;
 }
 
 export function formatToISTDate(dateStr) {

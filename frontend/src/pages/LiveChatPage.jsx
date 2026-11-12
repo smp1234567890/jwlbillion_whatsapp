@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
 import { getApiBaseUrl } from "../api";
+import axios from "axios";
 
 export default function LiveChatPage({
   chatConversations = [],
@@ -74,6 +75,8 @@ export default function LiveChatPage({
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileType, setSelectedFileType] = useState("document");
   const [mediaCaption, setMediaCaption] = useState("");
+  const [localInputText, setLocalInputText] = useState("");
+  const [serverQuickReplies, setServerQuickReplies] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const mediaRecorderRef = useRef(null);
@@ -81,6 +84,29 @@ export default function LiveChatPage({
   const recordingTimerRef = useRef(null);
   const fileInputRef = useRef(null);
   const replyInputRef = useRef(null);
+
+  // Sync external chatReplyText changes (e.g. from parent initial state)
+  useEffect(() => {
+    if (chatReplyText !== undefined) {
+      setLocalInputText(chatReplyText);
+    }
+  }, [chatReplyText]);
+
+  // Fetch customizable quick replies from backend
+  useEffect(() => {
+    const fetchQR = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get("/api/quick-replies", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setServerQuickReplies(res.data);
+        }
+      } catch (e) {}
+    };
+    fetchQR();
+  }, []);
 
   const handlePaste = (e) => {
     const items = e.clipboardData?.items;
@@ -927,27 +953,40 @@ export default function LiveChatPage({
               )}
             </div>
 
-            {/* Quick Reply Suggestions */}
-            <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center gap-2 overflow-x-auto flex-shrink-0 min-w-0 max-w-full">
-              <span className="text-[10px] font-bold uppercase text-gray-500 flex items-center gap-1 flex-shrink-0 pl-1">
+            {/* Quick Reply Suggestions (Max 2 lines, Vertically scrollable) */}
+            <div className="px-3.5 py-1.5 bg-gray-50 border-t border-gray-200 flex items-start gap-2 flex-shrink-0 min-w-0 max-w-full">
+              <span className="text-[10px] font-bold uppercase text-gray-500 flex items-center gap-1 flex-shrink-0 pt-1">
                 <Sparkles className="w-3 h-3 text-[#F5A623]" /> Quick replies:
               </span>
-              {[
-                "Hello! Welcome to JWL Billion. How can we assist you today?\nVisit our website: https://jwlbillion.com/",
-                "Your order has been confirmed and is being processed for dispatch.",
-                "Thank you for reaching out! A representative will connect with you shortly.",
-                "Here is your special discount code: WELCOME (7% OFF)",
-                "Could you please share your Order ID so we can check the status?"
-              ].map((snippet, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setChatReplyText(snippet)}
-                  className="px-3 py-1 bg-white hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-gray-200 rounded-full text-xs whitespace-nowrap text-gray-700 transition shadow-2xs font-medium cursor-pointer"
-                >
-                  {snippet.length > 35 ? snippet.slice(0, 35) + "..." : snippet}
-                </button>
-              ))}
+              <div className="flex-1 max-h-[68px] overflow-y-auto flex flex-wrap gap-1.5 pr-1">
+                {(serverQuickReplies.length > 0 ? serverQuickReplies : [
+                  { id: 1, title: "Welcome & Website", message: "Hello! Welcome to JWL Billion. How can we assist you today?\nVisit our website: https://jwlbillion.com/" },
+                  { id: 2, title: "Order Processing", message: "Your order has been confirmed and is being processed for dispatch." },
+                  { id: 3, title: "Representative Connect", message: "Thank you for reaching out! A representative will connect with you shortly." },
+                  { id: 4, title: "Welcome Discount", message: "Here is your special discount code: WELCOME (7% OFF)" },
+                  { id: 5, title: "Order ID Inquiry", message: "Could you please share your Order ID so we can check the status?" }
+                ]).map((qr, idx) => {
+                  const text = typeof qr === "string" ? qr : (qr.message || qr.title);
+                  const label = typeof qr === "string" ? qr : (qr.title || qr.message);
+                  return (
+                    <button
+                      key={qr.id || idx}
+                      type="button"
+                      onClick={() => {
+                        setLocalInputText(text);
+                        if (setChatReplyText) setChatReplyText(text);
+                        if (replyInputRef.current) {
+                          replyInputRef.current.focus();
+                        }
+                      }}
+                      title={text}
+                      className="px-2.5 py-1 bg-white hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-gray-200 rounded-lg text-xs text-gray-700 transition shadow-2xs font-medium cursor-pointer max-w-[280px] truncate leading-tight"
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Hidden native file inputs */}
@@ -1085,7 +1124,10 @@ export default function LiveChatPage({
                   if (selectedFile) {
                     handleSendMediaSubmit(e);
                   } else {
-                    handleSendChatMessage(e);
+                    if (handleSendChatMessage) {
+                      handleSendChatMessage(e, localInputText);
+                    }
+                    setLocalInputText("");
                   }
                   if (replyInputRef.current) { replyInputRef.current.style.height = "auto"; }
                   setTimeout(() => scrollToBottom("smooth"), 50);
@@ -1146,16 +1188,17 @@ export default function LiveChatPage({
                           ? `Add caption for this ${selectedFileType}...`
                           : "Type a message or paste image..."
                       }
-                      value={selectedFile ? mediaCaption : chatReplyText}
+                      value={selectedFile ? mediaCaption : localInputText}
                       onPaste={handlePaste}
                       onChange={(e) => {
+                        const val = e.target.value;
                         if (selectedFile) {
-                          setMediaCaption(e.target.value);
+                          setMediaCaption(val);
                         } else {
-                          setChatReplyText(e.target.value);
+                          setLocalInputText(val);
                         }
                         e.target.style.height = "auto";
-                        if (e.target.value) {
+                        if (val) {
                           e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
                         }
                       }}
@@ -1170,7 +1213,7 @@ export default function LiveChatPage({
                     />
 
                     {/* Microphone Voice Note Button (shown when no text/file, or quick tap) */}
-                    {!selectedFile && !chatReplyText.trim() && (
+                    {!selectedFile && !localInputText.trim() && (
                       <button
                         type="button"
                         onClick={startVoiceRecording}
@@ -1184,7 +1227,7 @@ export default function LiveChatPage({
 
                     <button
                       type="submit"
-                      disabled={(!selectedFile && !chatReplyText.trim()) || chatSending}
+                      disabled={(!selectedFile && !localInputText.trim()) || chatSending}
                       className="px-5 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2 flex-shrink-0 cursor-pointer mb-0.5"
                     >
                       {chatSending ? (

@@ -86,6 +86,7 @@ import ProfileDetailsPage from "./pages/ProfileDetailsPage";
 import PerformanceNocPage from "./pages/PerformanceNocPage";
 import ShopifyProductsPage from "./pages/ShopifyProductsPage";
 import SegmentsPage from "./pages/SegmentsPage";
+import QuickRepliesPage from "./pages/QuickRepliesPage";
 
 const INITIAL_API_BASE_URL = getApiBaseUrl();
 setApiBaseUrl(INITIAL_API_BASE_URL);
@@ -157,7 +158,7 @@ export default function App() {
   const getInitialTab = () => {
     if (isNativePlatform) return "chat";
     const hash = window.location.hash.replace("#", "");
-    if (hash && ["dashboard", "chat", "automations", "campaigns", "analytics", "performance", "templates", "contacts", "logs", "opt_out", "settings"].includes(hash)) {
+    if (hash && ["dashboard", "chat", "quick_replies", "automations", "campaigns", "analytics", "performance", "templates", "contacts", "logs", "opt_out", "settings"].includes(hash)) {
       return hash;
     }
     return localStorage.getItem("activeTab") || "dashboard";
@@ -1283,11 +1284,12 @@ export default function App() {
     fetchChatMessages(phone, false);
   };
 
-  const handleSendChatMessage = async (e) => {
+  const handleSendChatMessage = async (e, textToSend) => {
     e?.preventDefault();
-    if (!chatReplyText.trim() || !selectedChatPhone || chatSending) return;
+    const rawText = typeof textToSend === "string" ? textToSend : chatReplyText;
+    if (!rawText.trim() || !selectedChatPhone || chatSending) return;
 
-    const messageText = chatReplyText.trim();
+    const messageText = rawText.trim();
     setChatSending(true);
 
     // Optimistic local bubble
@@ -2119,6 +2121,7 @@ export default function App() {
                 icon: MessageSquare,
                 badge: chatConversations.reduce((acc, c) => acc + (c.unread_count || 0), 0)
               },
+              { id: "quick_replies", label: "Quick Replies", icon: Sparkles },
               { id: "automations", label: "Automations", icon: Sliders, badge: workflowFlows.length },
               { id: "campaigns", label: "Campaigns", icon: Megaphone },
               { id: "products", label: "Shopify Products", icon: ShoppingBag },
@@ -2364,6 +2367,9 @@ export default function App() {
             <BillingPage token={token} />
           )}
 
+          {activeTab === "quick_replies" && (
+            <QuickRepliesPage token={token} />
+          )}
 
           {activeTab === "templates" && (
             <TemplatesPage

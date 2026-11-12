@@ -245,3 +245,45 @@ def update_daily_limit_setting(
         detail="Daily outbound message limit is fixed to 2000 messages per day and cannot be edited."
     )
 
+
+DEFAULT_QUICK_REPLIES = [
+    {"id": 1, "title": "Welcome & Website", "message": "Hello! Welcome to JWL Billion. How can we assist you today?\nVisit our website: https://jwlbillion.com/"},
+    {"id": 2, "title": "Order Processing", "message": "Your order has been confirmed and is being processed for dispatch."},
+    {"id": 3, "title": "Representative Connect", "message": "Thank you for reaching out! A representative will connect with you shortly."},
+    {"id": 4, "title": "Welcome Discount", "message": "Here is your special discount code: WELCOME (7% OFF)"},
+    {"id": 5, "title": "Order ID Inquiry", "message": "Could you please share your Order ID so we can check the status?"}
+]
+
+@router.get("/api/quick-replies")
+def get_quick_replies(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "quick_replies_json").first()
+    if setting and setting.value:
+        try:
+            import json
+            return json.loads(setting.value)
+        except Exception:
+            pass
+    return DEFAULT_QUICK_REPLIES
+
+@router.put("/api/quick-replies")
+def save_quick_replies(
+    payload: list,
+    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
+    db: Session = Depends(get_db)
+):
+    import json
+    data_str = json.dumps(payload)
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "quick_replies_json").first()
+    if not setting:
+        setting = models.SystemSetting(key="quick_replies_json", value=data_str)
+        db.add(setting)
+    else:
+        setting.value = data_str
+        setting.updated_at = datetime.utcnow()
+    db.commit()
+    return {"status": "success", "quick_replies": payload}
+
+
