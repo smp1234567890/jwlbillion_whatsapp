@@ -1184,7 +1184,7 @@ export default function LiveChatPage({
                   </div>
                 ) : (
                   <>
-                    {/* Multiline Textarea: Enter creates a new line, pasting an image attaches it */}
+                    {/* Multiline Textarea: Native CSS fluid auto-sizing with zero DOM reflow thrashing */}
                     <textarea
                       ref={replyInputRef}
                       rows={1}
@@ -1202,10 +1202,6 @@ export default function LiveChatPage({
                         } else {
                           setLocalInputText(val);
                         }
-                        e.target.style.height = "auto";
-                        if (val) {
-                          e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-                        }
                       }}
                       onKeyDown={(e) => {
                         // Do NOT send on Enter; Enter always creates a new line
@@ -1214,7 +1210,11 @@ export default function LiveChatPage({
                         }
                       }}
                       disabled={chatSending}
-                      className="flex-1 min-w-0 h-[42px] px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none max-h-32 leading-snug box-border overflow-hidden whitespace-nowrap"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      style={{ fieldSizing: "content" }}
+                      className="flex-1 min-w-0 min-h-[42px] max-h-32 px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none leading-snug box-border overflow-y-auto"
                     />
 
                     {/* Microphone Voice Note Button (shown when no text/file, or quick tap) */}
