@@ -37,6 +37,7 @@ import {
 import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
 import { getApiBaseUrl } from "../api";
 import axios from "axios";
+import { getStoredQuickReplies } from "../utils/quickRepliesStorage";
 
 export default function LiveChatPage({
   chatConversations = [],
@@ -92,8 +93,12 @@ export default function LiveChatPage({
     }
   }, [chatReplyText]);
 
-  // Fetch customizable quick replies from backend
+  // Fetch customizable quick replies (instant local cache + background server sync)
   useEffect(() => {
+    const local = getStoredQuickReplies();
+    if (local && local.length > 0) {
+      setServerQuickReplies(local);
+    }
     const fetchQR = async () => {
       try {
         const token = localStorage.getItem("token");

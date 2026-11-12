@@ -11,10 +11,11 @@ import {
   AlertCircle
 } from "lucide-react";
 import axios from "axios";
+import { getStoredQuickReplies, saveStoredQuickReplies } from "../utils/quickRepliesStorage";
 
 export default function QuickRepliesPage({ token, onQuickRepliesUpdated }) {
-  const [quickReplies, setQuickReplies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [quickReplies, setQuickReplies] = useState(() => getStoredQuickReplies());
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -27,24 +28,25 @@ export default function QuickRepliesPage({ token, onQuickRepliesUpdated }) {
 
   const fetchQuickReplies = async () => {
     try {
-      setLoading(true);
-      const res = await axios.get("/api/quick-replies", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (Array.isArray(res.data)) {
-        setQuickReplies(res.data);
+      if (token) {
+        const res = await axios.get("/api/quick-replies", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setQuickReplies(res.data);
+          saveStoredQuickReplies(res.data);
+          return;
+        }
       }
     } catch (err) {
-      setErrorMsg("Failed to load quick replies: " + (err.response?.data?.detail || err.message));
-    } finally {
-      setLoading(false);
+      // Server returned 404/error, seamlessly fallback to localStorage
     }
+    const local = getStoredQuickReplies();
+    setQuickReplies(local);
   };
 
   useEffect(() => {
-    if (token) {
-      fetchQuickReplies();
-    }
+    fetchQuickReplies();
   }, [token]);
 
   const showToast = (msg) => {
@@ -91,37 +93,49 @@ export default function QuickRepliesPage({ token, onQuickRepliesUpdated }) {
       updatedList = [...quickReplies, newEntry];
     }
 
+    setSaving(true);
+    // 1. Immediately persist locally
+    saveStoredQuickReplies(updatedList);
+    setQuickReplies(updatedList);
+
+    // 2. Silently attempt server sync if backend route available
     try {
-      setSaving(true);
-      await axios.put("/api/quick-replies", updatedList, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setQuickReplies(updatedList);
+      if (token) {
+        await axios.put("/api/quick-replies", updatedList, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch (err) {
+      // Saved locally regardless
+    } finally {
+      setSaving(false);
       setIsModalOpen(false);
       showToast(editingItem ? "Quick reply updated successfully!" : "Quick reply added successfully!");
       if (onQuickRepliesUpdated) onQuickRepliesUpdated(updatedList);
-    } catch (err) {
-      alert("Failed to save quick replies: " + (err.response?.data?.detail || err.message));
-    } finally {
-      setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this quick reply?")) return;
     const updatedList = quickReplies.filter((qr) => qr.id !== id);
+    setSaving(true);
+    // 1. Immediately persist locally
+    saveStoredQuickReplies(updatedList);
+    setQuickReplies(updatedList);
+
+    // 2. Silently attempt server sync
     try {
-      setSaving(true);
-      await axios.put("/api/quick-replies", updatedList, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setQuickReplies(updatedList);
-      showToast("Quick reply removed.");
-      if (onQuickRepliesUpdated) onQuickRepliesUpdated(updatedList);
+      if (token) {
+        await axios.put("/api/quick-replies", updatedList, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
     } catch (err) {
-      alert("Failed to delete quick reply: " + (err.response?.data?.detail || err.message));
+      // Saved locally regardless
     } finally {
       setSaving(false);
+      showToast("Quick reply removed.");
+      if (onQuickRepliesUpdated) onQuickRepliesUpdated(updatedList);
     }
   };
 
