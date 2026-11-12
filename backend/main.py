@@ -536,6 +536,7 @@ from routers import (
     segments as segments_router,
     billing as billing_router,
     redirect as redirect_router,
+    calls as calls_router,
 )
 
 app.include_router(auth_router.router)
@@ -553,6 +554,7 @@ app.include_router(products_router.router)
 app.include_router(segments_router.router)
 app.include_router(billing_router.router)
 app.include_router(redirect_router.router)
+app.include_router(calls_router.router)
 
 import mimetypes
 mimetypes.init()

@@ -1216,9 +1216,16 @@ async def receive_inbound_whatsapp_message(
                     interactive = msg.get("interactive", {})
                     btn_reply = interactive.get("button_reply", {})
                     list_reply = interactive.get("list_reply", {})
+                    call_perm_reply = interactive.get("call_permission_reply", {})
                     title = btn_reply.get("title") or list_reply.get("title")
                     interactive_id = btn_reply.get("id") or list_reply.get("id")
-                    if title:
+                    if call_perm_reply:
+                        resp_action = call_perm_reply.get("response", "accept")
+                        if resp_action == "accept":
+                            raw_body = "📞 WhatsApp Call Permission Granted by Customer"
+                        else:
+                            raw_body = "📞 WhatsApp Call Permission Declined by Customer"
+                    elif title:
                         raw_body = f"Selected: {title}"
                     elif interactive_id:
                         raw_body = f"Selected: {interactive_id.replace('menu_', '').replace('_', ' ').title()}"

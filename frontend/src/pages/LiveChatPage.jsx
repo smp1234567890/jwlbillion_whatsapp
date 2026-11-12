@@ -84,6 +84,9 @@ export default function LiveChatPage({
   const [serverQuickReplies, setServerQuickReplies] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [callPermStatus, setCallPermStatus] = useState(null); // null | "checking" | "granted" | "no_permission" | "requesting"
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [callStatusMsg, setCallStatusMsg] = useState("");
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
@@ -223,6 +226,50 @@ export default function LiveChatPage({
       }
     };
   }, []);
+
+  // Check WhatsApp call permission when customer is selected
+  useEffect(() => {
+    if (!selectedChatPhone) {
+      setCallPermStatus(null);
+      return;
+    }
+    let isMounted = true;
+    const checkPerm = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`/api/calls/permission?phone=${encodeURIComponent(selectedChatPhone)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (isMounted) {
+          setCallPermStatus(res.data.permission_status || "no_permission");
+        }
+      } catch (err) {
+        if (isMounted) setCallPermStatus("no_permission");
+      }
+    };
+    checkPerm();
+    return () => { isMounted = false; };
+  }, [selectedChatPhone]);
+
+  const handleSendCallPermissionRequest = async () => {
+    if (!selectedChatPhone) return;
+    try {
+      setCallStatusMsg("Sending call request to customer on WhatsApp...");
+      const token = localStorage.getItem("token");
+      await axios.post("/api/calls/request-permission", {
+        customer_phone: selectedChatPhone,
+        custom_message: "We would like to connect with you via WhatsApp Voice Call regarding your inquiry. Please tap Allow below."
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      setCallStatusMsg("Request sent! Once customer taps 'Allow' on WhatsApp, you can place the call.");
+      setCallPermStatus("pending");
+      if (fetchChatMessages) fetchChatMessages(selectedChatPhone, false);
+    } catch (err) {
+      const msg = err.response?.data?.detail || "Failed to send call request";
+      setCallStatusMsg(`Error: ${msg}`);
+    }
+  };
 
   const handleFilePicked = (e, forcedType = null) => {
     const file = e.target.files?.[0];
@@ -666,6 +713,30 @@ export default function LiveChatPage({
                         </button>
                       );
                     })()}
+                    {/* WhatsApp Direct In-App Call Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCallModalOpen(true);
+                        setCallStatusMsg("");
+                      }}
+                      className={`px-2.5 py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                        callPermStatus === "granted"
+                          ? "border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                          : "border-emerald-400 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                      }`}
+                      title={
+                        callPermStatus === "granted"
+                          ? "Call directly via WhatsApp Voice Call (Permission Active)"
+                          : "WhatsApp Voice Call (Click to check/request permission)"
+                      }
+                    >
+                      <PhoneCall className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">
+                        {callPermStatus === "granted" ? "WA Call (Ready)" : "WA Call"}
+                      </span>
+                    </button>
+
                     <a
                       href={`tel:${selectedChatPhone}`}
                       className="px-2.5 py-1.5 border border-blue-300 text-blue-700 bg-blue-50 rounded-lg text-xs font-semibold hover:bg-blue-100 transition flex items-center gap-1.5 shrink-0"
@@ -1229,6 +1300,86 @@ export default function LiveChatPage({
           </div>
         )}
       </div>
+
+      {/* WhatsApp Voice Calling Permission & Dial Modal */}
+      {callModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <PhoneCall className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">WhatsApp Voice Calling</h3>
+                  <p className="text-xs text-gray-500 font-mono">{selectedChatPhone}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCallModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 cursor-pointer text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-emerald-50/70 border border-emerald-200/60 rounded-xl p-3.5 text-xs text-emerald-900 leading-relaxed">
+              Calls placed here will ring directly on the customer's WhatsApp application from your verified WhatsApp business profile (<strong>+91 88660 22206</strong>).
+            </div>
+
+            {callPermStatus === "granted" ? (
+              <div className="flex flex-col gap-3 py-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-100/70 px-3 py-2 rounded-lg">
+                  <CheckCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Call Permission is Active! Ready to connect.</span>
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Your microphone will be used to stream audio directly into the customer's WhatsApp call.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCallStatusMsg("Connecting WebRTC call to customer's WhatsApp...");
+                  }}
+                  className="w-full py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <PhoneCall className="w-4 h-4" />
+                  Start WhatsApp Call
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 py-1">
+                <div className="text-xs text-gray-600 leading-relaxed">
+                  Meta's anti-spam policy requires the customer to allow outbound calls. Tap below to send a <strong>Call Permission Request</strong> interactive card to their WhatsApp chat.
+                </div>
+                {callStatusMsg && (
+                  <div className="text-xs p-2.5 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                    {callStatusMsg}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSendCallPermissionRequest}
+                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    Send Call Request (WhatsApp)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCallModalOpen(false)}
+                    className="px-4 py-2.5 border border-gray-200 text-gray-600 text-xs font-semibold rounded-xl hover:bg-gray-50 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
