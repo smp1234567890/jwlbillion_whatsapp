@@ -13,6 +13,9 @@ import config
 
 logger = logging.getLogger("calls_router")
 
+# Global in-memory cache for pending call WebRTC events
+PENDING_CALL_EVENTS = {}
+
 router = APIRouter(prefix="/api/calls", tags=["calls"])
 
 GRAPH_API_VERSION = "v21.0"
@@ -189,6 +192,19 @@ async def initiate_whatsapp_call(
 
 class TerminateCallRequest(BaseModel):
     call_id: str
+
+@router.get("/status")
+async def get_call_status(
+    call_id: str = Query(..., description="WhatsApp Call ID"),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Polls real-time WebRTC SDP answer and event updates for an active call.
+    """
+    event_data = PENDING_CALL_EVENTS.get(call_id)
+    if event_data:
+        return {"status": "success", "event": event_data}
+    return {"status": "pending", "event": None}
 
 @router.post("/terminate")
 async def terminate_whatsapp_call(

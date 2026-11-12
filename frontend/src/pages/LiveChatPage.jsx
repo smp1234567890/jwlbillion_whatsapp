@@ -328,13 +328,43 @@ export default function LiveChatPage({
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
-      if (res.data?.call_id) {
-        setActiveCallId(res.data.call_id);
+      const cid = res.data?.call_id || res.data?.meta_response?.call_id;
+      if (cid) {
+        setActiveCallId(cid);
         setCallStatusMsg("Ringing on customer's WhatsApp...");
         setCallDuration(0);
         if (callTimerRef.current) clearInterval(callTimerRef.current);
         callTimerRef.current = setInterval(() => {
           setCallDuration((prev) => prev + 1);
+        }, 1000);
+
+        // Poll for WebRTC SDP answer from Meta
+        let pollCount = 0;
+        const answerPoll = setInterval(async () => {
+          pollCount += 1;
+          if (pollCount > 30 || !peerConnectionRef.current) {
+            clearInterval(answerPoll);
+            return;
+          }
+          try {
+            const token = localStorage.getItem("token");
+            const sRes = await axios.get(`/api/calls/status?call_id=${encodeURIComponent(cid)}`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            const ev = sRes.data?.event;
+            if (ev?.sdp && peerConnectionRef.current && peerConnectionRef.current.signalingState === "have-local-offer") {
+              await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription({
+                type: ev.sdp_type || "answer",
+                sdp: ev.sdp
+              }));
+              setCallStatusMsg("Connected! Live WhatsApp call active.");
+              clearInterval(answerPoll);
+            } else if (ev?.event === "terminate" || ev?.event === "reject") {
+              setCallStatusMsg("Customer declined or call ended.");
+              clearInterval(answerPoll);
+              setTimeout(() => handleEndCall(), 2000);
+            }
+          } catch (pe) {}
         }, 1000);
       } else {
         setCallStatusMsg("Calling initiated. Waiting for response...");

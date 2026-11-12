@@ -1068,9 +1068,47 @@ async def receive_inbound_whatsapp_message(
     for entry in entries:
         changes = entry.get("changes", [])
         for chg in changes:
+            field = chg.get("field", "")
             value = chg.get("value", {})
             if not isinstance(value, dict):
                 continue
+
+            # 0. Process Calls Webhook (Real-time WhatsApp Calling WebRTC signaling)
+            if field == "calls" or "calls" in value:
+                call_events = value.get("calls", [])
+                for c_ev in call_events:
+                    c_id = c_ev.get("id")
+                    c_event = c_ev.get("event") or c_ev.get("status")
+                    c_session = c_ev.get("session", {})
+                    c_sdp = c_session.get("sdp") or c_ev.get("connection", {}).get("webrtc", {}).get("sdp")
+                    c_sdp_type = c_session.get("sdp_type", "answer")
+                    logger.info(f"[Meta Calls Webhook] Call {c_id}: event={c_event}, has_sdp={bool(c_sdp)}")
+
+                    try:
+                        from routers.calls import PENDING_CALL_EVENTS
+                        PENDING_CALL_EVENTS[c_id] = {
+                            "call_id": c_id,
+                            "event": c_event,
+                            "sdp": c_sdp,
+                            "sdp_type": c_sdp_type,
+                            "from": c_ev.get("from"),
+                            "to": c_ev.get("to")
+                        }
+                    except Exception as ce_err:
+                        logger.warning(f"Failed to record call event in cache: {ce_err}")
+
+                    try:
+                        from services.chat_broadcaster import chat_broadcaster
+                        chat_broadcaster.publish_sync("call_event", {
+                            "call_id": c_id,
+                            "event": c_event,
+                            "sdp": c_sdp,
+                            "sdp_type": c_sdp_type,
+                            "from": c_ev.get("from"),
+                            "to": c_ev.get("to")
+                        })
+                    except Exception as b_err:
+                        logger.warning(f"Failed to broadcast call event: {b_err}")
 
             # 1. Process Status Updates (DELIVERED, READ, FAILED, SENT)
             statuses = value.get("statuses", [])
