@@ -47,22 +47,19 @@ ORDER_QUERY_TRIGGERS = [
 
 def match_order_number(text: str) -> Optional[str]:
     """
-    Finds order patterns like #1001, # 1001, or standalone 3-8 digit order numbers.
+    Finds explicit order patterns like #1001, # 1001, or 'order 1024'.
+    NOTE: Never treats standalone raw digits (like 5000, 2000, 500) as order numbers,
+    as customers frequently send budget amounts, phone numbers, or quantities.
     """
     # Pattern 1: Explicit hashtag (e.g. #1024 or # 1024)
     m = re.search(r"#\s*(\d{3,8})", text)
     if m:
         return m.group(1)
 
-    # Pattern 2: "order 1024" or "order number 1024"
-    m = re.search(r"(?:order|ord|no\.?)\s*(?:id|number|no)?\s*[:#-]?\s*(\d{3,8})", text, re.IGNORECASE)
+    # Pattern 2: Explicit prefix like "order 1024", "order id 1024", "order no 1024"
+    m = re.search(r"\b(?:order|ord)\s*(?:id|number|no\.?|#)?\s*[:#-]?\s*(\d{3,8})\b", text, re.IGNORECASE)
     if m:
         return m.group(1)
-
-    # Pattern 3: Standalone 3 to 6 digits if message is essentially just digits
-    clean = text.strip()
-    if clean.isdigit() and 3 <= len(clean) <= 6:
-        return clean
 
     return None
 
