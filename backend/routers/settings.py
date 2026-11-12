@@ -249,7 +249,7 @@ def update_daily_limit_setting(
 DEFAULT_QUICK_REPLIES = [
     {"id": 1, "title": "Welcome & Website", "message": "Hello! Welcome to JWL Billion. How can we assist you today?\nVisit our website: https://jwlbillion.com/"},
     {"id": 2, "title": "Order Processing", "message": "Your order has been confirmed and is being processed for dispatch."},
-    {"id": 3, "title": "Representative Connect", "message": "Thank you for reaching out! A representative will connect with you shortly."},
+
     {"id": 4, "title": "Welcome Discount", "message": "Here is your special discount code: WELCOME (7% OFF)"},
     {"id": 5, "title": "Order ID Inquiry", "message": "Could you please share your Order ID so we can check the status?"}
 ]
