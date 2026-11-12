@@ -180,9 +180,12 @@ async def initiate_whatsapp_call(
                 error_msg = data.get("error", {}).get("message", "Failed to initiate call")
                 raise HTTPException(status_code=resp.status_code, detail=error_msg)
 
+            calls_list = data.get("calls", [])
+            extracted_cid = calls_list[0].get("id") if (calls_list and isinstance(calls_list, list)) else data.get("call_id")
+
             return {
                 "status": "success",
-                "call_id": data.get("call_id"),
+                "call_id": extracted_cid,
                 "meta_response": data
             }
     except HTTPException:

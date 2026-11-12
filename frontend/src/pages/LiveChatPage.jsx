@@ -328,7 +328,7 @@ export default function LiveChatPage({
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
-      const cid = res.data?.call_id || res.data?.meta_response?.call_id;
+      const cid = res.data?.call_id || res.data?.meta_response?.calls?.[0]?.id || res.data?.meta_response?.call_id;
       if (cid) {
         setActiveCallId(cid);
         setCallStatusMsg("Ringing on customer's WhatsApp...");
