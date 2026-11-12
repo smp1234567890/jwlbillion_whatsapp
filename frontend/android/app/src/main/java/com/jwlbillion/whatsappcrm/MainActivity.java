@@ -13,6 +13,9 @@ import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.PermissionRequest;
+import android.webkit.WebChromeClient;
+import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
@@ -26,6 +29,21 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         createNotificationChannels();
         handleIntent(getIntent());
+
+        // Grant WebRTC microphone permissions inside WebView for live WhatsApp calling
+        try {
+            WebView webView = getBridge().getWebView();
+            if (webView != null) {
+                webView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onPermissionRequest(final PermissionRequest request) {
+                        runOnUiThread(() -> {
+                            request.grant(request.getResources());
+                        });
+                    }
+                });
+            }
+        } catch (Exception ignored) {}
 
         // Explicitly request permissions (POST_NOTIFICATIONS on Android 13+, RECORD_AUDIO for voice notes)
         java.util.List<String> perms = new java.util.ArrayList<>();

@@ -81,10 +81,7 @@ export default function ChatInputBox({
             const isNonEmpty = Boolean(val.trim());
             // Only trigger a React state change when switching between empty/non-empty for Send/Mic button
             if (isNonEmpty !== hasText) {
-              clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => {
-                setHasText(Boolean(replyInputRef?.current?.value?.trim()));
-              }, 100);
+              setHasText(isNonEmpty);
             }
           }
         }}
@@ -98,8 +95,8 @@ export default function ChatInputBox({
         autoComplete="off"
         autoCorrect="off"
         spellCheck="false"
-        style={{ fieldSizing: "content" }}
-        className="flex-1 min-w-0 min-h-[42px] max-h-32 px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none leading-snug box-border overflow-y-auto"
+        style={{ fieldSizing: "content", transform: "translateZ(0)" }}
+        className="flex-1 min-w-0 min-h-[42px] max-h-32 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-none leading-snug box-border overflow-y-auto will-change-contents"
       />
 
       {/* Microphone Voice Note Button (shown when input is empty) */}
