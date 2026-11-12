@@ -36,8 +36,7 @@ import {
   Ban
 } from "lucide-react";
 import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
-import { getApiBaseUrl } from "../api";
-import axios from "axios";
+import api, { getApiBaseUrl } from "../api";
 import { getStoredQuickReplies } from "../utils/quickRepliesStorage";
 import ChatInputBox from "../components/ChatInputBox";
 
@@ -116,9 +115,7 @@ export default function LiveChatPage({
     const fetchQR = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("/api/quick-replies", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        const res = await api.get("/api/quick-replies");
         if (Array.isArray(res.data) && res.data.length > 0) {
           setServerQuickReplies(res.data);
         }
@@ -243,10 +240,7 @@ export default function LiveChatPage({
     let isMounted = true;
     const checkPerm = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`/api/calls/permission?phone=${encodeURIComponent(selectedChatPhone)}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        const res = await api.get(`/api/calls/permission?phone=${encodeURIComponent(selectedChatPhone)}`);
         if (isMounted) {
           const perm = res.data.permission_status;
           if (perm === "temporary" || perm === "permanent" || perm === "granted" || res.data.can_start_call) {
@@ -267,12 +261,9 @@ export default function LiveChatPage({
     if (!selectedChatPhone) return;
     try {
       setCallStatusMsg("Sending call request to customer on WhatsApp...");
-      const token = localStorage.getItem("token");
-      await axios.post("/api/calls/request-permission", {
+      await api.post("/api/calls/request-permission", {
         customer_phone: selectedChatPhone,
         custom_message: "We would like to connect with you via WhatsApp Voice Call regarding your inquiry. Please tap Allow below."
-      }, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       setCallStatusMsg("Request sent! Once customer taps 'Allow' on WhatsApp, you can place the call.");
       setCallPermStatus("pending");
@@ -328,12 +319,9 @@ export default function LiveChatPage({
       await pc.setLocalDescription(offer);
 
       setCallStatusMsg("Dialing customer on WhatsApp (+91 88660 22206)...");
-      const token = localStorage.getItem("token");
-      const res = await axios.post("/api/calls/initiate", {
+      const res = await api.post("/api/calls/initiate", {
         customer_phone: selectedChatPhone,
         sdp_offer: offer.sdp
-      }, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
       const cid = res.data?.call_id || res.data?.meta_response?.calls?.[0]?.id || res.data?.meta_response?.call_id;
@@ -356,10 +344,7 @@ export default function LiveChatPage({
             return;
           }
           try {
-            const token = localStorage.getItem("token");
-            const sRes = await axios.get(`/api/calls/status?call_id=${encodeURIComponent(cid)}`, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {}
-            });
+            const sRes = await api.get(`/api/calls/status?call_id=${encodeURIComponent(cid)}`);
             const ev = sRes.data?.event;
             if (ev?.sdp && peerConnectionRef.current && peerConnectionRef.current.signalingState === "have-local-offer") {
               await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription({
@@ -400,10 +385,7 @@ export default function LiveChatPage({
     }
     if (activeCallId) {
       try {
-        const token = localStorage.getItem("token");
-        await axios.post("/api/calls/terminate", { call_id: activeCallId }, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        await api.post("/api/calls/terminate", { call_id: activeCallId });
       } catch (e) {}
       setActiveCallId(null);
     }
