@@ -5,6 +5,7 @@ Handles campaign listing, detail retrieval, creation/scheduling, and cancellatio
 
 from datetime import datetime
 import logging
+import re
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 
