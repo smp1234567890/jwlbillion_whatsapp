@@ -32,7 +32,8 @@ import {
   ThumbsDown,
   LogOut,
   Mic,
-  Square
+  Square,
+  Ban
 } from "lucide-react";
 import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
 import { getApiBaseUrl } from "../api";
@@ -63,6 +64,8 @@ export default function LiveChatPage({
   handleSendChatMedia,
   handleReactToMessage,
   handleDeleteConversation,
+  handleBlockContact,
+  optOuts = [],
   isNativeApp = false,
   onLogout
 }) {
@@ -643,6 +646,25 @@ export default function LiveChatPage({
 
                   {/* Actions Header Toolbar: always shrink-0 and visible */}
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    {(() => {
+                      const isBlocked = optOuts.some(
+                        (o) => o.phone === selectedChatPhone || o.phone === selectedChatPhone.replace("+", "")
+                      );
+                      return (
+                        <button
+                          onClick={() => handleBlockContact && handleBlockContact(selectedChatPhone, isBlocked)}
+                          className={`px-2.5 py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                            isBlocked
+                              ? "border-red-400 bg-red-100 text-red-800 hover:bg-red-200"
+                              : "border-gray-300 bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                          }`}
+                          title={isBlocked ? "Contact is Blocked / Opted Out (Click to unblock)" : "Block number & add to Opt-Out (DND)"}
+                        >
+                          <Ban className={`w-3.5 h-3.5 ${isBlocked ? "text-red-700" : "text-gray-500"}`} />
+                          <span className="hidden sm:inline">{isBlocked ? "Blocked" : "Block"}</span>
+                        </button>
+                      );
+                    })()}
                     <a
                       href={`tel:${selectedChatPhone}`}
                       className="px-2.5 py-1.5 border border-blue-300 text-blue-700 bg-blue-50 rounded-lg text-xs font-semibold hover:bg-blue-100 transition flex items-center gap-1.5 shrink-0"

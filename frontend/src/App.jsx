@@ -2018,6 +2018,18 @@ export default function App() {
     }
   };
 
+  const handleBlockContact = async (phone, isCurrentlyBlocked) => {
+    if (isCurrentlyBlocked) {
+      if (window.confirm(`Unblock ${phone} and remove from Opt-Out (DND) list?`)) {
+        await handleRemoveOptOut(phone);
+      }
+      return;
+    }
+    if (window.confirm(`Are you sure you want to block ${phone}?\n\nThis will add the number directly to the Opt-Out (DND) list and prevent any future automated messages.`)) {
+      await handleAddOptOut(phone, "Blocked from Live Chat");
+    }
+  };
+
   const totalRecoveredValue = cartEvents
     .filter((c) => c.status === "RECOVERED")
     .reduce((sum, c) => sum + (c.cart_value || 0), 0);
@@ -2504,6 +2516,8 @@ export default function App() {
               handleSendChatMedia={handleSendChatMedia}
               handleReactToMessage={handleReactToMessage}
               handleDeleteConversation={handleDeleteConversation}
+              handleBlockContact={handleBlockContact}
+              optOuts={optOuts}
               isNativeApp={isNativePlatform}
               onLogout={handleLogout}
             />

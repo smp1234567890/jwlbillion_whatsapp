@@ -316,7 +316,7 @@ def test_external_data_source(
 def register_opt_out(
     request: Request,
     payload: schemas.OptOutRequest,
-    current_user: models.User = Depends(auth.require_roles("admin", "manager")),
+    current_user: models.User = Depends(auth.require_roles("admin", "manager", "agent")),
     db: Session = Depends(get_db),
 ):
     revoke_consent(db, payload.phone, reason=payload.reason or "ADMIN_REVOKED")
