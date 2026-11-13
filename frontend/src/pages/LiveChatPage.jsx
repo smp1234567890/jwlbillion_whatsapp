@@ -1147,6 +1147,92 @@ export default function LiveChatPage({
                             </p>
                           )}
 
+                          {/* Interactive Carousel Cards Component */}
+                          {Array.isArray(msg.carousel_cards) && msg.carousel_cards.length > 0 && (
+                            <div className="mt-3 pt-2 border-t border-black/10">
+                              <div className="flex items-center justify-between mb-2 px-1">
+                                <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                                  <span>🎠</span> WhatsApp Carousel ({msg.carousel_cards.length} Cards)
+                                </span>
+                                <span className="text-[10px] text-gray-600 italic">
+                                  Swipe / Scroll horizontally ➔
+                                </span>
+                              </div>
+                              <div className="flex gap-3 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth snap-x">
+                                {msg.carousel_cards.map((card, cIdx) => {
+                                  const cardImgUrl = card.header_url
+                                    ? (card.header_url.startsWith("http://") || card.header_url.startsWith("https://")
+                                        ? card.header_url
+                                        : `${getApiBaseUrl().replace(/\/$/, "")}${card.header_url.startsWith("/") ? "" : "/"}${card.header_url}`)
+                                    : (card.header_handle || null);
+
+                                  return (
+                                    <div
+                                      key={cIdx}
+                                      className="snap-start shrink-0 w-56 sm:w-64 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col justify-between"
+                                    >
+                                      <div>
+                                        {cardImgUrl ? (
+                                          <div className="h-32 sm:h-36 w-full bg-gray-100 overflow-hidden relative group">
+                                            <img
+                                              src={cardImgUrl}
+                                              alt={`Card #${cIdx + 1}`}
+                                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                              onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&q=80";
+                                              }}
+                                            />
+                                            <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/60 text-white backdrop-blur-xs">
+                                              #{cIdx + 1}
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <div className="h-28 w-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-semibold">
+                                            Card #{cIdx + 1}
+                                          </div>
+                                        )}
+
+                                        <div className="p-2.5">
+                                          <p className="text-xs font-medium text-gray-800 line-clamp-3 leading-snug">
+                                            {card.body_text || "Featured item"}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* Buttons */}
+                                      {Array.isArray(card.buttons) && card.buttons.length > 0 && (
+                                        <div className="p-2 pt-0 border-t border-gray-100 space-y-1 mt-2">
+                                          {card.buttons.map((btn, bIdx) => {
+                                            const isUrl = btn.type === "URL" || btn.url;
+                                            return isUrl ? (
+                                              <a
+                                                key={bIdx}
+                                                href={btn.url || "#"}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="w-full py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold rounded-lg flex items-center justify-center gap-1 transition truncate"
+                                              >
+                                                <span>↗</span> {btn.text || "View Product"}
+                                              </a>
+                                            ) : (
+                                              <div
+                                                key={bIdx}
+                                                className="w-full py-1.5 px-2 bg-gray-50 text-gray-700 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 truncate border border-gray-100"
+                                              >
+                                                <span>💬</span> {btn.text || "Quick Reply"}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
                           {/* Render Attached Reaction Badge if active */}
                           {msg.reaction && (
                             <div

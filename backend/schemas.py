@@ -443,6 +443,7 @@ class ChatMessageResponse(BaseModel):
     filename: Optional[str] = None
     meta_message_id: Optional[str] = None
     reaction: Optional[str] = None
+    carousel_cards: Optional[List[Dict[str, Any]]] = None
     status: str
     is_read: bool
     created_at: datetime

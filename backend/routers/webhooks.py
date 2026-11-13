@@ -479,30 +479,32 @@ async def receive_order_completed_webhook(
         or str(raw_payload.get("id", ""))
         or cart_token
     )
-    raw_phone = (
-        raw_payload.get("customer_phone")
-        or raw_payload.get("phone")
-        or customer.get("phone")
-        or billing_addr.get("phone")
-        or shipping_addr.get("phone")
-        or customer_phone
-    )
+    candidate_phones = [
+        raw_payload.get("customer_phone"),
+        raw_payload.get("phone"),
+        customer.get("phone") if isinstance(customer, dict) else None,
+        shipping_addr.get("phone") if isinstance(shipping_addr, dict) else None,
+        billing_addr.get("phone") if isinstance(billing_addr, dict) else None,
+        customer_phone
+    ]
+    matched_phone = None
+    for cand in candidate_phones:
+        if cand:
+            try:
+                cp = normalize_phone(cand)
+                # Check if this phone already exists in our contacts (e.g., WhatsApp chat user)
+                if db.query(models.Contact).filter(models.Contact.phone == cp).first():
+                    matched_phone = cp
+                    break
+                if not matched_phone:
+                    matched_phone = cp
+            except Exception:
+                pass
 
-    from services.phone_service import is_valid_phone
-    if not raw_phone or not is_valid_phone(str(raw_phone)):
-        # Fallback for Shopify dummy test notifications (e.g. '555-555-BILL')
-        raw_phone = "+919999999999"
+    if not matched_phone:
+        matched_phone = "+919999999999"
 
-    if not token:
-        token = str(uuid.uuid4())
-
-    try:
-        clean_phone = normalize_phone(raw_phone)
-    except InvalidPhoneNumberError as pe:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid customer_phone: {pe}"
-        )
+    clean_phone = matched_phone
 
     cart_token = token
     order_id = str(raw_payload.get("id") or cart_token)

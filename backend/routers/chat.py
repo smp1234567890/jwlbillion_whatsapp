@@ -152,18 +152,22 @@ def get_chat_history(
     to_add = []
     needed_templates = {h.template_name for h in historical_logs if h.meta_message_id and h.meta_message_id not in existing_ids and h.template_name}
     template_map = {}
+    carousel_map = {}
     if needed_templates:
         tmpls = db.query(models.Template).filter(models.Template.template_name.in_(needed_templates)).all()
         template_map = {t.template_name: t.body_text for t in tmpls}
+        carousel_map = {t.template_name: t.carousel_cards for t in tmpls if t.carousel_cards}
     for h_log in historical_logs:
         if h_log.meta_message_id and h_log.meta_message_id not in existing_ids:
             body = template_map.get(h_log.template_name)
             content = body if body else f"WhatsApp Template: {h_log.template_name}"
+            cards = carousel_map.get(h_log.template_name)
             to_add.append(models.ChatMessage(
                 customer_phone=clean_phone,
                 sender_type="AGENT",
                 message_type="template",
                 text=content,
+                carousel_cards=cards,
                 meta_message_id=h_log.meta_message_id,
                 status=h_log.status,
                 is_read=True,

@@ -91,13 +91,19 @@ def compute_analytics_overview(time_range: str, db: Session) -> Dict[str, Any]:
     cart_recovered_revenue = sum(float(c.cart_value or 0.0) for c in recovered_carts)
 
     # WhatsApp Attribution:
-    # 1. Delivered recipients map with earliest message sent timestamp in current window
+    # 1. Delivered recipients & active chat customers map with earliest interaction timestamp
     delivered_msg_times = {}
     for l in logs:
-        if l.status in ("DELIVERED", "READ", "SENT_SIMULATED") or l.recipient_phone in replied_phone_set:
+        if l.status in ("DELIVERED", "READ", "SENT", "SENT_SIMULATED") or l.recipient_phone in replied_phone_set:
             if l.recipient_phone:
                 if l.recipient_phone not in delivered_msg_times or (l.created_at and l.created_at < delivered_msg_times[l.recipient_phone]):
                     delivered_msg_times[l.recipient_phone] = l.created_at or now_utc
+
+    # Also include customer chat participants (inbound/outbound conversations)
+    for c in chats:
+        if c.customer_phone:
+            if c.customer_phone not in delivered_msg_times or (c.created_at and c.created_at < delivered_msg_times[c.customer_phone]):
+                delivered_msg_times[c.customer_phone] = c.created_at or now_utc
 
     # 2. Clicked or replied customer phones
     engaged_phones = unique_clicked_phones | replied_phone_set

@@ -353,18 +353,20 @@ def sync_shopify_customers_and_orders(db) -> Dict[str, Any]:
                         shipping.get("phone"),
                         cust.get("phone")
                     ]
-                    clean_phone = None
+                    # Map order to ALL valid phone numbers associated with it
+                    matched_order_phones = set()
                     for pc in phone_cands:
                         if pc:
                             try:
-                                clean_phone = normalize_phone(str(pc))
-                                break
+                                cp = normalize_phone(str(pc))
+                                if cp:
+                                    matched_order_phones.add(cp)
                             except InvalidPhoneNumberError:
                                 pass
-                    if clean_phone:
-                        if clean_phone not in orders_by_phone:
-                            orders_by_phone[clean_phone] = []
-                        orders_by_phone[clean_phone].append(o)
+                    for cp in matched_order_phones:
+                        if cp not in orders_by_phone:
+                            orders_by_phone[cp] = []
+                        orders_by_phone[cp].append(o)
 
             # 2. Fetch Customers from Shopify
             cust_url = f"https://{domain}/admin/api/2024-10/customers.json?limit=250"

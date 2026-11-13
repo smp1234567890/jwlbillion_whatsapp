@@ -559,12 +559,18 @@ def send_whatsapp_template(
                     elif tmpl and isinstance(tmpl.sample_values, dict) and tmpl.sample_values.get("header_url"):
                         header_media_url = tmpl.sample_values["header_url"]
 
+                    # Extract carousel cards if template is CAROUSEL
+                    carousel_cards_data = None
+                    if tmpl and (tmpl.sub_type == "CAROUSEL" or (tmpl.carousel_cards and len(tmpl.carousel_cards) >= 2)):
+                        carousel_cards_data = tmpl.carousel_cards
+
                     chat_entry = models.ChatMessage(
                         customer_phone=clean_recipient_phone,
                         sender_type="AGENT",
                         message_type="template",
                         text=body_content,
                         media_url=header_media_url,
+                        carousel_cards=carousel_cards_data,
                         meta_message_id=msg_id,
                         status="SENT",
                         is_read=True
