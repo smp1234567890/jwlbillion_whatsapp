@@ -136,11 +136,6 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                             "description": "View our top-rated jewelry designs"
                         },
                         {
-                            "id": "menu_offers",
-                            "title": "🎁 Today's Offers",
-                            "description": "Exclusive daily discounts & deals"
-                        },
-                        {
                             "id": "menu_price_avail",
                             "title": "🏷️ Price & Availability",
                             "description": "Check pricing & stock on designs"
