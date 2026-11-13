@@ -325,43 +325,68 @@ def handle_inbound_auto_reply(
             return res
 
         elif sel_id == "menu_pendant_sets":
-            shopify_res = fetch_shopify_products(limit=50)
-            all_prods = shopify_res.get("products", [])
-            pendants = [
-                p for p in all_prods
-                if "pendant" in p.get("title", "").lower()
-                or "pendant" in str(p.get("tags", "")).lower()
-                or "necklace" in p.get("title", "").lower()
+            curated_pendants = [
+                {
+                    "title": "Ruby Elegance Gold-Plated Jewelry Set",
+                    "price": 750,
+                    "url": "https://jwlbillion.com/products/ruby-elegance-gold-plated-jewelry-set",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/pendant_1_ruby.jpg"
+                },
+                {
+                    "title": "Royal Pearl Radiance Double-Layer Necklace & Crystal Drop Earrings Set",
+                    "price": 1499,
+                    "url": "https://jwlbillion.com/products/royal-pearl-radiance-double-layer-necklace-crystal-drop-earrings-set-for-women-elegant-wedding-party-jewellery",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/pendant_2_royal_pearl.jpg"
+                },
+                {
+                    "title": "Elegant Multi-Layer Pearl Jewellery Set for Women",
+                    "price": 1499,
+                    "url": "https://jwlbillion.com/products/elegant-multi-layer-pearl-bracelet-for-women-gold-tone-floral-statement-jewellery",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/pendant_3_multi_pearl.jpg"
+                },
+                {
+                    "title": "Elegant Gold-Toned Multicolour Stone-Studded Necklace & Earrings",
+                    "price": 499,
+                    "url": "https://jwlbillion.com/products/elegant-gold-toned-multicolour-stone-studded-necklace-earrings",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/pendant_multicolour_model_5.jpg"
+                },
+                {
+                    "title": "Royal Pearl Radiance Wedding & Party Jewellery Set",
+                    "price": 1499,
+                    "url": "https://jwlbillion.com/products/royal-pearl-radiance-double-layer-necklace-crystal-drop-earrings-set-for-women-elegant-wedding-party-jewellery",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/pendant_2_royal_pearl.jpg"
+                },
+                {
+                    "title": "Silver Tone Blue Crystal Necklace & Bracelet Jewellery Set",
+                    "price": 3099,
+                    "url": "https://jwlbillion.com/products/silver-tone-blue-crystal-necklace-bracelet-jewellery-set",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/pendant_6_blue_crystal.jpg"
+                }
             ]
-            items_to_show = pendants[:4] if pendants else all_prods[:4]
 
-            # Send photo of the first pendant design if available
-            if items_to_show and items_to_show[0].get("image_url"):
-                p_first = items_to_show[0]
-                p_cap = (
-                    f"💎 *{p_first['title']}*\n"
-                    f"• Price: ₹{float(p_first.get('price') or 0):,.0f}\n"
-                    f"• View Design: {p_first.get('product_url') or 'https://jwlbillion.com/'}"
-                )
-                media_res = send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
-                _save_bot_message(
-                    db,
-                    sender_phone,
-                    f"*{p_first['title']}*\nPrice: ₹{float(p_first.get('price') or 0):,.0f}",
-                    media_res.get("message_id"),
-                    media_url=p_first["image_url"],
-                    message_type="image"
-                )
+            # Send photo of the first featured pendant design with caption
+            p_first = curated_pendants[0]
+            p_cap = (
+                f"💎 *{p_first['title']}*\n"
+                f"• Price: ₹{p_first['price']:,}\n"
+                f"• View Design: {p_first['url']}"
+            )
+            media_res = send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
+            _save_bot_message(
+                db,
+                sender_phone,
+                f"*{p_first['title']}*\nPrice: ₹{p_first['price']:,}",
+                media_res.get("message_id"),
+                media_url=p_first["image_url"],
+                message_type="image"
+            )
 
-            msg = "💎 *JWL Billion Trending Pendant Set Designs* 💎\n\nHere are some of our top pendant designs:\n\n"
-            for i, p in enumerate(items_to_show, 1):
-                price_val = f"₹{float(p.get('price') or 0):,.0f}"
+            msg = "💎 *JWL Billion Trending Pendant & Necklace Sets* 💎\n\nHere are our 6 handcrafted pendant sets:\n\n"
+            for i, p in enumerate(curated_pendants, 1):
                 msg += f"*{i}. {p['title']}*\n"
-                msg += f"• Price: {price_val}\n"
-                if p.get("product_url"):
-                    msg += f"• Link: {p['product_url']}\n"
-                msg += "\n"
-            msg += "Explore all pendant sets: https://jwlbillion.com/\n\nWant to see any of these in a live video call or check stock? Just reply here!"
+                msg += f"• Price: ₹{p['price']:,}\n"
+                msg += f"• Link: {p['url']}\n\n"
+            msg += "Explore all pendant sets: https://jwlbillion.com/\n\nNeed assistance with pricing or stock? Just reply here!"
             res = send_whatsapp_free_text(sender_phone, msg, db=db)
             _save_bot_message(db, sender_phone, msg, res.get("message_id"))
             return res
