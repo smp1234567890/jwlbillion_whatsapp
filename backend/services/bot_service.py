@@ -144,11 +144,6 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                             "id": "menu_price_avail",
                             "title": "🏷️ Price & Availability",
                             "description": "Check pricing & stock on designs"
-                        },
-                        {
-                            "id": "menu_live_video",
-                            "title": "📹 See On Live Video",
-                            "description": "Request a 1-on-1 live video viewing"
                         }
                     ]
                 },
