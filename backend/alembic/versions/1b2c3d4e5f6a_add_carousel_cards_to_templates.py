@@ -44,3 +44,4 @@ def upgrade() -> None:
 def downgrade() -> None:
     with op.batch_alter_table('templates') as batch_op:
         batch_op.drop_column('carousel_cards')
+

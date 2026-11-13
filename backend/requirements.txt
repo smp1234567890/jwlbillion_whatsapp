@@ -41,3 +41,4 @@ alembic>=1.13.0
 phonenumbers>=8.13.0
 cryptography>=42.0.0
 redis>=5.0.0
+firebase-admin>=6.0.0
