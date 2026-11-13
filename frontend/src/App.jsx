@@ -2444,31 +2444,32 @@ export default function App() {
             activeTab === "fb_messages" ? (
               <LiveChatPage
                 chatConversations={chatConversations.filter(c => (c.customer_phone || "").startsWith("fb_"))}
-                selectedChatPhone={selectedChatPhone}
-                setSelectedChatPhone={setSelectedChatPhone}
                 chatMessages={chatMessages}
+                selectedChatPhone={selectedChatPhone}
+                chatLoading={chatLoading}
+                chatSending={chatSending}
                 chatReplyText={chatReplyText}
                 setChatReplyText={setChatReplyText}
-                handleSendChatReply={handleSendChatReply}
-                handleReactToMessage={handleReactToMessage}
-                contacts={contacts}
                 chatFilterUnreadOnly={chatFilterUnreadOnly}
                 setChatFilterUnreadOnly={setChatFilterUnreadOnly}
-                chatSearchQuery={chatSearchQuery}
-                setChatSearchQuery={setChatSearchQuery}
                 chatListCollapsed={chatListCollapsed}
                 setChatListCollapsed={setChatListCollapsed}
-                chatMediaUploading={chatMediaUploading}
-                handleSendMediaMessage={handleSendMediaMessage}
                 chatSoundEnabled={chatSoundEnabled}
                 setChatSoundEnabled={setChatSoundEnabled}
                 playIncomingMessageSound={playIncomingMessageSound}
-                templates={templates}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                contacts={contacts}
+                handleSelectConversation={handleSelectConversation}
+                fetchChatMessages={fetchChatMessages}
+                handleSendChatMessage={handleSendChatMessage}
+                handleSendChatMedia={handleSendChatMedia}
+                handleReactToMessage={handleReactToMessage}
+                handleDeleteConversation={handleDeleteConversation}
+                handleBlockContact={handleBlockContact}
                 optOuts={optOuts}
-                onSelectShopifyProduct={(product) => {
-                  const productMsg = `Check out ${product.title}: ₹${product.price}\nhttps://${import.meta.env.VITE_SHOPIFY_DOMAIN || "jwlbillion.com"}/products/${product.handle || ""}`;
-                  setChatReplyText(productMsg);
-                }}
+                isNativeApp={isNativePlatform}
+                onLogout={handleLogout}
               />
             ) : (
               <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs">
