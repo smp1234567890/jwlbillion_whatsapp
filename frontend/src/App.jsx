@@ -2097,22 +2097,22 @@ export default function App() {
 
         <div>
           {/* Brand Header */}
-          <div className={`p-4 flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} border-b border-gray-800 relative`}>
-            <div className="flex items-center gap-3 overflow-hidden">
+          <div className={`p-4 flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} border-b border-gray-800 relative z-30`}>
+            <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-[#F5A623] flex items-center justify-center font-bold text-black text-lg shadow-md flex-shrink-0">
                 S
               </div>
               {!sidebarCollapsed && (
-                <div className="overflow-hidden whitespace-nowrap min-w-0">
+                <div className="min-w-0">
                   <h1 className="font-bold text-white text-sm leading-tight">Scalifts</h1>
                   {username === "scalifts_admin" ? (
                     <div className="relative">
                       <button
                         onClick={() => setPlatformDropdownOpen(!platformDropdownOpen)}
-                        className="flex items-center gap-1 text-[11px] font-semibold text-[#F5A623] hover:text-[#FFA000] transition group focus:outline-none"
+                        className="flex items-center gap-1 text-[11px] font-semibold text-[#F5A623] hover:text-[#FFA000] transition group focus:outline-none cursor-pointer"
                         title="Switch Platform"
                       >
-                        <span className="truncate max-w-[110px]">
+                        <span className="truncate max-w-[120px]">
                           {activePlatform === "whatsapp" && "WhatsApp CRM"}
                           {activePlatform === "facebook" && "Facebook"}
                           {activePlatform === "instagram" && "Instagram"}
@@ -2126,10 +2126,10 @@ export default function App() {
                       {platformDropdownOpen && (
                         <>
                           <div
-                            className="fixed inset-0 z-40"
+                            className="fixed inset-0 z-[100]"
                             onClick={() => setPlatformDropdownOpen(false)}
                           />
-                          <div className="absolute left-0 mt-2 w-48 bg-[#1F2937] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                          <div className="absolute left-0 top-full mt-2 w-52 bg-[#1F2937] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-[101]">
                             <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-wider border-b border-gray-700/80">
                               Switch Platform
                             </div>
@@ -2149,7 +2149,7 @@ export default function App() {
                                     localStorage.setItem("activePlatform", plat.id);
                                     setPlatformDropdownOpen(false);
                                   }}
-                                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition text-left ${
+                                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition text-left cursor-pointer ${
                                     isSelected
                                       ? "bg-gray-800 text-[#F5A623] font-bold"
                                       : "text-gray-300 hover:bg-gray-800/60 hover:text-white"
@@ -2161,7 +2161,7 @@ export default function App() {
                                       Active
                                     </span>
                                   ) : (
-                                    <span className="text-[10px] text-gray-400 bg-gray-850 px-1.5 py-0.5 rounded">
+                                    <span className="text-[10px] text-gray-400 bg-gray-800/80 px-1.5 py-0.5 rounded border border-gray-700/50">
                                       {plat.badge}
                                     </span>
                                   )}
