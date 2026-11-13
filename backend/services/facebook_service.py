@@ -39,3 +39,4 @@ def send_facebook_text_message(recipient_id: str, text: str) -> dict:
     except Exception as exc:
         logger.exception(f"[Facebook Messenger] Failed to dispatch message to {recipient_id}: {exc}")
         return {"status": "error", "error": str(exc)}
+

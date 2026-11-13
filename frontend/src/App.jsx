@@ -2147,6 +2147,12 @@ export default function App() {
                                   onClick={() => {
                                     setActivePlatform(plat.id);
                                     localStorage.setItem("activePlatform", plat.id);
+                                    // Reset active tab to the default tab of that platform
+                                    if (plat.id === "facebook") setActiveTab("fb_messages");
+                                    else if (plat.id === "instagram") setActiveTab("ig_dms");
+                                    else if (plat.id === "threads") setActiveTab("th_feed");
+                                    else if (plat.id === "meta_ads") setActiveTab("ads_campaigns");
+                                    else setActiveTab("dashboard");
                                     setPlatformDropdownOpen(false);
                                   }}
                                   className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition text-left cursor-pointer ${
@@ -2195,7 +2201,26 @@ export default function App() {
 
           {/* Navigation Links */}
           <nav className="p-2 space-y-1.5 mt-2">
-            {[
+            {(activePlatform === "facebook" ? [
+              { id: "fb_messages", label: "Messages / Inbox", icon: MessageSquare, badge: chatConversations.filter(c => (c.customer_phone || "").startsWith("fb_")).reduce((acc, c) => acc + (c.unread_count || 0), 0) },
+              { id: "fb_posts", label: "Page Posts", icon: Megaphone },
+              { id: "fb_insights", label: "Page Insights & Comments", icon: BarChart3 },
+              { id: "fb_settings", label: "Page Settings", icon: Settings },
+            ] : activePlatform === "instagram" ? [
+              { id: "ig_dms", label: "Direct Messages (DMs)", icon: MessageSquare },
+              { id: "ig_posts", label: "Posts & Reels", icon: ShoppingBag },
+              { id: "ig_mentions", label: "Stories & Mentions", icon: Sparkles },
+              { id: "ig_settings", label: "Instagram Settings", icon: Settings },
+            ] : activePlatform === "threads" ? [
+              { id: "th_feed", label: "Posts / Feed", icon: MessageSquare },
+              { id: "th_replies", label: "Replies & Mentions", icon: Users },
+              { id: "th_analytics", label: "Threads Analytics", icon: BarChart3 },
+            ] : activePlatform === "meta_ads" ? [
+              { id: "ads_campaigns", label: "Campaigns & Ad Sets", icon: Megaphone },
+              { id: "ads_performance", label: "Ad Performance & Spend", icon: BarChart3 },
+              { id: "ads_leads", label: "Lead Ads Forms", icon: Users },
+              { id: "ads_settings", label: "Ad Account Settings", icon: Settings },
+            ] : [
               { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
               {
                 id: "chat",
@@ -2216,7 +2241,7 @@ export default function App() {
               { id: "profile", label: "Profile Details", icon: UserCheck },
               { id: "billing", label: "Billing", icon: CreditCard },
               { id: "settings", label: "Settings", icon: Settings },
-            ].map((item) => {
+            ]).map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -2247,7 +2272,7 @@ export default function App() {
                       } ${
                         item.id === "opt_out"
                           ? "bg-red-900/80 text-red-200 border border-red-700"
-                          : item.id === "chat"
+                          : item.id === "chat" || item.id === "fb_messages" || item.id === "ig_dms"
                           ? "bg-[#25D366] text-black font-black animate-pulse shadow-sm shadow-green-500/50"
                           : item.id === "automations"
                           ? "bg-emerald-900/80 text-[#25D366] border border-emerald-700"
@@ -2317,14 +2342,36 @@ export default function App() {
             </button>
 
             <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 capitalize truncate">
-              {activePlatform !== "whatsapp"
-                ? (activePlatform === "facebook"
-                    ? "Facebook Workspace"
-                    : activePlatform === "instagram"
-                    ? "Instagram Workspace"
-                    : activePlatform === "threads"
-                    ? "Threads Workspace"
-                    : "Meta Ads Workspace")
+              {activePlatform === "facebook"
+                ? (activeTab === "fb_messages"
+                    ? "Facebook Messenger Live Inbox"
+                    : activeTab === "fb_posts"
+                    ? "Facebook Page Posts & Publishing"
+                    : activeTab === "fb_insights"
+                    ? "Facebook Insights & Comments"
+                    : "Facebook Page Settings")
+                : activePlatform === "instagram"
+                ? (activeTab === "ig_dms"
+                    ? "Instagram Direct Messages (DMs)"
+                    : activeTab === "ig_posts"
+                    ? "Instagram Posts & Reels Manager"
+                    : activeTab === "ig_mentions"
+                    ? "Instagram Stories & Mentions"
+                    : "Instagram Account Settings")
+                : activePlatform === "threads"
+                ? (activeTab === "th_feed"
+                    ? "Threads Posts & Feed"
+                    : activeTab === "th_replies"
+                    ? "Threads Replies & Mentions"
+                    : "Threads Analytics")
+                : activePlatform === "meta_ads"
+                ? (activeTab === "ads_campaigns"
+                    ? "Meta Ads Campaigns & Ad Sets"
+                    : activeTab === "ads_performance"
+                    ? "Meta Ads Performance & Spend"
+                    : activeTab === "ads_leads"
+                    ? "Meta Lead Ads Forms"
+                    : "Meta Ad Account Settings")
                 : (activeTab === "opt_out"
                     ? "Opt-Out (DND) Registry"
                     : activeTab === "chat"
@@ -2391,27 +2438,58 @@ export default function App() {
         )}
 
         {/* Dynamic Views */}
-        <div className={isNativePlatform ? "p-0 flex-1 flex flex-col min-h-0 overflow-hidden" : (activeTab === "chat" ? "p-2 sm:p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6")}>
+        <div className={isNativePlatform ? "p-0 flex-1 flex flex-col min-h-0 overflow-hidden" : ((activeTab === "chat" || activeTab === "fb_messages" || activeTab === "ig_dms") ? "p-2 sm:p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6")}>
           {/* Active Platform Placeholder for non-WhatsApp tabs (restricted to scalifts_admin) */}
           {activePlatform !== "whatsapp" ? (
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs">
-              <div className="w-16 h-16 rounded-2xl bg-[#F5A623]/10 text-[#F5A623] flex items-center justify-center mx-auto mb-4 font-black text-2xl">
-                {activePlatform === "facebook" && "f"}
-                {activePlatform === "instagram" && "📸"}
-                {activePlatform === "threads" && "🧵"}
-                {activePlatform === "meta_ads" && "📈"}
+            activeTab === "fb_messages" ? (
+              <LiveChatPage
+                chatConversations={chatConversations.filter(c => (c.customer_phone || "").startsWith("fb_"))}
+                selectedChatPhone={selectedChatPhone}
+                setSelectedChatPhone={setSelectedChatPhone}
+                chatMessages={chatMessages}
+                chatReplyText={chatReplyText}
+                setChatReplyText={setChatReplyText}
+                handleSendChatReply={handleSendChatReply}
+                handleReactToMessage={handleReactToMessage}
+                contacts={contacts}
+                chatFilterUnreadOnly={chatFilterUnreadOnly}
+                setChatFilterUnreadOnly={setChatFilterUnreadOnly}
+                chatSearchQuery={chatSearchQuery}
+                setChatSearchQuery={setChatSearchQuery}
+                chatListCollapsed={chatListCollapsed}
+                setChatListCollapsed={setChatListCollapsed}
+                chatMediaUploading={chatMediaUploading}
+                handleSendMediaMessage={handleSendMediaMessage}
+                chatSoundEnabled={chatSoundEnabled}
+                setChatSoundEnabled={setChatSoundEnabled}
+                playIncomingMessageSound={playIncomingMessageSound}
+                templates={templates}
+                optOuts={optOuts}
+                onSelectShopifyProduct={(product) => {
+                  const productMsg = `Check out ${product.title}: ₹${product.price}\nhttps://${import.meta.env.VITE_SHOPIFY_DOMAIN || "jwlbillion.com"}/products/${product.handle || ""}`;
+                  setChatReplyText(productMsg);
+                }}
+              />
+            ) : (
+              <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs">
+                <div className="w-16 h-16 rounded-2xl bg-[#F5A623]/10 text-[#F5A623] flex items-center justify-center mx-auto mb-4 font-black text-2xl">
+                  {activePlatform === "facebook" && "f"}
+                  {activePlatform === "instagram" && "📸"}
+                  {activePlatform === "threads" && "🧵"}
+                  {activePlatform === "meta_ads" && "📈"}
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 capitalize mb-2">
+                  {activeTab.replace(/^(fb_|ig_|th_|ads_)/, "").replace(/_/g, " ")}
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  This space is reserved for {activePlatform === "meta_ads" ? "Meta Ads" : activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)} {activeTab.replace(/^(fb_|ig_|th_|ads_)/, "").replace(/_/g, " ")} management.
+                </p>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Authorized for {username}
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 capitalize mb-2">
-                {activePlatform === "meta_ads" ? "Meta Ads" : activePlatform} Workspace
-              </h3>
-              <p className="text-sm text-gray-500 mb-6">
-                This space is reserved for {activePlatform === "meta_ads" ? "Meta Ads Manager" : activePlatform} integration.
-              </p>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Authorized for {username}
-              </div>
-            </div>
+            )
           ) : (
             <>
               {activeTab === "dashboard" && (
