@@ -392,44 +392,56 @@ def handle_inbound_auto_reply(
             return res
 
         elif sel_id == "menu_bestsellers" or sel_id == "menu_new_collection":
-            shopify_res = fetch_shopify_products(limit=8)
-            products = shopify_res.get("products", [])
-            if products:
-                # Send the first item with photo if available
-                first_p = products[0]
-                first_img = first_p.get("image_url")
-                if first_img:
-                    caption_first = (
-                        f"🌟 *{first_p['title']}*\n"
-                        f"• Price: ₹{float(first_p.get('price') or 0):,.0f}\n"
-                        f"• View Design: {first_p.get('product_url') or 'https://jwlbillion.com/'}"
-                    )
-                    media_res = send_whatsapp_media(sender_phone, "image", media_url=first_img, caption=caption_first, db=db)
-                    _save_bot_message(
-                        db,
-                        sender_phone,
-                        f"*{first_p['title']}*\nPrice: ₹{float(first_p.get('price') or 0):,.0f}",
-                        media_res.get("message_id"),
-                        media_url=first_img,
-                        message_type="image"
-                    )
+            curated_bestsellers = [
+                {
+                    "title": "White Gold Block Bracelet",
+                    "price": 570,
+                    "url": "https://jwlbillion.com/products/07",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/bestseller_1_bracelet.jpg"
+                },
+                {
+                    "title": "Gold Crystal Huggie Hoop Earrings",
+                    "price": 390,
+                    "url": "https://jwlbillion.com/products/gold-crystal-huggie-hoop-earrings",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/bestseller_2_earrings.jpg"
+                },
+                {
+                    "title": "Gold & Silver Designer Textured Kada",
+                    "price": 570,
+                    "url": "https://jwlbillion.com/products/gold-silver-designer-textured-kada",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/bestseller_3_kada.jpg"
+                },
+                {
+                    "title": "Two-Tone Gold & Silver Men’s Kada",
+                    "price": 370,
+                    "url": "https://jwlbillion.com/products/two-tone-gold-silver-men-s-kada",
+                    "image_url": "https://130-210-23-25.sslip.io/uploads/bestseller_4_twotone_kada.jpg"
+                }
+            ]
 
-                msg = "🌟 *JWL Billion Bestselling Designs* 🌟\n\nHere are our top customer favorites:\n\n"
-                for i, p in enumerate(products[:4], 1):
-                    price_val = f"₹{float(p.get('price') or 0):,.0f}"
-                    msg += f"*{i}. {p['title']}*\n"
-                    msg += f"• Price: {price_val}\n"
-                    if p.get("product_url"):
-                        msg += f"• Link: {p['product_url']}\n"
-                    msg += "\n"
-                msg += "Explore all bestselling designs at https://jwlbillion.com/collections/all"
-            else:
-                msg = (
-                    "🌟 *JWL Billion Bestsellers*\n\n"
-                    "Discover our most loved jewelry designs online:\n"
-                    "👉 https://jwlbillion.com/\n\n"
-                    "Tell us what style or piece you're looking for, and we'll send designs right away!"
-                )
+            # Send photo of the first bestselling item with caption
+            first_p = curated_bestsellers[0]
+            caption_first = (
+                f"🌟 *{first_p['title']}*\n"
+                f"• Price: ₹{first_p['price']:,}\n"
+                f"• View Design: {first_p['url']}"
+            )
+            media_res = send_whatsapp_media(sender_phone, "image", media_url=first_p["image_url"], caption=caption_first, db=db)
+            _save_bot_message(
+                db,
+                sender_phone,
+                f"*{first_p['title']}*\nPrice: ₹{first_p['price']:,}",
+                media_res.get("message_id"),
+                media_url=first_p["image_url"],
+                message_type="image"
+            )
+
+            msg = "🌟 *JWL Billion Bestselling Designs* 🌟\n\nHere are our top customer favorites:\n\n"
+            for i, p in enumerate(curated_bestsellers, 1):
+                msg += f"*{i}. {p['title']}*\n"
+                msg += f"• Price: ₹{p['price']:,}\n"
+                msg += f"• Link: {p['url']}\n\n"
+            msg += "Explore all bestselling designs at https://jwlbillion.com/collections/all\n\nNeed help with sizing or orders? Just reply here!"
             res = send_whatsapp_free_text(sender_phone, msg, db=db)
             _save_bot_message(db, sender_phone, msg, res.get("message_id"))
             return res
