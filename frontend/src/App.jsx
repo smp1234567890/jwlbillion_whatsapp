@@ -67,7 +67,9 @@ import {
   ShoppingBag,
   Layers,
   Menu,
-  X
+  X,
+  ChevronDown,
+  Globe
 } from "lucide-react";
 import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache, isNativePlatform } from "./api";
 import FlowchartCanvas from "./components/FlowchartCanvas";
@@ -154,6 +156,8 @@ export default function App() {
   const [disablePassword, setDisablePassword] = useState("");
   const [disableLoading, setDisableLoading] = useState(false);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
+  const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
+  const [activePlatform, setActivePlatform] = useState(() => localStorage.getItem("activePlatform") || "whatsapp");
 
   const getInitialTab = () => {
     if (isNativePlatform) return "chat";
@@ -2093,15 +2097,84 @@ export default function App() {
 
         <div>
           {/* Brand Header */}
-          <div className={`p-4 flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} border-b border-gray-800`}>
+          <div className={`p-4 flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} border-b border-gray-800 relative`}>
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-9 h-9 rounded-lg bg-[#F5A623] flex items-center justify-center font-bold text-black text-lg shadow-md flex-shrink-0">
                 S
               </div>
               {!sidebarCollapsed && (
-                <div className="overflow-hidden whitespace-nowrap">
+                <div className="overflow-hidden whitespace-nowrap min-w-0">
                   <h1 className="font-bold text-white text-sm leading-tight">Scalifts</h1>
-                  <span className="text-[11px] text-[#F5A623] font-medium tracking-wide">WhatsApp CRM</span>
+                  {username === "scalifts_admin" ? (
+                    <div className="relative">
+                      <button
+                        onClick={() => setPlatformDropdownOpen(!platformDropdownOpen)}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-[#F5A623] hover:text-[#FFA000] transition group focus:outline-none"
+                        title="Switch Platform"
+                      >
+                        <span className="truncate max-w-[110px]">
+                          {activePlatform === "whatsapp" && "WhatsApp CRM"}
+                          {activePlatform === "facebook" && "Facebook"}
+                          {activePlatform === "instagram" && "Instagram"}
+                          {activePlatform === "threads" && "Threads"}
+                          {activePlatform === "meta_ads" && "Meta Ads"}
+                        </span>
+                        <ChevronDown className={`w-3 h-3 text-[#F5A623] transition-transform duration-200 ${platformDropdownOpen ? "rotate-180" : ""}`} />
+                      </button>
+
+                      {/* Dropdown Menu - Exclusively for scalifts_admin */}
+                      {platformDropdownOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setPlatformDropdownOpen(false)}
+                          />
+                          <div className="absolute left-0 mt-2 w-48 bg-[#1F2937] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                            <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-wider border-b border-gray-700/80">
+                              Switch Platform
+                            </div>
+                            {[
+                              { id: "whatsapp", label: "WhatsApp CRM", badge: "Active" },
+                              { id: "facebook", label: "Facebook", badge: "New" },
+                              { id: "instagram", label: "Instagram", badge: "New" },
+                              { id: "threads", label: "Threads", badge: "New" },
+                              { id: "meta_ads", label: "Meta Ads", badge: "New" },
+                            ].map((plat) => {
+                              const isSelected = activePlatform === plat.id;
+                              return (
+                                <button
+                                  key={plat.id}
+                                  onClick={() => {
+                                    setActivePlatform(plat.id);
+                                    localStorage.setItem("activePlatform", plat.id);
+                                    setPlatformDropdownOpen(false);
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition text-left ${
+                                    isSelected
+                                      ? "bg-gray-800 text-[#F5A623] font-bold"
+                                      : "text-gray-300 hover:bg-gray-800/60 hover:text-white"
+                                  }`}
+                                >
+                                  <span>{plat.label}</span>
+                                  {isSelected ? (
+                                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/50">
+                                      Active
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400 bg-gray-850 px-1.5 py-0.5 rounded">
+                                      {plat.badge}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-[#F5A623] font-medium tracking-wide">WhatsApp CRM</span>
+                  )}
                 </div>
               )}
             </div>
@@ -2244,25 +2317,33 @@ export default function App() {
             </button>
 
             <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 capitalize truncate">
-              {activeTab === "opt_out"
-                ? "Opt-Out (DND) Registry"
-                : activeTab === "chat"
-                ? "Two-Way WhatsApp Live Chat / Inbox"
-                : activeTab === "analytics"
-                ? "Delivery & Engagement Analytics"
-                : activeTab === "performance"
-                ? "System Performance & NOC Live Center"
-                : activeTab === "templates"
-                ? "WhatsApp Template Messages (Doc 04)"
-                : activeTab === "profile"
-                ? "WhatsApp Business Profile & Contact Card"
-                : activeTab === "products"
-                ? "Shopify Live Products Catalog"
-                : activeTab === "segments"
-                ? "Contact Segmentation & Smart Cohorts"
-                : activeTab === "automations"
-                ? "Automation Triggers & Rules"
-                : activeTab.replace("_", " ")}
+              {activePlatform !== "whatsapp"
+                ? (activePlatform === "facebook"
+                    ? "Facebook Workspace"
+                    : activePlatform === "instagram"
+                    ? "Instagram Workspace"
+                    : activePlatform === "threads"
+                    ? "Threads Workspace"
+                    : "Meta Ads Workspace")
+                : (activeTab === "opt_out"
+                    ? "Opt-Out (DND) Registry"
+                    : activeTab === "chat"
+                    ? "Two-Way WhatsApp Live Chat / Inbox"
+                    : activeTab === "analytics"
+                    ? "Delivery & Engagement Analytics"
+                    : activeTab === "performance"
+                    ? "System Performance & NOC Live Center"
+                    : activeTab === "templates"
+                    ? "WhatsApp Template Messages (Doc 04)"
+                    : activeTab === "profile"
+                    ? "WhatsApp Business Profile & Contact Card"
+                    : activeTab === "products"
+                    ? "Shopify Live Products Catalog"
+                    : activeTab === "segments"
+                    ? "Contact Segmentation & Smart Cohorts"
+                    : activeTab === "automations"
+                    ? "Automation Triggers & Rules"
+                    : activeTab.replace("_", " "))}
             </h2>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
@@ -2311,19 +2392,41 @@ export default function App() {
 
         {/* Dynamic Views */}
         <div className={isNativePlatform ? "p-0 flex-1 flex flex-col min-h-0 overflow-hidden" : (activeTab === "chat" ? "p-2 sm:p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6")}>
-          {activeTab === "dashboard" && (
-            <DashboardPage
-              workflowFlows={workflowFlows}
-              messageLogs={messageLogs}
-              cartEvents={cartEvents}
-              campaigns={campaigns}
-              contacts={contacts}
-              optOuts={optOuts}
-              handleTabChange={handleTabChange}
-              setEditingWorkflow={setEditingWorkflow}
-              handleOpenNewJourneyModal={handleOpenNewJourneyModal}
-            />
-          )}
+          {/* Active Platform Placeholder for non-WhatsApp tabs (restricted to scalifts_admin) */}
+          {activePlatform !== "whatsapp" ? (
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs">
+              <div className="w-16 h-16 rounded-2xl bg-[#F5A623]/10 text-[#F5A623] flex items-center justify-center mx-auto mb-4 font-black text-2xl">
+                {activePlatform === "facebook" && "f"}
+                {activePlatform === "instagram" && "📸"}
+                {activePlatform === "threads" && "🧵"}
+                {activePlatform === "meta_ads" && "📈"}
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 capitalize mb-2">
+                {activePlatform === "meta_ads" ? "Meta Ads" : activePlatform} Workspace
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                This space is reserved for {activePlatform === "meta_ads" ? "Meta Ads Manager" : activePlatform} integration.
+              </p>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Authorized for {username}
+              </div>
+            </div>
+          ) : (
+            <>
+              {activeTab === "dashboard" && (
+                <DashboardPage
+                  workflowFlows={workflowFlows}
+                  messageLogs={messageLogs}
+                  cartEvents={cartEvents}
+                  campaigns={campaigns}
+                  contacts={contacts}
+                  optOuts={optOuts}
+                  handleTabChange={handleTabChange}
+                  setEditingWorkflow={setEditingWorkflow}
+                  handleOpenNewJourneyModal={handleOpenNewJourneyModal}
+                />
+              )}
 
 
 
@@ -2521,6 +2624,8 @@ export default function App() {
               isNativeApp={isNativePlatform}
               onLogout={handleLogout}
             />
+          )}
+            </>
           )}
         </div>
       </main>
