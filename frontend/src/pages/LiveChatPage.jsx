@@ -1244,10 +1244,12 @@ export default function LiveChatPage({
                                 <span>
                                   {msg.status === "SENDING" ? (
                                     <Clock className="w-3 h-3 text-gray-400 animate-spin" />
-                                  ) : msg.status === "DELIVERED" || msg.status === "READ" ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
+                                  ) : msg.status === "READ" ? (
+                                    <CheckCheck className="w-3.5 h-3.5 text-blue-500" title="Read" />
+                                  ) : msg.status === "DELIVERED" ? (
+                                    <CheckCheck className="w-3.5 h-3.5 text-gray-400" title="Delivered" />
                                   ) : (
-                                    <Check className="w-3.5 h-3.5 text-emerald-700" />
+                                    <Check className="w-3.5 h-3.5 text-gray-400" title="Sent" />
                                   )}
                                 </span>
                               )}
