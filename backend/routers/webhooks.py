@@ -1068,6 +1068,93 @@ async def receive_inbound_whatsapp_message(
     any_opt_out = False
 
     for entry in entries:
+        # ── Facebook Messenger Inbound Message Handling ──
+        messaging_events = entry.get("messaging", [])
+        for event in messaging_events:
+            sender_id = event.get("sender", {}).get("id")
+            recipient_id = event.get("recipient", {}).get("id")
+            # Skip echoes (messages sent by our own Page)
+            message_obj = event.get("message", {})
+            if message_obj.get("is_echo"):
+                continue
+
+            msg_mid = message_obj.get("mid")
+            msg_text = message_obj.get("text", "")
+            attachments = message_obj.get("attachments", [])
+            inbound_media_url = None
+            msg_type = "text"
+            if attachments:
+                att = attachments[0]
+                msg_type = att.get("type", "image")
+                inbound_media_url = att.get("payload", {}).get("url")
+
+            # Postback button clicks in Messenger
+            postback_obj = event.get("postback", {})
+            if postback_obj:
+                msg_text = postback_obj.get("title") or postback_obj.get("payload") or "Clicked Button"
+                msg_mid = f"fb_pb_{sender_id}_{int(datetime.utcnow().timestamp())}"
+
+            # Message read status from Messenger
+            read_obj = event.get("read", {})
+            if read_obj:
+                watermark = read_obj.get("watermark")
+                processed_statuses_count += 1
+                continue
+
+            if sender_id and (msg_text or inbound_media_url):
+                # Use a designated Facebook Messenger phone representation
+                fb_customer_phone = f"fb_{sender_id}"
+                existing_fb_chat = db.query(models.ChatMessage).filter(
+                    models.ChatMessage.meta_message_id == msg_mid
+                ).first() if msg_mid else None
+
+                if not existing_fb_chat:
+                    new_fb_chat = models.ChatMessage(
+                        customer_phone=fb_customer_phone,
+                        sender_type="CUSTOMER",
+                        message_type=msg_type,
+                        text=msg_text,
+                        media_url=inbound_media_url,
+                        meta_message_id=msg_mid,
+                        status="RECEIVED",
+                        is_read=False
+                    )
+                    db.add(new_fb_chat)
+
+                    # Ensure contact exists
+                    existing_contact = db.query(models.Contact).filter(models.Contact.phone == fb_customer_phone).first()
+                    if not existing_contact:
+                        db.add(models.Contact(
+                            phone=fb_customer_phone,
+                            name=f"Facebook User ({sender_id[-4:]})",
+                            total_orders=0,
+                            tags="Facebook Messenger",
+                            city="Facebook"
+                        ))
+
+                    try:
+                        db.commit()
+                        processed_messages_count += 1
+                        try:
+                            from services.chat_broadcaster import chat_broadcaster
+                            chat_broadcaster.publish_sync("new_message", {
+                                "id": new_fb_chat.id,
+                                "customer_phone": fb_customer_phone,
+                                "sender_type": "CUSTOMER",
+                                "message_type": msg_type,
+                                "text": msg_text,
+                                "media_url": inbound_media_url,
+                                "status": "DELIVERED",
+                                "is_read": False,
+                                "created_at": datetime.utcnow().isoformat()
+                            })
+                        except Exception as sse_err:
+                            logger.debug(f"SSE message broadcast skipped: {sse_err}")
+                    except Exception as fb_err:
+                        db.rollback()
+                        logger.error(f"[Facebook Messenger Webhook] Error saving message: {fb_err}")
+
+        # ── WhatsApp Cloud API Handling ──
         changes = entry.get("changes", [])
         for chg in changes:
             field = chg.get("field", "")

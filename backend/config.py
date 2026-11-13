@@ -41,6 +41,10 @@ META_APP_SECRET = os.getenv("META_APP_SECRET", "")
 # Meta Inbound Webhook Verify Token
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
 
+# Facebook Page & Messenger Configuration
+FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "1193304047210461")
+FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
+
 # ── Business Logic Limits & Constants ──
 # Subscription / Multi-tenant user limit (e.g. maximum 5 team members)
 MAX_USERS_LIMIT = int(os.getenv("MAX_USERS_LIMIT", "5"))

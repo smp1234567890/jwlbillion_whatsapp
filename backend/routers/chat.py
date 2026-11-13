@@ -203,62 +203,72 @@ def send_agent_reply(
     db: Session = Depends(get_db)
 ):
     """
-    Allows authorized support users to send an outbound text reply to a customer's WhatsApp.
+    Allows authorized support users to send an outbound text reply to a customer's WhatsApp or Facebook Messenger.
     Enforces DND/Opt-Out, Meta's 24-hour customer service window, support_send permission,
     and daily spending guardrails.
     """
-    try:
-        clean_phone = normalize_phone(payload.customer_phone)
-    except InvalidPhoneNumberError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    raw_phone = payload.customer_phone
+    is_facebook = raw_phone.startswith("fb_")
 
-    # 1. Verify support_send capability and record scope
-    pii_service.verify_support_send_permission(db, current_user, clean_phone)
+    if is_facebook:
+        clean_phone = raw_phone
+        fb_recipient_id = raw_phone.replace("fb_", "")
+        from services.facebook_service import send_facebook_text_message
+        res = send_facebook_text_message(fb_recipient_id, payload.text)
+        msg_id = res.get("message_id")
+        status_str = "SENT" if res.get("status") == "success" else "FAILED"
+    else:
+        try:
+            clean_phone = normalize_phone(raw_phone)
+        except InvalidPhoneNumberError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-    # 2. Strict DND / Opt-Out Check
-    is_opted_out = db.query(models.OptOut).filter(models.OptOut.phone == clean_phone).first()
-    if is_opted_out:
-        logger.warning(f"[Chat Blocked] Attempted outbound message to opted-out recipient {clean_phone} by '{current_user.username}'.")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Customer {clean_phone} has opted out of WhatsApp messages (DND list). Outbound messages are prohibited."
+        # 1. Verify support_send capability and record scope
+        pii_service.verify_support_send_permission(db, current_user, clean_phone)
+
+        # 2. Strict DND / Opt-Out Check
+        is_opted_out = db.query(models.OptOut).filter(models.OptOut.phone == clean_phone).first()
+        if is_opted_out:
+            logger.warning(f"[Chat Blocked] Attempted outbound message to opted-out recipient {clean_phone} by '{current_user.username}'.")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Customer {clean_phone} has opted out of WhatsApp messages (DND list). Outbound messages are prohibited."
+            )
+
+        # 3. Meta 24-Hour Customer Service Window Check
+        twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+        last_inbound_msg = (
+            db.query(models.ChatMessage)
+            .filter(
+                models.ChatMessage.customer_phone == clean_phone,
+                models.ChatMessage.sender_type == "CUSTOMER",
+                models.ChatMessage.created_at >= twenty_four_hours_ago
+            )
+            .order_by(models.ChatMessage.created_at.desc())
+            .first()
         )
 
-    # 3. Meta 24-Hour Customer Service Window Check
-    twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
-    last_inbound_msg = (
-        db.query(models.ChatMessage)
-        .filter(
-            models.ChatMessage.customer_phone == clean_phone,
-            models.ChatMessage.sender_type == "CUSTOMER",
-            models.ChatMessage.created_at >= twenty_four_hours_ago
-        )
-        .order_by(models.ChatMessage.created_at.desc())
-        .first()
-    )
+        if config.WHATSAPP_API_TOKEN and config.WHATSAPP_PHONE_NUMBER_ID and not last_inbound_msg:
+            logger.warning(f"[Chat Service Window] Customer {clean_phone} is outside Meta's 24-hour service window.")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Outside Meta's 24-hour customer service window. Free-form text is prohibited; please initiate contact using an approved WhatsApp template."
+            )
 
-    if config.WHATSAPP_API_TOKEN and config.WHATSAPP_PHONE_NUMBER_ID and not last_inbound_msg:
-        logger.warning(f"[Chat Service Window] Customer {clean_phone} is outside Meta's 24-hour service window.")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Outside Meta's 24-hour customer service window. Free-form text is prohibited; please initiate contact using an approved WhatsApp template."
-        )
+        # 4. Daily Send Limit Guardrail
+        under_limit, count_today = check_daily_limit(db)
+        if not under_limit:
+            effective_limit = get_effective_daily_limit(db)
+            logger.error(f"[BUDGET GUARD] Daily send limit ({effective_limit}) reached! Chat blocked.")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Daily outbound message limit reached ({count_today}/{effective_limit}). Outbound message blocked."
+            )
 
-    # 4. Daily Send Limit Guardrail
-    under_limit, count_today = check_daily_limit(db)
-    if not under_limit:
-        effective_limit = get_effective_daily_limit(db)
-        logger.error(f"[BUDGET GUARD] Daily send limit ({effective_limit}) reached! Chat blocked.")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Daily outbound message limit reached ({count_today}/{effective_limit}). Outbound message blocked."
-        )
-
-    # Dispatch via whatsapp_service
-    res = send_whatsapp_free_text(clean_phone, payload.text)
-
-    msg_id = res.get("message_id")
-    status_str = "SENT" if res.get("status") in ["success", "success_simulated"] else "FAILED"
+        # Dispatch via whatsapp_service
+        res = send_whatsapp_free_text(clean_phone, payload.text)
+        msg_id = res.get("message_id")
+        status_str = "SENT" if res.get("status") in ["success", "success_simulated"] else "FAILED"
 
     chat_entry = models.ChatMessage(
         customer_phone=clean_phone,
