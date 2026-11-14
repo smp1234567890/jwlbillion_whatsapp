@@ -35,7 +35,10 @@ import {
   Square,
   Volume,
   Volume1,
-  Ban
+  Ban,
+  MoreVertical,
+  MapPin,
+  Package
 } from "lucide-react";
 import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
 import api, { getApiBaseUrl } from "../api";
@@ -91,6 +94,7 @@ export default function LiveChatPage({
   const [callPermStatus, setCallPermStatus] = useState(null); // null | "checking" | "granted" | "no_permission" | "requesting"
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [callStatusMsg, setCallStatusMsg] = useState("");
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [isCalling, setIsCalling] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [activeCallId, setActiveCallId] = useState(null);
@@ -777,8 +781,9 @@ export default function LiveChatPage({
                 (c) => c.phone === selectedChatPhone
               );
               return (
-                <div className={`px-2.5 sm:px-4 py-2 bg-white border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs shrink-0 z-30 ${isNativeApp ? "pt-[max(env(safe-area-inset-top,0px),10px)]" : ""}`}>
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className={`px-2.5 sm:px-4 py-2 bg-white border-b border-gray-200 flex items-center justify-between gap-2 shadow-xs shrink-0 z-30 ${isNativeApp ? "pt-[max(env(safe-area-inset-top,0px),10px)]" : ""}`}>
+                  {/* Left: Back button + Clickable Profile trigger */}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     {/* Mobile Back to Conversation List button */}
                     <button
                       type="button"
@@ -792,6 +797,7 @@ export default function LiveChatPage({
                     {/* Desktop expand chat list button */}
                     {chatListCollapsed && (
                       <button
+                        type="button"
                         onClick={() => {
                           setChatListCollapsed(false);
                           localStorage.setItem("chatListCollapsed", "false");
@@ -803,114 +809,87 @@ export default function LiveChatPage({
                         <span className="hidden sm:inline">Chats</span>
                       </button>
                     )}
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 shadow-xs">
-                      {activeConv?.customer_name
-                        ? activeConv.customer_name.charAt(0).toUpperCase()
-                        : "C"}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="text-xs sm:text-sm font-bold text-gray-900 truncate max-w-[140px] sm:max-w-[200px]">
-                          {activeConv?.customer_name || matchingContact?.name || "Customer"}
-                        </h3>
-                        {(matchingContact?.total_orders || activeConv?.total_orders || 0) >= 5 && (
-                          <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 font-bold rounded text-[10px] flex items-center gap-0.5 shrink-0">
-                            <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" /> VIP
-                          </span>
-                        )}
-                        <span className="font-mono text-gray-500 text-[11px] shrink-0">{selectedChatPhone}</span>
+
+                    {/* Tappable Profile Area: opens customer profile & options */}
+                    <button
+                      type="button"
+                      onClick={() => setProfileDrawerOpen(true)}
+                      className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-85 transition cursor-pointer p-1 -m-1 rounded-lg"
+                      title="View Customer Profile & Options"
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 shadow-xs">
+                        {activeConv?.customer_name
+                          ? activeConv.customer_name.charAt(0).toUpperCase()
+                          : "C"}
                       </div>
-                      <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">
-                        <span>WhatsApp</span>
-                        {(matchingContact?.city || activeConv?.customer_city) && (
-                          <>
-                            <span>•</span>
-                            <span className="truncate">{matchingContact?.city || activeConv?.customer_city}</span>
-                          </>
-                        )}
-                        <span>•</span>
-                        <span className="shrink-0">
-                          Orders: {matchingContact?.total_orders ?? activeConv?.total_orders ?? 0}
-                        </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-xs sm:text-sm font-bold text-gray-900 truncate max-w-[130px] sm:max-w-[200px]">
+                            {activeConv?.customer_name || matchingContact?.name || selectedChatPhone}
+                          </h3>
+                          {(matchingContact?.total_orders || activeConv?.total_orders || 0) >= 5 && (
+                            <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 font-bold rounded text-[10px] flex items-center gap-0.5 shrink-0">
+                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" /> VIP
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate flex items-center gap-1">
+                          <span className="font-mono">{selectedChatPhone}</span>
+                          {(matchingContact?.city || activeConv?.customer_city) && (
+                            <>
+                              <span>•</span>
+                              <span>{matchingContact?.city || activeConv?.customer_city}</span>
+                            </>
+                          )}
+                        </p>
                       </div>
-                    </div>
+                    </button>
                   </div>
 
-                  {/* Actions Header Toolbar: cleanly aligned and responsive */}
-                  <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 self-end sm:self-auto overflow-x-auto max-w-full">
-                    {(() => {
-                      const isBlocked = optOuts.some(
-                        (o) => o.phone === selectedChatPhone || o.phone === selectedChatPhone.replace("+", "")
-                      );
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => handleBlockContact && handleBlockContact(selectedChatPhone, isBlocked)}
-                          className={`p-1.5 sm:px-2.5 sm:py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1 shrink-0 cursor-pointer ${isBlocked
-                              ? "border-red-400 bg-red-100 text-red-800 hover:bg-red-200"
-                              : "border-gray-300 bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
-                            }`}
-                          title={isBlocked ? "Contact is Blocked / Opted Out (Click to unblock)" : "Block number & add to Opt-Out (DND)"}
-                        >
-                          <Ban className={`w-3.5 h-3.5 ${isBlocked ? "text-red-700" : "text-gray-500"}`} />
-                          <span className="hidden md:inline">{isBlocked ? "Blocked" : "Block"}</span>
-                        </button>
-                      );
-                    })()}
-                    {/* WhatsApp Direct In-App Call Button */}
+                  {/* Right Header Toolbar: Clean, compact call & options icons */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Quick Call Button */}
+                    <a
+                      href={`tel:${selectedChatPhone}`}
+                      className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-full transition flex items-center justify-center"
+                      title={`Call customer (${selectedChatPhone})`}
+                    >
+                      <Phone className="w-4 h-4" />
+                    </a>
+
+                    {/* WhatsApp In-App / WA Call */}
                     <button
                       type="button"
                       onClick={() => {
                         setCallModalOpen(true);
                         setCallStatusMsg("");
                       }}
-                      className={`p-1.5 sm:px-2.5 sm:py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1 shrink-0 cursor-pointer ${callPermStatus === "granted"
-                          ? "border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
-                          : "border-emerald-400 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                        }`}
-                      title="WhatsApp In-App Voice Call"
+                      className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-full transition flex items-center justify-center cursor-pointer"
+                      title="WhatsApp In-App Call"
                     >
-                      <PhoneCall className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">WA Call</span>
+                      <PhoneCall className="w-4 h-4" />
                     </button>
 
-                    <a
-                      href={`tel:${selectedChatPhone}`}
-                      className="p-1.5 sm:px-2.5 sm:py-1.5 border border-blue-300 text-blue-700 bg-blue-50 rounded-lg text-xs font-semibold hover:bg-blue-100 transition flex items-center gap-1 shrink-0"
-                      title={`Call customer directly (${selectedChatPhone})`}
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">Call</span>
-                    </a>
-                    <a
-                      href={`https://wa.me/${selectedChatPhone.replace("+", "")}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-1.5 sm:px-2.5 sm:py-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition flex items-center gap-1 shrink-0"
-                      title="Open in WhatsApp Web"
-                    >
-                      <PhoneCall className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">WhatsApp Web</span>
-                    </a>
+                    {/* Refresh */}
                     <button
                       type="button"
                       onClick={() => fetchChatMessages(selectedChatPhone, false)}
                       disabled={chatLoading}
-                      className="p-1.5 text-gray-500 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition cursor-pointer shrink-0"
+                      className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-full transition cursor-pointer"
                       title="Refresh messages"
                     >
-                      <RefreshCw className={`w-3.5 h-3.5 ${chatLoading ? "animate-spin" : ""}`} />
+                      <RefreshCw className={`w-4 h-4 ${chatLoading ? "animate-spin" : ""}`} />
                     </button>
-                    {handleDeleteConversation && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteConversation(selectedChatPhone)}
-                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition cursor-pointer shrink-0"
-                        title="Delete this conversation"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+
+                    {/* Profile & Options Menu Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => setProfileDrawerOpen(true)}
+                      className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer"
+                      title="Customer Details & Actions"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -1646,6 +1625,186 @@ export default function LiveChatPage({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Customer Profile & Actions Drawer / Modal */}
+      {profileDrawerOpen && selectedChatPhone && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center sm:justify-end p-0 sm:p-4">
+          <div
+            className="fixed inset-0"
+            onClick={() => setProfileDrawerOpen(false)}
+          ></div>
+          <div className="relative bg-white w-full sm:max-w-md h-full sm:h-auto sm:max-h-[92vh] sm:rounded-2xl shadow-2xl flex flex-col z-10 overflow-hidden animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-right-8 duration-200">
+            {(() => {
+              const activeConv = chatConversations.find(
+                (c) => c.customer_phone === selectedChatPhone
+              );
+              const matchingContact = contacts.find(
+                (c) => c.phone === selectedChatPhone
+              );
+              const isBlocked = optOuts.some(
+                (o) => o.phone === selectedChatPhone || o.phone === selectedChatPhone.replace("+", "")
+              );
+              const order = activeConv?.last_order || matchingContact?.custom_attributes?.last_order;
+
+              return (
+                <div className="flex flex-col h-full overflow-y-auto">
+                  {/* Top Bar */}
+                  <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                    <h3 className="font-bold text-base text-gray-900">Contact Details</h3>
+                    <button
+                      type="button"
+                      onClick={() => setProfileDrawerOpen(false)}
+                      className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Profile Hero */}
+                  <div className="p-6 bg-gradient-to-b from-emerald-50/60 to-transparent flex flex-col items-center text-center border-b border-gray-100">
+                    <div className="w-20 h-20 rounded-full bg-[#25D366] text-white flex items-center justify-center font-extrabold text-2xl shadow-md mb-3">
+                      {activeConv?.customer_name
+                        ? activeConv.customer_name.charAt(0).toUpperCase()
+                        : "C"}
+                    </div>
+                    <div className="flex items-center gap-1.5 justify-center flex-wrap">
+                      <h4 className="font-extrabold text-lg text-gray-900">
+                        {activeConv?.customer_name || matchingContact?.name || "Customer"}
+                      </h4>
+                      {(matchingContact?.total_orders || activeConv?.total_orders || 0) >= 5 && (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold rounded-full text-[11px] flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-amber-500 text-amber-500" /> VIP
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-mono text-sm text-gray-600 mt-0.5">{selectedChatPhone}</p>
+                    {(matchingContact?.city || activeConv?.customer_city) && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        {matchingContact?.city || activeConv?.customer_city}
+                      </p>
+                    )}
+
+                    {/* Fast Quick Action Buttons */}
+                    <div className="grid grid-cols-3 gap-2 w-full mt-5">
+                      <a
+                        href={`tel:${selectedChatPhone}`}
+                        className="py-2.5 px-3 bg-white border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 rounded-xl transition flex flex-col items-center justify-center gap-1 text-gray-700 shadow-2xs"
+                      >
+                        <Phone className="w-4 h-4 text-emerald-600" />
+                        <span className="text-[11px] font-semibold">Call</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileDrawerOpen(false);
+                          setCallModalOpen(true);
+                          setCallStatusMsg("");
+                        }}
+                        className="py-2.5 px-3 bg-white border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 rounded-xl transition flex flex-col items-center justify-center gap-1 text-gray-700 shadow-2xs cursor-pointer"
+                      >
+                        <PhoneCall className="w-4 h-4 text-[#25D366]" />
+                        <span className="text-[11px] font-semibold">WA Call</span>
+                      </button>
+                      <a
+                        href={`https://wa.me/${selectedChatPhone.replace("+", "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="py-2.5 px-3 bg-white border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 rounded-xl transition flex flex-col items-center justify-center gap-1 text-gray-700 shadow-2xs"
+                      >
+                        <ExternalLink className="w-4 h-4 text-emerald-700" />
+                        <span className="text-[11px] font-semibold">WhatsApp</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Customer Information Cards */}
+                  <div className="p-5 space-y-4 flex-1">
+                    {/* Orders Summary */}
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <Package className="w-3.5 h-3.5 text-gray-400" />
+                          Orders History
+                        </span>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          {matchingContact?.total_orders ?? activeConv?.total_orders ?? 0} Orders
+                        </span>
+                      </div>
+
+                      {order ? (
+                        <div className="mt-2.5 p-3 bg-white rounded-lg border border-amber-200 shadow-2xs text-xs space-y-1">
+                          <div className="flex items-center justify-between font-bold text-gray-900">
+                            <span>Last Order: #{order.order_number || order.order_id}</span>
+                            {order.total_price && (
+                              <span className="text-emerald-700">{order.currency || "₹"}{order.total_price}</span>
+                            )}
+                          </div>
+                          {order.items_summary && (
+                            <p className="text-gray-600 text-[11px] line-clamp-2">{order.items_summary}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-1">No recorded store orders yet.</p>
+                      )}
+                    </div>
+
+                    {/* Dangerous Actions */}
+                    <div className="space-y-2 pt-2">
+                      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">
+                        Management & Safety
+                      </span>
+
+                      {/* Block / DND */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (handleBlockContact) {
+                            handleBlockContact(selectedChatPhone, isBlocked);
+                          }
+                        }}
+                        className={`w-full py-2.5 px-4 rounded-xl border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                          isBlocked
+                            ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
+                            : "bg-white border-gray-200 text-gray-700 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Ban className="w-4 h-4 text-red-600" />
+                          {isBlocked ? "Unblock Contact (Remove from DND)" : "Block Contact (Add to DND)"}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          {isBlocked ? "Currently Blocked" : "Active"}
+                        </span>
+                      </button>
+
+                      {/* Delete Conversation */}
+                      {handleDeleteConversation && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to delete this entire conversation?")) {
+                              setProfileDrawerOpen(false);
+                              handleDeleteConversation(selectedChatPhone);
+                            }
+                          }}
+                          className="w-full py-2.5 px-4 rounded-xl border border-gray-200 bg-white hover:bg-red-50 text-red-600 hover:border-red-200 text-xs font-bold transition flex items-center justify-between cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                            Delete Conversation
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-normal">Permanent</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
