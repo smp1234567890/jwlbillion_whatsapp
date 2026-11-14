@@ -296,23 +296,44 @@ export default function App() {
     }
   });
   const [selectedChatPhone, setSelectedChatPhone] = useState(null);
+  const selectedChatPhoneRef = useRef(selectedChatPhone);
+  const activeTabRef = useRef(activeTab);
 
-  // Android Hardware Back Button Handling & Resume Handling
   useEffect(() => {
+    selectedChatPhoneRef.current = selectedChatPhone;
+  }, [selectedChatPhone]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  // Android Hardware & Browser Back Button Handling & Resume Handling
+  useEffect(() => {
+    // 1. Web / PWA browser history back-button support
+    const handlePopState = (event) => {
+      if (selectedChatPhoneRef.current) {
+        setSelectedChatPhone("");
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+
+    // 2. Native Capacitor App Hardware Back Button
     let unlisten = null;
     let resumeUnlisten = null;
     const registerBackButton = async () => {
       try {
         const { App: CapApp } = await import("@capacitor/app");
         const listener = await CapApp.addListener("backButton", ({ canGoBack }) => {
-          if (selectedChatPhone) {
+          if (selectedChatPhoneRef.current) {
             // Instant return from chat thread to conversations list
             setSelectedChatPhone("");
-          } else if (isNativePlatform) {
-            CapApp.exitApp();
-          } else if (activeTab !== "dashboard") {
-            setActiveTab("dashboard");
-          } else if (canGoBack) {
+            return;
+          }
+          if (activeTabRef.current !== "dashboard" && activeTabRef.current !== "chat") {
+            setActiveTab(isNativePlatform ? "chat" : "dashboard");
+            return;
+          }
+          if (canGoBack) {
             window.history.back();
           } else {
             CapApp.exitApp();
@@ -340,11 +361,13 @@ export default function App() {
       } catch (e) {}
     };
     registerBackButton();
+
     return () => {
+      window.removeEventListener("popstate", handlePopState);
       if (unlisten) unlisten();
       if (resumeUnlisten) resumeUnlisten();
     };
-  }, [activeTab, selectedChatPhone]);
+  }, []);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatReplyText, setChatReplyText] = useState("");
@@ -1105,8 +1128,12 @@ export default function App() {
 
       // ── Priority 1: Instant First Paint Data ──
       // Fetch only what's required for dashboard/initial navigation
+      // Note: On native mobile app, skip heavy 2000-contact payload during initial load!
+      const shouldLoadContactsImmediately = !isNativePlatform && activeTab === "contacts";
       const [contRes, wfRes, tmplRes, campRes] = await Promise.all([
-        cachedGet("/api/contacts", { headers }, 30_000).catch((e) => { if (e.response?.status === 401) throw e; return { data: null }; }),
+        shouldLoadContactsImmediately
+          ? cachedGet("/api/contacts", { headers }, 30_000).catch((e) => { if (e.response?.status === 401) throw e; return { data: null }; })
+          : Promise.resolve({ data: null }),
         cachedGet("/api/workflows", { headers }, 30_000).catch(() => ({ data: null })),
         cachedGet("/api/templates", { headers }, 30_000).catch(() => ({ data: null })),
         cachedGet("/api/campaigns", { headers }, 30_000).catch(() => ({ data: null })),
@@ -1137,11 +1164,13 @@ export default function App() {
       // ── Priority 3: Lazy-loaded metadata (deferred, non-blocking) ──
       setTimeout(() => {
         Promise.all([
+          (!shouldLoadContactsImmediately ? cachedGet("/api/contacts", { headers }, 60_000).catch(() => ({ data: null })) : Promise.resolve({ data: null })),
           cachedGet("/api/opt-outs", { headers }, 60_000).catch(() => ({ data: null })),
           cachedGet("/api/users", { headers }, 60_000).catch(() => ({ data: null })),
           cachedGet("/api/discount-codes", { headers }, 60_000).catch(() => ({ data: null })),
           cachedGet("/api/external-data-sources", { headers }, 60_000).catch(() => ({ data: null })),
-        ]).then(([optRes, usersRes, discRes, extRes]) => {
+        ]).then(([lazyContRes, optRes, usersRes, discRes, extRes]) => {
+          if (lazyContRes.data !== null) setContacts(lazyContRes.data);
           if (optRes.data !== null) setOptOuts(optRes.data);
           if (usersRes.data !== null) setSystemUsers(usersRes.data);
           if (discRes.data !== null) setDiscountCodes(discRes.data);
@@ -1322,6 +1351,10 @@ export default function App() {
     if (!phone) {
       setChatMessages([]);
       return;
+    }
+    // Push history state so hardware / browser back button pops chat cleanly
+    if (window.history && window.history.pushState) {
+      window.history.pushState({ chat: phone }, "", window.location.pathname + "#chat-" + phone.replace("+", ""));
     }
     try {
       const cached = localStorage.getItem(`cached_msgs_${phone}`);
