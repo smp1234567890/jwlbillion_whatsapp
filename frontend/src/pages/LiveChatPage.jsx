@@ -777,13 +777,13 @@ export default function LiveChatPage({
                 (c) => c.phone === selectedChatPhone
               );
               return (
-                <div className={`px-4 py-2.5 bg-white border-b border-gray-200 flex items-center justify-between gap-3 shadow-xs shrink-0 z-30 ${isNativeApp ? "pt-[env(safe-area-inset-top,10px)]" : ""}`}>
-
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className={`px-2.5 sm:px-4 py-2 bg-white border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs shrink-0 z-30 ${isNativeApp ? "pt-[max(env(safe-area-inset-top,0px),10px)]" : ""}`}>
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     {/* Mobile Back to Conversation List button */}
                     <button
+                      type="button"
                       onClick={() => handleSelectConversation("")}
-                      className="md:hidden p-1.5 -ml-1 text-gray-700 hover:bg-gray-100 rounded-lg transition shrink-0 flex items-center gap-0.5 text-xs font-semibold cursor-pointer"
+                      className="md:hidden p-1.5 -ml-1 text-gray-700 hover:bg-gray-100 rounded-lg transition shrink-0 flex items-center justify-center cursor-pointer"
                       title="Back to conversation list"
                     >
                       <ChevronLeft className="w-5 h-5 text-gray-700" />
@@ -803,74 +803,57 @@ export default function LiveChatPage({
                         <span className="hidden sm:inline">Chats</span>
                       </button>
                     )}
-                    <div className="w-10 h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 shadow-xs">
                       {activeConv?.customer_name
                         ? activeConv.customer_name.charAt(0).toUpperCase()
                         : "C"}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-gray-900 truncate">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-xs sm:text-sm font-bold text-gray-900 truncate max-w-[140px] sm:max-w-[200px]">
                           {activeConv?.customer_name || matchingContact?.name || "Customer"}
                         </h3>
                         {(matchingContact?.total_orders || activeConv?.total_orders || 0) >= 5 && (
                           <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 font-bold rounded text-[10px] flex items-center gap-0.5 shrink-0">
-                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" /> VIP
+                            <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" /> VIP
                           </span>
                         )}
+                        <span className="font-mono text-gray-500 text-[11px] shrink-0">{selectedChatPhone}</span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 mt-0.5">
-                        <span className="font-mono text-gray-700 font-medium shrink-0">{selectedChatPhone}</span>
+                      <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">
+                        <span>WhatsApp</span>
                         {(matchingContact?.city || activeConv?.customer_city) && (
                           <>
-                            <span className="text-gray-300">•</span>
-                            <span className="shrink-0">{matchingContact?.city || activeConv?.customer_city}</span>
+                            <span>•</span>
+                            <span className="truncate">{matchingContact?.city || activeConv?.customer_city}</span>
                           </>
                         )}
-                        <span className="text-gray-300">•</span>
+                        <span>•</span>
                         <span className="shrink-0">
                           Orders: {matchingContact?.total_orders ?? activeConv?.total_orders ?? 0}
                         </span>
-                        {(() => {
-                          const order = activeConv?.last_order || matchingContact?.custom_attributes?.last_order;
-                          if (!order) return null;
-                          return (
-                            <span
-                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] font-medium cursor-help shrink-0 max-w-full"
-                              title={`Last Order: #${order.order_number || order.order_id}\nTotal: ${order.currency || 'INR'} ${order.total_price}\nItems:\n${(order.items || []).map(i => `• ${i.quantity}x ${i.title} (₹${i.price})`).join('\n') || order.items_summary}`}
-                            >
-                              <ShoppingBag className="w-3 h-3 text-amber-600 shrink-0" />
-                              <span className="font-semibold text-amber-800">Last:</span>
-                              <span className="max-w-[120px] sm:max-w-[180px] md:max-w-[240px] truncate text-amber-900 font-medium">
-                                {order.items_summary || `#${order.order_number || order.order_id}`}
-                              </span>
-                              {order.total_price ? (
-                                <span className="font-bold text-emerald-700 shrink-0">({order.currency || '₹'}{order.total_price})</span>
-                              ) : null}
-                            </span>
-                          );
-                        })()}
                       </div>
                     </div>
                   </div>
 
-                  {/* Actions Header Toolbar: always shrink-0 and visible */}
-                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  {/* Actions Header Toolbar: cleanly aligned and responsive */}
+                  <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 self-end sm:self-auto overflow-x-auto max-w-full">
                     {(() => {
                       const isBlocked = optOuts.some(
                         (o) => o.phone === selectedChatPhone || o.phone === selectedChatPhone.replace("+", "")
                       );
                       return (
                         <button
+                          type="button"
                           onClick={() => handleBlockContact && handleBlockContact(selectedChatPhone, isBlocked)}
-                          className={`px-2.5 py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${isBlocked
+                          className={`p-1.5 sm:px-2.5 sm:py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1 shrink-0 cursor-pointer ${isBlocked
                               ? "border-red-400 bg-red-100 text-red-800 hover:bg-red-200"
                               : "border-gray-300 bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
                             }`}
                           title={isBlocked ? "Contact is Blocked / Opted Out (Click to unblock)" : "Block number & add to Opt-Out (DND)"}
                         >
                           <Ban className={`w-3.5 h-3.5 ${isBlocked ? "text-red-700" : "text-gray-500"}`} />
-                          <span className="hidden sm:inline">{isBlocked ? "Blocked" : "Block"}</span>
+                          <span className="hidden md:inline">{isBlocked ? "Blocked" : "Block"}</span>
                         </button>
                       );
                     })()}
@@ -881,55 +864,51 @@ export default function LiveChatPage({
                         setCallModalOpen(true);
                         setCallStatusMsg("");
                       }}
-                      className={`px-2.5 py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${callPermStatus === "granted"
+                      className={`p-1.5 sm:px-2.5 sm:py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1 shrink-0 cursor-pointer ${callPermStatus === "granted"
                           ? "border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
                           : "border-emerald-400 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
                         }`}
-                      title={
-                        callPermStatus === "granted"
-                          ? "Call directly via WhatsApp Voice Call (Permission Active)"
-                          : "WhatsApp Voice Call (Click to check/request permission)"
-                      }
+                      title="WhatsApp In-App Voice Call"
                     >
                       <PhoneCall className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">
-                        {callPermStatus === "granted" ? "WA Call (Ready)" : "WA Call"}
-                      </span>
+                      <span className="hidden md:inline">WA Call</span>
                     </button>
 
                     <a
                       href={`tel:${selectedChatPhone}`}
-                      className="px-2.5 py-1.5 border border-blue-300 text-blue-700 bg-blue-50 rounded-lg text-xs font-semibold hover:bg-blue-100 transition flex items-center gap-1.5 shrink-0"
+                      className="p-1.5 sm:px-2.5 sm:py-1.5 border border-blue-300 text-blue-700 bg-blue-50 rounded-lg text-xs font-semibold hover:bg-blue-100 transition flex items-center gap-1 shrink-0"
                       title={`Call customer directly (${selectedChatPhone})`}
                     >
                       <Phone className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Call</span>
+                      <span className="hidden md:inline">Call</span>
                     </a>
                     <a
                       href={`https://wa.me/${selectedChatPhone.replace("+", "")}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-2.5 py-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition flex items-center gap-1.5 shrink-0"
+                      className="p-1.5 sm:px-2.5 sm:py-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition flex items-center gap-1 shrink-0"
                       title="Open in WhatsApp Web"
                     >
                       <PhoneCall className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">WhatsApp Web</span>
+                      <span className="hidden md:inline">WhatsApp Web</span>
                     </a>
                     <button
+                      type="button"
                       onClick={() => fetchChatMessages(selectedChatPhone, false)}
                       disabled={chatLoading}
                       className="p-1.5 text-gray-500 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition cursor-pointer shrink-0"
                       title="Refresh messages"
                     >
-                      <RefreshCw className={`w-4 h-4 ${chatLoading ? "animate-spin" : ""}`} />
+                      <RefreshCw className={`w-3.5 h-3.5 ${chatLoading ? "animate-spin" : ""}`} />
                     </button>
                     {handleDeleteConversation && (
                       <button
+                        type="button"
                         onClick={() => handleDeleteConversation(selectedChatPhone)}
                         className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition cursor-pointer shrink-0"
                         title="Delete this conversation"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>

@@ -305,12 +305,11 @@ export default function App() {
       try {
         const { App: CapApp } = await import("@capacitor/app");
         const listener = await CapApp.addListener("backButton", ({ canGoBack }) => {
-          if (isNativePlatform) {
-            if (selectedChatPhone) {
-              setSelectedChatPhone("");
-            } else {
-              CapApp.exitApp();
-            }
+          if (selectedChatPhone) {
+            // Instant return from chat thread to conversations list
+            setSelectedChatPhone("");
+          } else if (isNativePlatform) {
+            CapApp.exitApp();
           } else if (activeTab !== "dashboard") {
             setActiveTab("dashboard");
           } else if (canGoBack) {
@@ -1320,6 +1319,10 @@ export default function App() {
     isInitialChatLoadRef.current = true;
     lastProcessedMessageIdRef.current = null;
     setSelectedChatPhone(phone);
+    if (!phone) {
+      setChatMessages([]);
+      return;
+    }
     try {
       const cached = localStorage.getItem(`cached_msgs_${phone}`);
       if (cached) {
@@ -1327,6 +1330,9 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           setChatMessages(parsed);
           lastProcessedMessageIdRef.current = parsed[parsed.length - 1]?.id;
+          // When cache is present, fetch in background silently so there is 0ms delay!
+          fetchChatMessages(phone, true);
+          return;
         }
       }
     } catch {}
