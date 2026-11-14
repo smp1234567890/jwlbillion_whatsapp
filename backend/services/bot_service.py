@@ -146,18 +146,13 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                     "title": "Orders & Support",
                     "rows": [
                         {
-                            "id": "menu_track_order",
-                            "title": "📦 Track My Order",
-                            "description": "Live status of recent purchases"
-                        },
-                        {
                             "id": "menu_request_voice_call",
                             "title": "📞 Request WhatsApp Call",
                             "description": "Allow our team to call you on WhatsApp"
                         },
                         {
                             "id": "menu_talk_agent",
-                            "title": "👤 Talk to Customer Rep",
+                            "title": "👤 Talk to Jewelry Consultant",
                             "description": "Connect with a live jewelry consultant"
                         }
                     ]
@@ -516,8 +511,8 @@ def handle_inbound_auto_reply(
 
         elif sel_id == "menu_talk_agent":
             text_reply = (
-                "👤 A customer support representative from *JWL Billion* has been notified and will assist you shortly.\n\n"
-                "Feel free to type your question or order details in the meantime!"
+                "👤 A jewelry consultant from *JWL Billion* has been notified and will assist you shortly.\n\n"
+                "Feel free to type your question or requirements in the meantime!"
             )
             res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
             _save_bot_message(db, sender_phone, text_reply, res.get("message_id"))
