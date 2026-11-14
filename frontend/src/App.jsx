@@ -311,6 +311,8 @@ export default function App() {
   useEffect(() => {
     // 1. Web / PWA browser history back-button support
     const handlePopState = (event) => {
+      // First dismiss any open profile drawer
+      window.dispatchEvent(new CustomEvent("livechat:dismiss_profile"));
       if (selectedChatPhoneRef.current) {
         setSelectedChatPhone("");
       }
@@ -324,6 +326,12 @@ export default function App() {
       try {
         const { App: CapApp } = await import("@capacitor/app");
         const listener = await CapApp.addListener("backButton", ({ canGoBack }) => {
+          // If profile drawer is open, dismiss it first
+          const profileOpen = document.getElementById("profile-drawer-container");
+          if (profileOpen) {
+            window.dispatchEvent(new CustomEvent("livechat:dismiss_profile"));
+            return;
+          }
           if (selectedChatPhoneRef.current) {
             // Instant return from chat thread to conversations list
             setSelectedChatPhone("");

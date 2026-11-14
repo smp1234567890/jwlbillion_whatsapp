@@ -95,6 +95,27 @@ export default function LiveChatPage({
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [callStatusMsg, setCallStatusMsg] = useState("");
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const profileDrawerOpenRef = useRef(false);
+
+  useEffect(() => {
+    profileDrawerOpenRef.current = profileDrawerOpen;
+  }, [profileDrawerOpen]);
+
+  // Close profile drawer on hardware/browser back or when phone chat selection resets
+  useEffect(() => {
+    const handleBackDismiss = () => {
+      if (profileDrawerOpenRef.current) {
+        setProfileDrawerOpen(false);
+      }
+    };
+    window.addEventListener("popstate", handleBackDismiss);
+    window.addEventListener("livechat:dismiss_profile", handleBackDismiss);
+    return () => {
+      window.removeEventListener("popstate", handleBackDismiss);
+      window.removeEventListener("livechat:dismiss_profile", handleBackDismiss);
+    };
+  }, []);
+
   const [isCalling, setIsCalling] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [activeCallId, setActiveCallId] = useState(null);
@@ -492,6 +513,8 @@ export default function LiveChatPage({
     prevPhoneRef.current = selectedChatPhone;
 
     if (isNewChat) {
+      // Close profile drawer on conversation switch/re-opening
+      setProfileDrawerOpen(false);
       // 1. Switched / opened conversation -> Always scroll to bottom immediately
       isNearBottomRef.current = true;
       setShowScrollBottomBtn(false);
@@ -1631,7 +1654,7 @@ export default function LiveChatPage({
 
       {/* Customer Profile & Actions Drawer / Modal */}
       {profileDrawerOpen && selectedChatPhone && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center sm:justify-end p-0 sm:p-4">
+        <div id="profile-drawer-container" className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center sm:justify-end p-0 sm:p-4">
           <div
             className="fixed inset-0"
             onClick={() => setProfileDrawerOpen(false)}
@@ -1651,13 +1674,24 @@ export default function LiveChatPage({
 
               return (
                 <div className="flex flex-col h-full overflow-y-auto">
-                  {/* Top Bar */}
-                  <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                    <h3 className="font-bold text-base text-gray-900">Contact Details</h3>
+                  {/* Top Bar with Safe Area Inset Padding so it is never hidden behind notch/status bar */}
+                  <div className="px-5 pt-[max(env(safe-area-inset-top,0px),16px)] pb-3.5 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-sm z-20 shadow-2xs">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setProfileDrawerOpen(false)}
+                        className="p-1.5 -ml-1 text-gray-700 hover:bg-gray-100 rounded-lg transition cursor-pointer"
+                        title="Back to chat"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <h3 className="font-bold text-base text-gray-900 leading-none">Contact Details</h3>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setProfileDrawerOpen(false)}
                       className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition cursor-pointer"
+                      title="Close"
                     >
                       <X className="w-5 h-5" />
                     </button>
