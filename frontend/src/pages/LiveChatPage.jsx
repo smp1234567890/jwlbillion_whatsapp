@@ -69,7 +69,10 @@ export default function LiveChatPage({
   handleBlockContact,
   optOuts = [],
   isNativeApp = false,
-  onLogout
+  onLogout,
+  onLoadMoreConversations,
+  hasMoreConversations = false,
+  loadingMoreConversations = false
 }) {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -735,6 +738,20 @@ export default function LiveChatPage({
                   </div>
                 );
               })}
+
+            {/* Load More Button for Pagination */}
+            {hasMoreConversations && !searchTerm.trim() && !chatFilterUnreadOnly && (
+              <div className="p-3 text-center bg-gray-50/50">
+                <button
+                  type="button"
+                  onClick={onLoadMoreConversations}
+                  disabled={loadingMoreConversations}
+                  className="w-full py-2 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition cursor-pointer disabled:opacity-50"
+                >
+                  {loadingMoreConversations ? "Loading next 20..." : "Load Older Conversations (+20)"}
+                </button>
+              </div>
+            )}
 
             {chatConversations.length === 0 && (
               <div className="p-8 text-center text-gray-400">

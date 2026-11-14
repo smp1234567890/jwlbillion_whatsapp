@@ -32,85 +32,92 @@ router = APIRouter(prefix="/api/chat", tags=["Two-Way Live Chat"])
 def list_conversations(
     limit: Optional[int] = Query(None, ge=1),
     offset: int = Query(0, ge=0),
+    search: Optional[str] = Query(None),
+    unread_only: bool = Query(False),
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Returns active conversation threads grouped by customer phone,
-    with unread counts, contact details, and last message snippet.
-    Agents can only view conversations for contacts assigned to them.
+    High-performance paginated conversation threads query.
+    Extracts the latest message per customer thread, contact info, and unread counts
+    using single-pass database execution and composite indexes.
     """
-    # If agent, pre-fetch their assigned contact phones
-    agent_assigned_phones = None
+    from sqlalchemy import text
+
+    # Base filtering for agents (assigned contacts only)
+    where_clauses = []
+    params = {"offset": offset}
+
     if current_user.role == "agent":
-        agent_contacts = db.query(models.Contact.phone).filter(models.Contact.assigned_user_id == current_user.id).all()
-        agent_assigned_phones = set(p[0] for p in agent_contacts if p[0])
-    # Query distinct customer phones capped by limit
-    phones_query = db.query(models.ChatMessage.customer_phone).distinct()
-    if agent_assigned_phones is not None:
-        phones_query = phones_query.filter(models.ChatMessage.customer_phone.in_(agent_assigned_phones))
+        where_clauses.append("c.assigned_user_id = :agent_id")
+        params["agent_id"] = current_user.id
 
-    distinct_phones = [p[0] for p in phones_query.all() if p[0]]
-    if not distinct_phones:
-        return []
+    if unread_only:
+        where_clauses.append("COALESCE(u.unread_count, 0) > 0")
 
-    # Batch 1: Contacts map
-    contacts = db.query(models.Contact).filter(models.Contact.phone.in_(distinct_phones)).all()
-    contacts_map = {c.phone: c for c in contacts}
+    if search and search.strip():
+        where_clauses.append("(c.name ILIKE :search OR lm.customer_phone ILIKE :search OR lm.text ILIKE :search)")
+        params["search"] = f"%{search.strip()}%"
 
-    # Batch 2: Unread count grouped by customer phone
-    unread_counts_raw = (
-        db.query(models.ChatMessage.customer_phone, func.count(models.ChatMessage.id))
-        .filter(
-            models.ChatMessage.customer_phone.in_(distinct_phones),
-            models.ChatMessage.sender_type == "CUSTOMER",
-            models.ChatMessage.is_read == False
-        )
-        .group_by(models.ChatMessage.customer_phone)
-        .all()
-    )
-    unread_map = {p: cnt for p, cnt in unread_counts_raw}
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+    limit_sql = "LIMIT :limit" if limit is not None else ""
+    if limit is not None:
+        params["limit"] = limit
 
-    # Batch 3: Fetch recent messages to resolve latest message per phone
-    # Subquery: get max id per customer_phone
-    latest_ids_subq = (
-        db.query(func.max(models.ChatMessage.id).label("max_id"))
-        .filter(models.ChatMessage.customer_phone.in_(distinct_phones))
-        .group_by(models.ChatMessage.customer_phone)
-        .subquery()
-    )
-    latest_msgs = (
-        db.query(models.ChatMessage)
-        .join(latest_ids_subq, models.ChatMessage.id == latest_ids_subq.c.max_id)
-        .all()
-    )
-    latest_msg_map = {m.customer_phone: m for m in latest_msgs}
+    query_str = f"""
+    SELECT 
+        lm.customer_phone,
+        COALESCE(c.name, 'Customer') as customer_name,
+        c.city as customer_city,
+        COALESCE(c.total_orders, 0) as total_orders,
+        COALESCE(u.unread_count, 0) as unread_count,
+        lm.text as last_message_text,
+        lm.created_at as last_message_time,
+        lm.sender_type as last_sender,
+        c.custom_attributes->'last_order' as last_order
+    FROM (
+        SELECT DISTINCT ON (customer_phone) 
+            customer_phone, text, sender_type, created_at, id
+        FROM chat_messages
+        ORDER BY customer_phone, created_at DESC, id DESC
+    ) lm
+    LEFT JOIN contacts c ON c.phone = lm.customer_phone
+    LEFT JOIN (
+        SELECT customer_phone, COUNT(*) as unread_count 
+        FROM chat_messages 
+        WHERE sender_type = 'CUSTOMER' AND is_read = false 
+        GROUP BY customer_phone
+    ) u ON u.customer_phone = lm.customer_phone
+    {where_sql}
+    ORDER BY lm.created_at DESC
+    {limit_sql} OFFSET :offset;
+    """
 
+    rows = db.execute(text(query_str), params).fetchall()
+
+    import json
     summaries = []
-    for cust_phone in distinct_phones:
-        contact = contacts_map.get(cust_phone)
-        last_msg = latest_msg_map.get(cust_phone)
-        unread = unread_map.get(cust_phone, 0)
-
-        last_order_obj = (contact.custom_attributes or {}).get("last_order") if contact else None
+    for r in rows:
+        last_order = r[8]
+        if isinstance(last_order, str):
+            try:
+                last_order = json.loads(last_order)
+            except Exception:
+                last_order = None
 
         summaries.append(schemas.ChatConversationSummary(
-            customer_phone=cust_phone,
-            customer_name=contact.name if contact else "Customer",
-            customer_city=contact.city if contact else None,
-            total_orders=contact.total_orders if contact else 0,
-            unread_count=unread,
-            last_message_text=last_msg.text if last_msg else None,
-            last_message_time=last_msg.created_at if last_msg else None,
-            last_sender=last_msg.sender_type if last_msg else None,
-            last_order=last_order_obj
+            customer_phone=r[0],
+            customer_name=r[1],
+            customer_city=r[2],
+            total_orders=r[3],
+            unread_count=r[4],
+            last_message_text=r[5],
+            last_message_time=r[6],
+            last_sender=r[7],
+            last_order=last_order
         ))
 
-    # Sort: most recent message first
-    summaries.sort(key=lambda s: s.last_message_time or datetime.min, reverse=True)
-    if limit is not None:
-        return summaries[offset:offset + limit]
-    return summaries[offset:]
+    return summaries
 
 
 @router.get("/history/{phone}", response_model=List[schemas.ChatMessageResponse])

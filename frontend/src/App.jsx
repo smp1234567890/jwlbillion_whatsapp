@@ -1184,18 +1184,35 @@ export default function App() {
   };
 
   const isFetchingConversationsRef = useRef(false);
+  const [conversationsOffset, setConversationsOffset] = useState(0);
+  const [hasMoreConversations, setHasMoreConversations] = useState(true);
+  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
 
-  const fetchChatConversations = async (silent = false) => {
+  const fetchChatConversations = async (silent = false, reset = false) => {
     if (!token || isFetchingConversationsRef.current) return;
     isFetchingConversationsRef.current = true;
     try {
+      const targetOffset = reset ? 0 : conversationsOffset;
       const res = await axios.get("/api/chat/conversations", {
+        params: { limit: 20, offset: 0 },
         headers: { Authorization: `Bearer ${token}` }
       });
       const convs = res.data || [];
-      setChatConversations(convs);
+      setChatConversations((prev) => {
+        if (convs.length === 0) return prev;
+        // Merge or replace initial 20 while keeping any extra pages loaded
+        const map = new Map();
+        convs.forEach(c => map.set(c.customer_phone, c));
+        prev.forEach(c => {
+          if (!map.has(c.customer_phone)) map.set(c.customer_phone, c);
+        });
+        const merged = Array.from(map.values());
+        merged.sort((a, b) => new Date(b.last_message_time || 0) - new Date(a.last_message_time || 0));
+        return merged;
+      });
+      setHasMoreConversations(convs.length === 20);
       try {
-        localStorage.setItem("cached_chat_conversations", JSON.stringify(convs.slice(0, 100)));
+        localStorage.setItem("cached_chat_conversations", JSON.stringify(convs.slice(0, 20)));
       } catch {}
 
       // Global check across all conversations for any new incoming customer message:
@@ -1221,6 +1238,34 @@ export default function App() {
       if (!silent) console.error("Failed to fetch chat conversations:", err);
     } finally {
       isFetchingConversationsRef.current = false;
+    }
+  };
+
+  const handleLoadMoreConversations = async () => {
+    if (!token || loadingMoreConversations || !hasMoreConversations) return;
+    setLoadingMoreConversations(true);
+    try {
+      const nextOffset = chatConversations.length;
+      const res = await axios.get("/api/chat/conversations", {
+        params: { limit: 20, offset: nextOffset },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const olderConvs = res.data || [];
+      if (olderConvs.length < 20) {
+        setHasMoreConversations(false);
+      }
+      setChatConversations((prev) => {
+        const map = new Map();
+        prev.forEach(c => map.set(c.customer_phone, c));
+        olderConvs.forEach(c => map.set(c.customer_phone, c));
+        const merged = Array.from(map.values());
+        merged.sort((a, b) => new Date(b.last_message_time || 0) - new Date(a.last_message_time || 0));
+        return merged;
+      });
+    } catch (err) {
+      console.error("Failed to load more conversations:", err);
+    } finally {
+      setLoadingMoreConversations(false);
     }
   };
 
@@ -2470,6 +2515,9 @@ export default function App() {
                 optOuts={optOuts}
                 isNativeApp={isNativePlatform}
                 onLogout={handleLogout}
+                onLoadMoreConversations={handleLoadMoreConversations}
+                hasMoreConversations={hasMoreConversations}
+                loadingMoreConversations={loadingMoreConversations}
               />
             ) : (
               <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs">
@@ -2702,6 +2750,9 @@ export default function App() {
               optOuts={optOuts}
               isNativeApp={isNativePlatform}
               onLogout={handleLogout}
+              onLoadMoreConversations={handleLoadMoreConversations}
+              hasMoreConversations={hasMoreConversations}
+              loadingMoreConversations={loadingMoreConversations}
             />
           )}
             </>
