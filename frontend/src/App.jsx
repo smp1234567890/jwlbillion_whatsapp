@@ -89,6 +89,7 @@ import PerformanceNocPage from "./pages/PerformanceNocPage";
 import ShopifyProductsPage from "./pages/ShopifyProductsPage";
 import SegmentsPage from "./pages/SegmentsPage";
 import QuickRepliesPage from "./pages/QuickRepliesPage";
+import ChatAnalyticsPage from "./pages/ChatAnalyticsPage";
 import ConfirmModal from "./components/modals/ConfirmModal";
 
 const INITIAL_API_BASE_URL = getApiBaseUrl();
@@ -428,6 +429,7 @@ export default function App() {
   // Layout UI States
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [chatNavDropdownOpen, setChatNavDropdownOpen] = useState(true);
 
   // Search filter for lists
   const [searchTerm, setSearchTerm] = useState("");
@@ -2382,12 +2384,17 @@ export default function App() {
             ] : [
               { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
               {
-                id: "chat",
+                id: "chat_group",
                 label: "Live Chat / Inbox",
                 icon: MessageSquare,
-                badge: chatConversations.reduce((acc, c) => acc + (c.unread_count || 0), 0)
+                badge: chatConversations.reduce((acc, c) => acc + (c.unread_count || 0), 0),
+                isDropdown: true,
+                children: [
+                  { id: "chat", label: "Chats", icon: MessageSquare },
+                  { id: "quick_replies", label: "Quick Replies", icon: Sparkles },
+                  { id: "chat_analytics", label: "Chat Analytics", icon: BarChart3 }
+                ]
               },
-              { id: "quick_replies", label: "Quick Replies", icon: Sparkles },
               { id: "automations", label: "Automations", icon: Sliders, badge: workflowFlows.length },
               { id: "campaigns", label: "Campaigns", icon: Megaphone },
               { id: "products", label: "Shopify Products", icon: ShoppingBag },
@@ -2402,6 +2409,97 @@ export default function App() {
               { id: "settings", label: "Settings", icon: Settings },
             ]).map((item) => {
               const Icon = item.icon;
+
+              if (item.isDropdown) {
+                const isGroupActive = activeTab === "chat" || activeTab === "chat_analytics" || activeTab === "quick_replies";
+                return (
+                  <div key={item.id} className="space-y-1">
+                    <button
+                      onClick={() => {
+                        if (sidebarCollapsed) {
+                          setSidebarCollapsed(false);
+                          setChatNavDropdownOpen(true);
+                          handleTabChange("chat");
+                        } else {
+                          setChatNavDropdownOpen(!chatNavDropdownOpen);
+                        }
+                      }}
+                      title={sidebarCollapsed ? item.label : undefined}
+                      className={`w-full flex items-center ${
+                        sidebarCollapsed ? "justify-center px-0 py-2.5" : "justify-between px-3.5 py-2.5"
+                      } rounded-lg text-sm font-medium transition-all relative group ${
+                        isGroupActive
+                          ? `bg-[#1F2937] text-[#F5A623] ${!sidebarCollapsed ? "border-l-4 border-[#F5A623]" : "ring-1 ring-[#F5A623]"}`
+                          : "hover:bg-gray-800/60 hover:text-white"
+                      }`}
+                    >
+                      <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3"}`}>
+                        <Icon className={`w-5 h-5 flex-shrink-0 ${isGroupActive ? "text-[#F5A623]" : "text-gray-400"}`} />
+                        {!sidebarCollapsed && <span>{item.label}</span>}
+                      </div>
+
+                      {!sidebarCollapsed && (
+                        <div className="flex items-center gap-2">
+                          {item.badge !== undefined && item.badge > 0 && (
+                            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[#25D366] text-black font-black animate-pulse shadow-sm shadow-green-500/50">
+                              {item.badge}
+                            </span>
+                          )}
+                          <ChevronDown
+                            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+                              chatNavDropdownOpen ? "rotate-180 text-[#F5A623]" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {sidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[16px] h-4 text-[9px] px-1 flex items-center justify-center font-black rounded-full bg-[#25D366] text-black font-black animate-pulse shadow-sm shadow-green-500/50">
+                          {item.badge}
+                        </span>
+                      )}
+
+                      {sidebarCollapsed && (
+                        <div className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition shadow-lg whitespace-nowrap z-50">
+                          {item.label}
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Sub-menu items */}
+                    {!sidebarCollapsed && chatNavDropdownOpen && (
+                      <div className="pl-6 space-y-1 py-1 border-l-2 border-gray-800 ml-4">
+                        {item.children.map((sub) => {
+                          const SubIcon = sub.icon;
+                          const isSubActive = activeTab === sub.id;
+                          return (
+                            <button
+                              key={sub.id}
+                              onClick={() => handleTabChange(sub.id)}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${
+                                isSubActive
+                                  ? "bg-gray-800 text-[#F5A623] font-semibold"
+                                  : "text-gray-400 hover:text-white hover:bg-gray-800/40"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <SubIcon className={`w-4 h-4 ${isSubActive ? "text-[#F5A623]" : "text-gray-400"}`} />
+                                <span>{sub.label}</span>
+                              </div>
+                              {sub.id === "chat" && item.badge > 0 && (
+                                <span className="px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#25D366] text-black">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               const isActive = activeTab === item.id;
               return (
                 <button
@@ -2535,6 +2633,8 @@ export default function App() {
                     ? "Opt-Out (DND) Registry"
                     : activeTab === "chat"
                     ? "Two-Way WhatsApp Live Chat / Inbox"
+                    : activeTab === "chat_analytics"
+                    ? "Live Chat / Inbox Analytics"
                     : activeTab === "analytics"
                     ? "Delivery & Engagement Analytics"
                     : activeTab === "performance"
@@ -2867,6 +2967,16 @@ export default function App() {
               onLoadMoreConversations={handleLoadMoreConversations}
               hasMoreConversations={hasMoreConversations}
               loadingMoreConversations={loadingMoreConversations}
+            />
+          )}
+
+          {activeTab === "chat_analytics" && (
+            <ChatAnalyticsPage
+              token={token}
+              onOpenChat={(phone) => {
+                handleSelectConversation(phone);
+                handleTabChange("chat");
+              }}
             />
           )}
             </>

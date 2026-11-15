@@ -584,4 +584,180 @@ def register_device_token_endpoint(
     return {"status": "ok", "message": "Device token registered successfully", "id": token_record.id if token_record else None}
 
 
+@router.get("/analytics")
+def get_chat_inbox_analytics(
+    start_date: Optional[str] = Query(None, description="ISO timestamp or YYYY-MM-DD or YYYY-MM-DDTHH:MM"),
+    end_date: Optional[str] = Query(None, description="ISO timestamp or YYYY-MM-DD or YYYY-MM-DDTHH:MM"),
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Live Chat / Inbox Analytics based on date and time range:
+    - How many people sent us a message (unique inbound customers).
+    - How many received an interactive template/menu.
+    - How many received our reply (manual agent reply or quick reply).
+    - Response rate, unreplied count, and detailed activity log.
+    """
+    from sqlalchemy import text
+    from dateutil import parser as dt_parser
+
+    now = datetime.utcnow()
+    # Default: today 00:00:00 UTC to now if not provided
+    if start_date:
+        try:
+            start_dt = dt_parser.parse(start_date)
+        except Exception:
+            start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    if end_date:
+        try:
+            end_dt = dt_parser.parse(end_date)
+        except Exception:
+            end_dt = now
+    else:
+        end_dt = now
+
+    params = {
+        "start_dt": start_dt,
+        "end_dt": end_dt
+    }
+
+    # Query 1: Find all unique inbound customer conversations within [start_dt, end_dt]
+    # and find whether they got an interactive menu, and whether they got a reply
+    query_str = """
+    WITH inbound_inquiries AS (
+        SELECT 
+            m.customer_phone,
+            MIN(m.created_at) as first_inbound_time,
+            MAX(m.created_at) as last_inbound_time,
+            COUNT(*) as inbound_messages_count,
+            (ARRAY_AGG(m.text ORDER BY m.created_at ASC))[1] as first_message_preview
+        FROM chat_messages m
+        WHERE m.sender_type = 'CUSTOMER'
+          AND m.created_at >= :start_dt
+          AND m.created_at <= :end_dt
+        GROUP BY m.customer_phone
+    ),
+    outbound_after AS (
+        SELECT 
+            ii.customer_phone,
+            -- First interactive message sent after or near the customer inquiry
+            MIN(CASE 
+                WHEN m.sender_type = 'AGENT' 
+                 AND (m.text ILIKE '%Sent interactive%' OR m.message_type = 'interactive' OR m.text ILIKE '%interactive%')
+                 AND m.created_at >= ii.first_inbound_time - INTERVAL '2 minutes'
+                THEN m.created_at 
+                ELSE NULL 
+            END) as first_interactive_time,
+            -- First reply sent by our team/bot (text or image or quick reply)
+            MIN(CASE 
+                WHEN m.sender_type = 'AGENT' 
+                 AND (m.text NOT ILIKE '%Sent interactive%' AND m.message_type != 'interactive')
+                 AND m.created_at >= ii.first_inbound_time
+                THEN m.created_at 
+                ELSE NULL 
+            END) as first_reply_time,
+            -- Any reply sent by our team/bot
+            COUNT(CASE 
+                WHEN m.sender_type = 'AGENT' 
+                 AND (m.text NOT ILIKE '%Sent interactive%' AND m.message_type != 'interactive')
+                 AND m.created_at >= ii.first_inbound_time
+                THEN 1 
+                ELSE NULL 
+            END) as reply_count,
+            -- Latest reply preview
+            (ARRAY_AGG(m.text ORDER BY m.created_at DESC) FILTER (
+                WHERE m.sender_type = 'AGENT' AND m.created_at >= ii.first_inbound_time
+            ))[1] as last_reply_preview
+        FROM inbound_inquiries ii
+        JOIN chat_messages m ON m.customer_phone = ii.customer_phone
+        GROUP BY ii.customer_phone
+    )
+    SELECT 
+        ii.customer_phone,
+        COALESCE(c.name, 'Customer') as customer_name,
+        c.city as customer_city,
+        ii.first_inbound_time,
+        ii.last_inbound_time,
+        ii.inbound_messages_count,
+        ii.first_message_preview,
+        oa.first_interactive_time,
+        oa.first_reply_time,
+        COALESCE(oa.reply_count, 0) as reply_count,
+        oa.last_reply_preview
+    FROM inbound_inquiries ii
+    LEFT JOIN contacts c ON c.phone = ii.customer_phone
+    LEFT JOIN outbound_after oa ON oa.customer_phone = ii.customer_phone
+    ORDER BY ii.last_inbound_time DESC;
+    """
+
+    rows = db.execute(text(query_str), params).fetchall()
+
+    total_inbound_people = len(rows)
+    interactive_count = 0
+    replied_count = 0
+    total_response_time_seconds = 0
+    measured_replies = 0
+
+    items = []
+    for r in rows:
+        got_interactive = bool(r.first_interactive_time)
+        got_reply = bool(r.first_reply_time or r.reply_count > 0)
+
+        if got_interactive:
+            interactive_count += 1
+        if got_reply:
+            replied_count += 1
+
+        response_time_minutes = None
+        if r.first_reply_time and r.first_inbound_time:
+            diff_secs = (r.first_reply_time - r.first_inbound_time).total_seconds()
+            if diff_secs >= 0:
+                response_time_minutes = round(diff_secs / 60.0, 1)
+                total_response_time_seconds += diff_secs
+                measured_replies += 1
+
+        items.append({
+            "customer_phone": r.customer_phone,
+            "customer_name": r.customer_name,
+            "customer_city": r.customer_city,
+            "first_inbound_time": r.first_inbound_time.isoformat() if r.first_inbound_time else None,
+            "last_inbound_time": r.last_inbound_time.isoformat() if r.last_inbound_time else None,
+            "inbound_messages_count": r.inbound_messages_count,
+            "first_message_preview": r.first_message_preview,
+            "got_interactive": got_interactive,
+            "interactive_time": r.first_interactive_time.isoformat() if r.first_interactive_time else None,
+            "got_reply": got_reply,
+            "reply_time": r.first_reply_time.isoformat() if r.first_reply_time else None,
+            "reply_count": r.reply_count,
+            "response_time_minutes": response_time_minutes,
+            "last_reply_preview": r.last_reply_preview
+        })
+
+    unreplied_count = total_inbound_people - replied_count
+    response_rate = round((replied_count / total_inbound_people * 100), 1) if total_inbound_people > 0 else 0.0
+    interactive_rate = round((interactive_count / total_inbound_people * 100), 1) if total_inbound_people > 0 else 0.0
+    avg_response_time_minutes = round((total_response_time_seconds / measured_replies / 60.0), 1) if measured_replies > 0 else 0.0
+
+    return {
+        "time_range": {
+            "start": start_dt.isoformat(),
+            "end": end_dt.isoformat()
+        },
+        "summary": {
+            "total_inbound_people": total_inbound_people,
+            "interactive_count": interactive_count,
+            "interactive_rate": interactive_rate,
+            "replied_count": replied_count,
+            "unreplied_count": unreplied_count,
+            "response_rate": response_rate,
+            "avg_response_time_minutes": avg_response_time_minutes
+        },
+        "contacts": items
+    }
+
+
+
 
