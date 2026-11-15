@@ -244,13 +244,8 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Inbound People */}
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Inbound Customers
-            </span>
-            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Users className="w-5 h-5" />
-            </div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Inbound Customers
           </div>
           <div className="mt-3">
             <div className="text-3xl font-bold text-gray-900">{summary.total_inbound_people}</div>
@@ -260,13 +255,8 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
 
         {/* Got Interactive Template */}
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Interactive Menu Sent
-            </span>
-            <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
-            </div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Interactive Menu Sent
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <div className="text-3xl font-bold text-gray-900">{summary.interactive_count}</div>
@@ -279,13 +269,8 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
 
         {/* Replied Count */}
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Replies Delivered
-            </span>
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <MessageSquare className="w-5 h-5" />
-            </div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Replies Delivered
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <div className="text-3xl font-bold text-emerald-600">{summary.replied_count}</div>
@@ -298,15 +283,8 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
 
         {/* Unreplied / Pending */}
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Awaiting Reply
-            </span>
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-              summary.unreplied_count > 0 ? "bg-amber-50 text-amber-600" : "bg-gray-100 text-gray-500"
-            }`}>
-              <Clock className="w-5 h-5" />
-            </div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Awaiting Reply
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <div className={`text-3xl font-bold ${summary.unreplied_count > 0 ? "text-amber-600" : "text-gray-900"}`}>
