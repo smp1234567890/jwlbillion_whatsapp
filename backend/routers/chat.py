@@ -599,25 +599,25 @@ def get_chat_inbox_analytics(
     - Response rate, unreplied count, and detailed activity log.
     """
     from sqlalchemy import text
-    from dateutil import parser as dt_parser
 
     now = datetime.utcnow()
     # Default: today 00:00:00 UTC to now if not provided
-    if start_date:
+    def parse_datetime_safe(val, default_val):
+        if not val:
+            return default_val
         try:
-            start_dt = dt_parser.parse(start_date)
+            # ISO format: 2026-11-15T00:00:00.000Z or 2026-11-15T00:00 or 2026-11-15
+            clean_val = val.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(clean_val)
+            # convert to naive UTC if offset-aware
+            if dt.tzinfo is not None:
+                dt = dt.astimezone().replace(tzinfo=None)
+            return dt
         except Exception:
-            start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    else:
-        start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            return default_val
 
-    if end_date:
-        try:
-            end_dt = dt_parser.parse(end_date)
-        except Exception:
-            end_dt = now
-    else:
-        end_dt = now
+    start_dt = parse_datetime_safe(start_date, now.replace(hour=0, minute=0, second=0, microsecond=0))
+    end_dt = parse_datetime_safe(end_date, now)
 
     params = {
         "start_dt": start_dt,

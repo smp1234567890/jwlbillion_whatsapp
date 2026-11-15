@@ -71,7 +71,8 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
   }, []);
 
   const fetchAnalytics = async () => {
-    if (!token) return;
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken) return;
     setLoading(true);
     setError(null);
     try {
@@ -80,13 +81,18 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
       if (endDate) params.end_date = new Date(endDate).toISOString();
 
       const res = await axios.get("/api/chat/analytics", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${activeToken}` },
         params
       });
       setAnalyticsData(res.data);
     } catch (err) {
       console.error("Failed to load chat analytics:", err);
-      setError(err?.response?.data?.detail || "Failed to load chat analytics. Please retry.");
+      const detailMsg = err?.response?.data?.detail;
+      setError(
+        typeof detailMsg === "string"
+          ? detailMsg
+          : "Failed to load chat analytics. Please retry."
+      );
     } finally {
       setLoading(false);
     }
