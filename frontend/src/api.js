@@ -153,9 +153,19 @@ function handle401Response(error, axiosInstance) {
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return axiosInstance(originalRequest);
       }
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      delete api.defaults.headers.common["Authorization"];
+      delete axios.defaults.headers.common["Authorization"];
+      window.dispatchEvent(new Event("auth:unauthorized"));
       return Promise.reject(error);
     })
     .catch((refreshErr) => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      delete api.defaults.headers.common["Authorization"];
+      delete axios.defaults.headers.common["Authorization"];
+      window.dispatchEvent(new Event("auth:unauthorized"));
       return Promise.reject(refreshErr);
     });
 }
