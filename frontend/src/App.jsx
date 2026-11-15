@@ -2244,7 +2244,7 @@ export default function App() {
 
       {/* ── Left Sidebar (Responsive Drawer on Mobile, Collapsible on Desktop) ── */}
       {!isNativePlatform && <aside
-        className={`fixed md:relative inset-y-0 left-0 z-50 md:z-auto bg-[#111827] text-gray-300 flex flex-col justify-between border-r border-gray-800 transition-all duration-300 ease-in-out pt-[max(env(safe-area-inset-top,0px),8px)] md:pt-0 ${
+        className={`fixed md:relative inset-y-0 left-0 z-50 md:z-auto bg-[#111827] text-gray-300 flex flex-col h-full border-r border-gray-800 transition-all duration-300 ease-in-out pt-[max(env(safe-area-inset-top,0px),8px)] md:pt-0 ${
           mobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"
         } ${sidebarCollapsed ? "md:w-16" : "md:w-64"}`}
       >
@@ -2256,112 +2256,112 @@ export default function App() {
           <X className="w-5 h-5" />
         </button>
 
-        <div>
-          {/* Brand Header */}
-          <div className={`p-4 flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} border-b border-gray-800 relative z-30`}>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#F5A623] flex items-center justify-center font-bold text-black text-lg shadow-md flex-shrink-0">
-                S
-              </div>
-              {!sidebarCollapsed && (
-                <div className="min-w-0">
-                  <h1 className="font-bold text-white text-sm leading-tight">Scalifts</h1>
-                  {username === "scalifts_admin" ? (
-                    <div className="relative">
-                      <button
-                        onClick={() => setPlatformDropdownOpen(!platformDropdownOpen)}
-                        className="flex items-center gap-1 text-[11px] font-semibold text-[#F5A623] hover:text-[#FFA000] transition group focus:outline-none cursor-pointer"
-                        title="Switch Platform"
-                      >
-                        <span className="truncate max-w-[120px]">
-                          {activePlatform === "whatsapp" && "WhatsApp CRM"}
-                          {activePlatform === "facebook" && "Facebook"}
-                          {activePlatform === "instagram" && "Instagram"}
-                          {activePlatform === "threads" && "Threads"}
-                          {activePlatform === "meta_ads" && "Meta Ads"}
-                        </span>
-                        <ChevronDown className={`w-3 h-3 text-[#F5A623] transition-transform duration-200 ${platformDropdownOpen ? "rotate-180" : ""}`} />
-                      </button>
-
-                      {/* Dropdown Menu - Exclusively for scalifts_admin */}
-                      {platformDropdownOpen && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-[100]"
-                            onClick={() => setPlatformDropdownOpen(false)}
-                          />
-                          <div className="absolute left-0 top-full mt-2 w-52 bg-[#1F2937] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-[101]">
-                            <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-wider border-b border-gray-700/80">
-                              Switch Platform
-                            </div>
-                            {[
-                              { id: "whatsapp", label: "WhatsApp CRM", badge: "Active" },
-                              { id: "facebook", label: "Facebook", badge: "New" },
-                              { id: "instagram", label: "Instagram", badge: "New" },
-                              { id: "threads", label: "Threads", badge: "New" },
-                              { id: "meta_ads", label: "Meta Ads", badge: "New" },
-                            ].map((plat) => {
-                              const isSelected = activePlatform === plat.id;
-                              return (
-                                <button
-                                  key={plat.id}
-                                  onClick={() => {
-                                    setActivePlatform(plat.id);
-                                    localStorage.setItem("activePlatform", plat.id);
-                                    // Reset active tab to the default tab of that platform
-                                    if (plat.id === "facebook") setActiveTab("fb_messages");
-                                    else if (plat.id === "instagram") setActiveTab("ig_dms");
-                                    else if (plat.id === "threads") setActiveTab("th_feed");
-                                    else if (plat.id === "meta_ads") setActiveTab("ads_campaigns");
-                                    else setActiveTab("dashboard");
-                                    setPlatformDropdownOpen(false);
-                                  }}
-                                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition text-left cursor-pointer ${
-                                    isSelected
-                                      ? "bg-gray-800 text-[#F5A623] font-bold"
-                                      : "text-gray-300 hover:bg-gray-800/60 hover:text-white"
-                                  }`}
-                                >
-                                  <span>{plat.label}</span>
-                                  {isSelected ? (
-                                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/50">
-                                      Active
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] text-gray-400 bg-gray-800/80 px-1.5 py-0.5 rounded border border-gray-700/50">
-                                      {plat.badge}
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-[11px] text-[#F5A623] font-medium tracking-wide">WhatsApp CRM</span>
-                  )}
-                </div>
-              )}
+        {/* Brand Header */}
+        <div className={`p-4 flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} border-b border-gray-800 relative z-30 flex-shrink-0`}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[#F5A623] flex items-center justify-center font-bold text-black text-lg shadow-md flex-shrink-0">
+              S
             </div>
+            {!sidebarCollapsed && (
+              <div className="min-w-0">
+                <h1 className="font-bold text-white text-sm leading-tight">Scalifts</h1>
+                {username === "scalifts_admin" ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setPlatformDropdownOpen(!platformDropdownOpen)}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-[#F5A623] hover:text-[#FFA000] transition group focus:outline-none cursor-pointer"
+                      title="Switch Platform"
+                    >
+                      <span className="truncate max-w-[120px]">
+                        {activePlatform === "whatsapp" && "WhatsApp CRM"}
+                        {activePlatform === "facebook" && "Facebook"}
+                        {activePlatform === "instagram" && "Instagram"}
+                        {activePlatform === "threads" && "Threads"}
+                        {activePlatform === "meta_ads" && "Meta Ads"}
+                      </span>
+                      <ChevronDown className={`w-3 h-3 text-[#F5A623] transition-transform duration-200 ${platformDropdownOpen ? "rotate-180" : ""}`} />
+                    </button>
 
-            {/* Desktop Collapse / Expand Button cleanly integrated inside header */}
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hidden md:flex p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition"
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {sidebarCollapsed ? (
-                <ChevronRight className="w-4 h-4 text-[#F5A623]" />
-              ) : (
-                <ChevronLeft className="w-4 h-4" />
-              )}
-            </button>
+                    {/* Dropdown Menu - Exclusively for scalifts_admin */}
+                    {platformDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-[100]"
+                          onClick={() => setPlatformDropdownOpen(false)}
+                        />
+                        <div className="absolute left-0 top-full mt-2 w-52 bg-[#1F2937] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-[101]">
+                          <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-wider border-b border-gray-700/80">
+                            Switch Platform
+                          </div>
+                          {[
+                            { id: "whatsapp", label: "WhatsApp CRM", badge: "Active" },
+                            { id: "facebook", label: "Facebook", badge: "New" },
+                            { id: "instagram", label: "Instagram", badge: "New" },
+                            { id: "threads", label: "Threads", badge: "New" },
+                            { id: "meta_ads", label: "Meta Ads", badge: "New" },
+                          ].map((plat) => {
+                            const isSelected = activePlatform === plat.id;
+                            return (
+                              <button
+                                key={plat.id}
+                                onClick={() => {
+                                  setActivePlatform(plat.id);
+                                  localStorage.setItem("activePlatform", plat.id);
+                                  // Reset active tab to the default tab of that platform
+                                  if (plat.id === "facebook") setActiveTab("fb_messages");
+                                  else if (plat.id === "instagram") setActiveTab("ig_dms");
+                                  else if (plat.id === "threads") setActiveTab("th_feed");
+                                  else if (plat.id === "meta_ads") setActiveTab("ads_campaigns");
+                                  else setActiveTab("dashboard");
+                                  setPlatformDropdownOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition text-left cursor-pointer ${
+                                  isSelected
+                                    ? "bg-gray-800 text-[#F5A623] font-bold"
+                                    : "text-gray-300 hover:bg-gray-800/60 hover:text-white"
+                                }`}
+                              >
+                                <span>{plat.label}</span>
+                                {isSelected ? (
+                                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/50">
+                                    Active
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-400 bg-gray-800/80 px-1.5 py-0.5 rounded border border-gray-700/50">
+                                    {plat.badge}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-[#F5A623] font-medium tracking-wide">WhatsApp CRM</span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Navigation Links */}
-          <nav className="p-2 space-y-1.5 mt-2">
+          {/* Desktop Collapse / Expand Button cleanly integrated inside header */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="hidden md:flex p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="w-4 h-4 text-[#F5A623]" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+
+        {/* Navigation Links Scroll Container */}
+        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+          <nav className="p-2 space-y-1.5">
             {(activePlatform === "facebook" ? [
               { id: "fb_messages", label: "Messages / Inbox", icon: MessageSquare, badge: chatConversations.filter(c => (c.customer_phone || "").startsWith("fb_")).reduce((acc, c) => acc + (c.unread_count || 0), 0) },
               { id: "fb_posts", label: "Page Posts", icon: Megaphone },
@@ -2553,7 +2553,7 @@ export default function App() {
         </div>
 
         {/* Bottom Status & Logout */}
-        <div className="p-3 border-t border-gray-800 space-y-2">
+        <div className="p-3 border-t border-gray-800 space-y-2 flex-shrink-0 bg-[#111827]">
           {!sidebarCollapsed ? (
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
