@@ -89,6 +89,7 @@ import PerformanceNocPage from "./pages/PerformanceNocPage";
 import ShopifyProductsPage from "./pages/ShopifyProductsPage";
 import SegmentsPage from "./pages/SegmentsPage";
 import QuickRepliesPage from "./pages/QuickRepliesPage";
+import ConfirmModal from "./components/modals/ConfirmModal";
 
 const INITIAL_API_BASE_URL = getApiBaseUrl();
 setApiBaseUrl(INITIAL_API_BASE_URL);
@@ -430,6 +431,56 @@ export default function App() {
 
   // Search filter for lists
   const [searchTerm, setSearchTerm] = useState("");
+
+  // In-app alert / confirmation modal state (replaces browser alert/confirm)
+  const [confirmModalConfig, setConfirmModalConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "OK",
+    cancelText: "Cancel",
+    isDestructive: false,
+    showCancel: false,
+    onConfirm: () => {},
+    onCancel: () => {},
+  });
+
+  const showAlert = (message, title = "Notice") => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title,
+      message,
+      confirmText: "OK",
+      showCancel: false,
+      isDestructive: false,
+      onConfirm: () => setConfirmModalConfig((prev) => ({ ...prev, isOpen: false })),
+      onCancel: () => setConfirmModalConfig((prev) => ({ ...prev, isOpen: false })),
+    });
+  };
+
+  const showConfirm = ({
+    title = "Confirmation",
+    message,
+    confirmText = "OK",
+    cancelText = "Cancel",
+    isDestructive = false,
+    onConfirm,
+  }) => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      showCancel: true,
+      isDestructive,
+      onConfirm: () => {
+        setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
+        if (onConfirm) onConfirm();
+      },
+      onCancel: () => setConfirmModalConfig((prev) => ({ ...prev, isOpen: false })),
+    });
+  };
 
   // Contacts Pagination & Filtering State
   const [contactsPage, setContactsPage] = useState(1);
@@ -1418,7 +1469,7 @@ export default function App() {
       // Refresh conversation preview
       fetchChatConversations(true);
     } catch (err) {
-      alert("Failed to send message: " + (err.response?.data?.detail || err.message));
+      showAlert("Failed to send message: " + (err.response?.data?.detail || err.message), "Error");
       setChatMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
       setChatReplyText(messageText);
     } finally {
@@ -1464,7 +1515,7 @@ export default function App() {
       );
       fetchChatConversations(true);
     } catch (err) {
-      alert("Failed to send media: " + (err.response?.data?.detail || err.message));
+      showAlert("Failed to send media: " + (err.response?.data?.detail || err.message), "Error");
       setChatMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
     } finally {
       setChatSending(false);
@@ -1472,21 +1523,26 @@ export default function App() {
   };
 
   const handleDeleteConversation = async (phone) => {
-    if (!window.confirm(`Are you sure you want to delete all chat history with ${phone}? This cannot be undone.`)) {
-      return;
-    }
-    try {
-      await axios.delete(`/api/chat/conversations/${encodeURIComponent(phone)}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setChatMessages([]);
-      setSelectedChatPhone("");
-      fetchChatConversations(true);
-      setActionSuccessMsg("Chat conversation deleted successfully.");
-      setTimeout(() => setActionSuccessMsg(""), 4000);
-    } catch (err) {
-      alert("Failed to delete chat: " + (err.response?.data?.detail || err.message));
-    }
+    showConfirm({
+      title: "Delete Conversation",
+      message: `Are you sure you want to delete all chat history with ${phone}?\nThis cannot be undone.`,
+      confirmText: "Delete",
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await axios.delete(`/api/chat/conversations/${encodeURIComponent(phone)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setChatMessages([]);
+          setSelectedChatPhone("");
+          fetchChatConversations(true);
+          setActionSuccessMsg("Chat conversation deleted successfully.");
+          setTimeout(() => setActionSuccessMsg(""), 4000);
+        } catch (err) {
+          showAlert("Failed to delete chat: " + (err.response?.data?.detail || err.message), "Error");
+        }
+      }
+    });
   };
 
   const handleReactToMessage = async (messageId, emoji) => {
@@ -2116,14 +2172,25 @@ export default function App() {
 
   const handleBlockContact = async (phone, isCurrentlyBlocked) => {
     if (isCurrentlyBlocked) {
-      if (window.confirm(`Unblock ${phone} and remove from Opt-Out (DND) list?`)) {
-        await handleRemoveOptOut(phone);
-      }
+      showConfirm({
+        title: "Unblock Contact",
+        message: `Unblock ${phone} and remove from Opt-Out (DND) list?`,
+        confirmText: "Unblock",
+        onConfirm: async () => {
+          await handleRemoveOptOut(phone);
+        }
+      });
       return;
     }
-    if (window.confirm(`Are you sure you want to block ${phone}?\n\nThis will add the number directly to the Opt-Out (DND) list and prevent any future automated messages.`)) {
-      await handleAddOptOut(phone, "Blocked from Live Chat");
-    }
+    showConfirm({
+      title: "Block Contact",
+      message: `Are you sure you want to block ${phone}?\n\nThis will add the number directly to the Opt-Out (DND) list and prevent any future automated messages.`,
+      confirmText: "Block",
+      isDestructive: true,
+      onConfirm: async () => {
+        await handleAddOptOut(phone, "Blocked from Live Chat");
+      }
+    });
   };
 
   const totalRecoveredValue = cartEvents
@@ -2965,6 +3032,19 @@ export default function App() {
       <RoleInfoModal
         isOpen={isRoleInfoModalOpen}
         onClose={() => setIsRoleInfoModalOpen(false)}
+      />
+
+      {/* Global In-App Alert & Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModalConfig.isOpen}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText={confirmModalConfig.confirmText}
+        cancelText={confirmModalConfig.cancelText}
+        isDestructive={confirmModalConfig.isDestructive}
+        showCancel={confirmModalConfig.showCancel}
+        onConfirm={confirmModalConfig.onConfirm}
+        onCancel={confirmModalConfig.onCancel}
       />
 
     </div>

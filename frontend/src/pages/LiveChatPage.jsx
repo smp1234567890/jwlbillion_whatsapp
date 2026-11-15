@@ -1820,10 +1820,8 @@ export default function LiveChatPage({
                         <button
                           type="button"
                           onClick={() => {
-                            if (window.confirm("Are you sure you want to delete this entire conversation?")) {
-                              setProfileDrawerOpen(false);
-                              handleDeleteConversation(selectedChatPhone);
-                            }
+                            setProfileDrawerOpen(false);
+                            handleDeleteConversation(selectedChatPhone);
                           }}
                           className="w-full py-2.5 px-4 rounded-xl border border-gray-200 bg-white hover:bg-red-50 text-red-600 hover:border-red-200 text-xs font-bold transition flex items-center justify-between cursor-pointer"
                         >

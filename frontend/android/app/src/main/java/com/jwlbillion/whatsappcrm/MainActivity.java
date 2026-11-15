@@ -19,6 +19,7 @@ import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebChromeClient;
 
 public class MainActivity extends BridgeActivity {
     public static final String CHANNEL_MESSAGES = "jwl_incoming_messages_v4";
@@ -30,11 +31,11 @@ public class MainActivity extends BridgeActivity {
         createNotificationChannels();
         handleIntent(getIntent());
 
-        // Grant WebRTC microphone permissions inside WebView for live WhatsApp calling
+        // Grant WebRTC microphone permissions while retaining Capacitor's custom clean alert/confirm dialogs
         try {
             WebView webView = getBridge().getWebView();
             if (webView != null) {
-                webView.setWebChromeClient(new WebChromeClient() {
+                webView.setWebChromeClient(new BridgeWebChromeClient(getBridge()) {
                     @Override
                     public void onPermissionRequest(final PermissionRequest request) {
                         runOnUiThread(() -> {
