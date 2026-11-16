@@ -1293,7 +1293,7 @@ export default function App() {
     try {
       const targetOffset = reset ? 0 : conversationsOffset;
       const res = await axios.get("/api/chat/conversations", {
-        params: { limit: 20, offset: 0 },
+        params: { limit: 20, offset: 0, support_only: false },
         headers: { Authorization: `Bearer ${token}` }
       });
       const convs = res.data || [];
@@ -1337,6 +1337,138 @@ export default function App() {
       if (!silent) console.error("Failed to fetch chat conversations:", err);
     } finally {
       isFetchingConversationsRef.current = false;
+    }
+  };
+
+  // Dedicated fetch for Support Only conversations
+  const fetchSupportConversations = async (silent = false) => {
+    if (!token) return;
+    try {
+      const res = await axios.get("/api/chat/conversations", {
+        params: { limit: 20, offset: 0, support_only: true },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const convs = res.data || [];
+      if (convs.length === 0) {
+        // Default single support thread if not yet created in db
+        setSupportConversations([{
+          customer_phone: SUPPORT_PHONE_NUMBER,
+          customer_name: "Support Desk (+91 8888478888)",
+          customer_city: "Support Channel",
+          total_orders: 0,
+          unread_count: 0,
+          last_message_text: "Support Line Connected",
+          last_message_time: new Date().toISOString(),
+          last_sender: "AGENT"
+        }]);
+      } else {
+        setSupportConversations(convs);
+      }
+    } catch (err) {
+      if (!silent) console.error("Failed to fetch support conversations:", err);
+    }
+  };
+
+  const fetchSupportMessages = async (silent = false) => {
+    if (!token) return;
+    if (!silent) setSupportLoading(true);
+    try {
+      const res = await axios.get(`/api/chat/messages/${encodeURIComponent(SUPPORT_PHONE_NUMBER)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSupportMessages(res.data || []);
+    } catch (err) {
+      if (!silent) console.error("Failed to fetch support messages:", err);
+    } finally {
+      if (!silent) setSupportLoading(false);
+    }
+  };
+
+  const handleSendSupportMessage = async (e, textToSend) => {
+    e?.preventDefault();
+    const rawText = typeof textToSend === "string" ? textToSend : supportReplyText;
+    if (!rawText.trim() || supportSending) return;
+
+    const messageText = rawText.trim();
+    setSupportSending(true);
+
+    const optimisticMsg = {
+      id: "opt_sup_" + Date.now(),
+      customer_phone: SUPPORT_PHONE_NUMBER,
+      sender_type: "AGENT",
+      message_type: "text",
+      text: messageText,
+      status: "SENDING",
+      is_read: true,
+      created_at: new Date().toISOString()
+    };
+    setSupportMessages((prev) => [...prev, optimisticMsg]);
+    setSupportReplyText("");
+
+    try {
+      const res = await axios.post(
+        "/api/chat/send",
+        {
+          customer_phone: SUPPORT_PHONE_NUMBER,
+          text: messageText
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSupportMessages((prev) =>
+        prev.map((m) => (m.id === optimisticMsg.id ? res.data : m))
+      );
+      fetchSupportConversations(true);
+    } catch (err) {
+      showAlert("Failed to send support message: " + (err.response?.data?.detail || err.message), "Error");
+      setSupportMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+      setSupportReplyText(messageText);
+    } finally {
+      setSupportSending(false);
+    }
+  };
+
+  const handleSendSupportMedia = async ({ file, mediaType, caption }) => {
+    if (!file || supportSending) return;
+
+    setSupportSending(true);
+    const tempUrl = URL.createObjectURL(file);
+    const optimisticMsg = {
+      id: "opt_sup_" + Date.now(),
+      customer_phone: SUPPORT_PHONE_NUMBER,
+      sender_type: "AGENT",
+      message_type: mediaType,
+      text: caption || `[${mediaType.toUpperCase()}] ${file.name}`,
+      media_url: tempUrl,
+      filename: file.name,
+      status: "SENDING",
+      is_read: true,
+      created_at: new Date().toISOString()
+    };
+    setSupportMessages((prev) => [...prev, optimisticMsg]);
+
+    try {
+      const formData = new FormData();
+      formData.append("customer_phone", SUPPORT_PHONE_NUMBER);
+      formData.append("media_type", mediaType);
+      if (caption) formData.append("caption", caption);
+      formData.append("file", file);
+
+      const res = await axios.post("/api/chat/send-media", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        }
+      });
+
+      setSupportMessages((prev) =>
+        prev.map((m) => (m.id === optimisticMsg.id ? res.data : m))
+      );
+      fetchSupportConversations(true);
+    } catch (err) {
+      showAlert("Failed to send support media: " + (err.response?.data?.detail || err.message), "Error");
+      setSupportMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+    } finally {
+      setSupportSending(false);
     }
   };
 
@@ -1806,7 +1938,7 @@ export default function App() {
     }
   }, [token, activeTab, analyticsTimeRange]);
 
-  // Real-time EventStream (SSE) for Live Two-Way Chat (instant push from Meta webhook)
+  // Real-time EventStream (SSE) for Live Two-Way Chat & Dedicated Support Chat
   useEffect(() => {
     if (!token) return;
 
@@ -1815,14 +1947,22 @@ export default function App() {
       if (selectedChatPhone) {
         fetchChatMessages(selectedChatPhone, true);
       }
+    } else if (activeTab === "support_chat") {
+      fetchSupportConversations(true);
+      fetchSupportMessages(true);
     }
 
-    // Relaxed safety fallback polling (every 10s if on chat tab, 30s in background)
-    const fallbackIntervalMs = activeTab === "chat" ? 10000 : 30000;
+    // Relaxed safety fallback polling (every 10s if on chat/support tab, 30s in background)
+    const fallbackIntervalMs = (activeTab === "chat" || activeTab === "support_chat") ? 10000 : 30000;
     const fallbackTimer = setInterval(() => {
-      fetchChatConversations(true);
-      if (activeTab === "chat" && selectedChatPhone) {
-        fetchChatMessages(selectedChatPhone, true);
+      if (activeTab === "chat") {
+        fetchChatConversations(true);
+        if (selectedChatPhone) {
+          fetchChatMessages(selectedChatPhone, true);
+        }
+      } else if (activeTab === "support_chat") {
+        fetchSupportConversations(true);
+        fetchSupportMessages(true);
       }
     }, fallbackIntervalMs);
 
@@ -2405,6 +2545,12 @@ export default function App() {
                   { id: "chat_analytics", label: "Chat Analytics", icon: BarChart3 }
                 ]
               },
+              {
+                id: "support_chat",
+                label: "Support Chat",
+                icon: Headphones,
+                badge: supportConversations.reduce((acc, c) => acc + (c.unread_count || 0), 0)
+              },
               { id: "automations", label: "Automations", icon: Sliders, badge: workflowFlows.length },
               { id: "campaigns", label: "Campaigns", icon: Megaphone },
               { id: "products", label: "Shopify Products", icon: ShoppingBag },
@@ -2595,7 +2741,7 @@ export default function App() {
       </aside>}
 
       {/* ── Main Content Area ── */}
-      <main className={`flex-1 flex flex-col min-w-0 ${activeTab === "chat" ? "overflow-hidden h-[100dvh]" : "overflow-y-auto"}`}>
+      <main className={`flex-1 flex flex-col min-w-0 ${(activeTab === "chat" || activeTab === "support_chat") ? "overflow-hidden h-[100dvh]" : "overflow-y-auto"}`}>
         {/* Top App Bar (Sticky on mobile and desktop, with hardware punch-hole / notch safe-area offset) */}
         {!isNativePlatform && <header className="sticky top-0 z-30 pt-[max(env(safe-area-inset-top,0px),28px)] md:pt-0 pb-3 md:pb-0 h-[calc(3.5rem+max(env(safe-area-inset-top,0px),28px))] md:h-16 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-3.5 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0 shadow-xs">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -2643,6 +2789,8 @@ export default function App() {
                     ? "Opt-Out (DND) Registry"
                     : activeTab === "chat"
                     ? "Two-Way WhatsApp Live Chat / Inbox"
+                    : activeTab === "support_chat"
+                    ? "Support Chat (+91 8888478888)"
                     : activeTab === "chat_analytics"
                     ? "Live Chat / Inbox Analytics"
                     : activeTab === "analytics"
@@ -2707,7 +2855,7 @@ export default function App() {
         )}
 
         {/* Dynamic Views */}
-        <div className={isNativePlatform ? "p-0 flex-1 flex flex-col min-h-0 overflow-hidden" : ((activeTab === "chat" || activeTab === "fb_messages" || activeTab === "ig_dms") ? "p-2 sm:p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6")}>
+        <div className={isNativePlatform ? "p-0 flex-1 flex flex-col min-h-0 overflow-hidden" : ((activeTab === "chat" || activeTab === "support_chat" || activeTab === "fb_messages" || activeTab === "ig_dms") ? "p-2 sm:p-3 md:p-5 flex-1 flex flex-col min-h-0 overflow-hidden" : "p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6")}>
           {/* Active Platform Placeholder for non-WhatsApp tabs (restricted to scalifts_admin) */}
           {activePlatform !== "whatsapp" ? (
             activeTab === "fb_messages" ? (
@@ -2981,6 +3129,44 @@ export default function App() {
               onLoadMoreConversations={handleLoadMoreConversations}
               hasMoreConversations={hasMoreConversations}
               loadingMoreConversations={loadingMoreConversations}
+            />
+          )}
+
+          {activeTab === "support_chat" && (
+            <LiveChatPage
+              chatConversations={supportConversations}
+              chatMessages={supportMessages}
+              selectedChatPhone={selectedSupportPhone}
+              chatLoading={supportLoading}
+              chatSending={supportSending}
+              chatReplyText={supportReplyText}
+              setChatReplyText={setSupportReplyText}
+              chatFilterUnreadOnly={false}
+              setChatFilterUnreadOnly={() => {}}
+              chatListCollapsed={chatListCollapsed}
+              setChatListCollapsed={setChatListCollapsed}
+              chatSoundEnabled={chatSoundEnabled}
+              setChatSoundEnabled={setChatSoundEnabled}
+              playIncomingMessageSound={playIncomingMessageSound}
+              searchTerm={""}
+              setSearchTerm={() => {}}
+              contacts={contacts}
+              handleSelectConversation={(phone) => {
+                setSelectedSupportPhone(phone || SUPPORT_PHONE_NUMBER);
+                fetchSupportMessages(false);
+              }}
+              fetchChatMessages={() => fetchSupportMessages(false)}
+              handleSendChatMessage={handleSendSupportMessage}
+              handleSendChatMedia={handleSendSupportMedia}
+              handleReactToMessage={handleReactToMessage}
+              handleDeleteConversation={handleDeleteConversation}
+              handleBlockContact={handleBlockContact}
+              optOuts={optOuts}
+              isNativeApp={isNativePlatform}
+              onLogout={handleLogout}
+              onLoadMoreConversations={() => {}}
+              hasMoreConversations={false}
+              loadingMoreConversations={false}
             />
           )}
 
