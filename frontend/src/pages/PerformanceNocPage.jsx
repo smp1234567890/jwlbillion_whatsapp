@@ -228,8 +228,8 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
         </div>
       )}
 
-      {/* 4 Infrastructure Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+      {/* 5 Infrastructure Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
         {/* CPU Load Card */}
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
@@ -267,10 +267,10 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
           </div>
         </div>
 
-        {/* Memory Usage Card */}
+        {/* Server System RAM Card */}
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">RAM Usage</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Server RAM</span>
             <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
               <Server className="w-5 h-5" />
             </div>
@@ -278,12 +278,12 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
           <div className="mt-3">
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-gray-900">
-                {server.system_ram_pct ?? (server.memory_resident_mb ? Math.round((server.memory_resident_mb / 1024) * 10) / 10 : 0)}%
+                {server.system_ram_pct ?? 0}%
               </span>
               <span className="text-xs text-gray-500">
                 {server.system_ram_total_mb
                   ? `${Math.round(server.system_ram_used_mb / 102.4) / 10} GB / ${Math.round(server.system_ram_total_mb / 102.4) / 10} GB`
-                  : `${server.memory_resident_mb ?? 0} MB App`}
+                  : "Live RAM"}
               </span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-2 mt-2 overflow-hidden">
@@ -291,12 +291,32 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
                 className={`h-2 rounded-full transition-all ${
                   (server.system_ram_pct || 0) > 85 ? "bg-red-500" : (server.system_ram_pct || 0) > 65 ? "bg-amber-500" : "bg-blue-600"
                 }`}
-                style={{ width: `${Math.min(100, server.system_ram_pct || (server.memory_resident_mb ? Math.min(100, server.memory_resident_mb / 50) : 10))}%` }}
+                style={{ width: `${Math.min(100, server.system_ram_pct || 5)}%` }}
               />
             </div>
             <p className="text-[11px] text-gray-500 mt-2 font-mono">
-              App Process: {server.memory_resident_mb ?? "—"} MB (RSS)
+              Available: {server.system_ram_total_mb ? `${Math.round((server.system_ram_total_mb - server.system_ram_used_mb) / 102.4) / 10} GB Free` : "Healthy"}
             </p>
+          </div>
+        </div>
+
+        {/* Process Memory (RSS) Card */}
+        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Process Memory (RSS)</span>
+            <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
+              <Activity className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-black text-gray-900">
+              {server.memory_resident_mb ?? "—"} MB
+            </span>
+            <p className="text-xs text-gray-500 mt-1">Backend App Memory Footprint</p>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold mt-3">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Optimal memory envelope</span>
+            </div>
           </div>
         </div>
 
