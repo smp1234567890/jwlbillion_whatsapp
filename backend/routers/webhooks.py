@@ -1327,6 +1327,20 @@ async def receive_inbound_whatsapp_message(
                 except ValueError:
                     sender_phone = "+" + raw_from.strip("+")
 
+                # Detect if this message was received on our dedicated Customer Support WhatsApp Number
+                metadata_info = value.get("metadata", {})
+                metadata_phone = metadata_info.get("display_phone_number", "")
+                metadata_phone_id = str(metadata_info.get("phone_number_id", ""))
+                support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+                support_id = str(config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID or "1353696711170456")
+
+                is_support_message = (
+                    (metadata_phone and normalize_phone(metadata_phone) == support_phone_clean) or
+                    (metadata_phone_id and metadata_phone_id == support_id) or
+                    (sender_phone == support_phone_clean)
+                )
+                msg_channel = "support" if is_support_message else "general"
+
                 msg_type = msg.get("type", "text")
                 raw_body = ""
                 inbound_media_url = None
@@ -1512,6 +1526,7 @@ async def receive_inbound_whatsapp_message(
                     media_url=inbound_media_url,
                     filename=inbound_filename,
                     meta_message_id=meta_id,
+                    channel=msg_channel,
                     status="RECEIVED",
                     is_read=False
                 )
@@ -1558,9 +1573,7 @@ async def receive_inbound_whatsapp_message(
                         profile_name = contacts_list[0].get("profile", {}).get("name") or "New WhatsApp Lead"
 
                     # Check if this message was sent to our dedicated support number or is from support
-                    metadata_phone = value.get("metadata", {}).get("display_phone_number", "")
-                    support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
-                    is_support = (sender_phone == support_phone_clean) or (metadata_phone and normalize_phone(metadata_phone) == support_phone_clean)
+                    is_support = is_support_message
 
                     new_contact = models.Contact(
                         phone=sender_phone,
@@ -1583,6 +1596,7 @@ async def receive_inbound_whatsapp_message(
                             "message_type": msg_type,
                             "text": raw_body,
                             "media_url": inbound_media_url,
+                            "channel": msg_channel,
                             "status": "DELIVERED",
                             "is_read": False,
                             "created_at": new_chat_msg.created_at.isoformat() if hasattr(new_chat_msg, "created_at") and new_chat_msg.created_at else datetime.utcnow().isoformat()

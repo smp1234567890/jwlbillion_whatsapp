@@ -258,6 +258,7 @@ class ChatMessage(Base):
     status = Column(String(30), default="DELIVERED")      # RECEIVED, SENT, DELIVERED, READ, FAILED
     is_read = Column(Boolean, default=False, index=True)
     assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    channel = Column(String(30), default="general", index=True)  # "general" or "support"
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 

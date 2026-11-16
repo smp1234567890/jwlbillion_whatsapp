@@ -428,6 +428,7 @@ class AutomationRuleUpdate(BaseModel):
 class ChatSendMessageRequest(BaseModel):
     customer_phone: str = Field(..., description="Customer WhatsApp phone number e.g. +919876543210")
     text: str = Field(..., min_length=1, description="Message text content to send to customer")
+    channel: Optional[str] = Field("general", description="Message channel: 'general' or 'support'")
 
     @field_validator("customer_phone")
     @classmethod
@@ -451,6 +452,7 @@ class ChatMessageResponse(BaseModel):
     carousel_cards: Optional[List[Dict[str, Any]]] = None
     status: str
     is_read: bool
+    channel: Optional[str] = "general"
     created_at: datetime
 
     class Config:

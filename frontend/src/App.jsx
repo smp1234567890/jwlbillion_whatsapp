@@ -398,11 +398,13 @@ export default function App() {
   // Dedicated Support Chat States (+91 8888478888)
   const SUPPORT_PHONE_NUMBER = "+918888478888";
   const [supportConversations, setSupportConversations] = useState([]);
-  const [selectedSupportPhone, setSelectedSupportPhone] = useState("+918888478888");
+  const [selectedSupportPhone, setSelectedSupportPhone] = useState("");
   const [supportMessages, setSupportMessages] = useState([]);
   const [supportLoading, setSupportLoading] = useState(false);
   const [supportReplyText, setSupportReplyText] = useState("");
   const [supportSending, setSupportSending] = useState(false);
+  const [supportSearchTerm, setSupportSearchTerm] = useState("");
+  const [supportFilterUnreadOnly, setSupportFilterUnreadOnly] = useState(false);
 
 
   // Pleasant Web Audio Chime for Live Chat Incoming Messages (Zero external MP3 dependencies)
@@ -1347,35 +1349,28 @@ export default function App() {
     if (!token) return;
     try {
       const res = await axios.get("/api/chat/conversations", {
-        params: { limit: 20, offset: 0, support_only: true },
+        params: { limit: 50, offset: 0, support_only: true },
         headers: { Authorization: `Bearer ${token}` }
       });
       const convs = res.data || [];
-      if (convs.length === 0) {
-        // Default single support thread if not yet created in db
-        setSupportConversations([{
-          customer_phone: SUPPORT_PHONE_NUMBER,
-          customer_name: "Support Desk (+91 8888478888)",
-          customer_city: "Support Channel",
-          total_orders: 0,
-          unread_count: 0,
-          last_message_text: "Support Line Connected",
-          last_message_time: new Date().toISOString(),
-          last_sender: "AGENT"
-        }]);
-      } else {
-        setSupportConversations(convs);
+      setSupportConversations(convs);
+
+      // Auto-select first conversation if none selected yet
+      if (convs.length > 0 && !selectedSupportPhone) {
+        setSelectedSupportPhone(convs[0].customer_phone);
+        fetchSupportMessages(convs[0].customer_phone, true);
       }
     } catch (err) {
       if (!silent) console.error("Failed to fetch support conversations:", err);
     }
   };
 
-  const fetchSupportMessages = async (silent = false) => {
-    if (!token) return;
+  const fetchSupportMessages = async (targetPhone = null, silent = false) => {
+    const phoneToFetch = targetPhone || selectedSupportPhone;
+    if (!token || !phoneToFetch) return;
     if (!silent) setSupportLoading(true);
     try {
-      const res = await axios.get(`/api/chat/messages/${encodeURIComponent(SUPPORT_PHONE_NUMBER)}`, {
+      const res = await axios.get(`/api/chat/messages/${encodeURIComponent(phoneToFetch)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSupportMessages(res.data || []);
@@ -1389,17 +1384,19 @@ export default function App() {
   const handleSendSupportMessage = async (e, textToSend) => {
     e?.preventDefault();
     const rawText = typeof textToSend === "string" ? textToSend : supportReplyText;
-    if (!rawText.trim() || supportSending) return;
+    const recipientPhone = selectedSupportPhone || SUPPORT_PHONE_NUMBER;
+    if (!rawText.trim() || supportSending || !recipientPhone) return;
 
     const messageText = rawText.trim();
     setSupportSending(true);
 
     const optimisticMsg = {
       id: "opt_sup_" + Date.now(),
-      customer_phone: SUPPORT_PHONE_NUMBER,
+      customer_phone: recipientPhone,
       sender_type: "AGENT",
       message_type: "text",
       text: messageText,
+      channel: "support",
       status: "SENDING",
       is_read: true,
       created_at: new Date().toISOString()
@@ -1411,8 +1408,9 @@ export default function App() {
       const res = await axios.post(
         "/api/chat/send",
         {
-          customer_phone: SUPPORT_PHONE_NUMBER,
-          text: messageText
+          customer_phone: recipientPhone,
+          text: messageText,
+          channel: "support"
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -1430,18 +1428,20 @@ export default function App() {
   };
 
   const handleSendSupportMedia = async ({ file, mediaType, caption }) => {
-    if (!file || supportSending) return;
+    const recipientPhone = selectedSupportPhone || SUPPORT_PHONE_NUMBER;
+    if (!file || supportSending || !recipientPhone) return;
 
     setSupportSending(true);
     const tempUrl = URL.createObjectURL(file);
     const optimisticMsg = {
       id: "opt_sup_" + Date.now(),
-      customer_phone: SUPPORT_PHONE_NUMBER,
+      customer_phone: recipientPhone,
       sender_type: "AGENT",
       message_type: mediaType,
       text: caption || `[${mediaType.toUpperCase()}] ${file.name}`,
       media_url: tempUrl,
       filename: file.name,
+      channel: "support",
       status: "SENDING",
       is_read: true,
       created_at: new Date().toISOString()
@@ -1450,8 +1450,9 @@ export default function App() {
 
     try {
       const formData = new FormData();
-      formData.append("customer_phone", SUPPORT_PHONE_NUMBER);
+      formData.append("customer_phone", recipientPhone);
       formData.append("media_type", mediaType);
+      formData.append("channel", "support");
       if (caption) formData.append("caption", caption);
       formData.append("file", file);
 
@@ -1951,7 +1952,9 @@ export default function App() {
       }
     } else if (activeTab === "support_chat") {
       fetchSupportConversations(true);
-      fetchSupportMessages(true);
+      if (selectedSupportPhone) {
+        fetchSupportMessages(selectedSupportPhone, true);
+      }
     }
 
     // Relaxed safety fallback polling (every 10s if on chat/support tab, 30s in background)
@@ -1964,7 +1967,9 @@ export default function App() {
         }
       } else if (activeTab === "support_chat") {
         fetchSupportConversations(true);
-        fetchSupportMessages(true);
+        if (selectedSupportPhone) {
+          fetchSupportMessages(selectedSupportPhone, true);
+        }
       }
     }, fallbackIntervalMs);
 
@@ -1973,7 +1978,7 @@ export default function App() {
         clearInterval(fallbackTimer);
       }
     };
-  }, [token, selectedChatPhone, activeTab]);
+  }, [token, selectedChatPhone, selectedSupportPhone, activeTab]);
 
   // Periodic automatic silent background refresh for all views across the platform
   useEffect(() => {
@@ -3146,21 +3151,25 @@ export default function App() {
               chatSending={supportSending}
               chatReplyText={supportReplyText}
               setChatReplyText={setSupportReplyText}
-              chatFilterUnreadOnly={false}
-              setChatFilterUnreadOnly={() => {}}
+              chatFilterUnreadOnly={supportFilterUnreadOnly}
+              setChatFilterUnreadOnly={setSupportFilterUnreadOnly}
               chatListCollapsed={chatListCollapsed}
               setChatListCollapsed={setChatListCollapsed}
               chatSoundEnabled={chatSoundEnabled}
               setChatSoundEnabled={setChatSoundEnabled}
               playIncomingMessageSound={playIncomingMessageSound}
-              searchTerm={""}
-              setSearchTerm={() => {}}
+              searchTerm={supportSearchTerm}
+              setSearchTerm={setSupportSearchTerm}
               contacts={contacts}
               handleSelectConversation={(phone) => {
-                setSelectedSupportPhone(phone || SUPPORT_PHONE_NUMBER);
-                fetchSupportMessages(false);
+                setSelectedSupportPhone(phone || "");
+                if (phone) {
+                  fetchSupportMessages(phone, false);
+                } else {
+                  setSupportMessages([]);
+                }
               }}
-              fetchChatMessages={() => fetchSupportMessages(false)}
+              fetchChatMessages={(phone) => fetchSupportMessages(phone || selectedSupportPhone, false)}
               handleSendChatMessage={handleSendSupportMessage}
               handleSendChatMedia={handleSendSupportMedia}
               handleReactToMessage={handleReactToMessage}

@@ -59,11 +59,13 @@ def list_conversations(
     support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
 
     if support_only:
-        # Show only conversations for the designated support number
-        where_clauses.append("lm.customer_phone = :support_phone")
+        # Show conversations that belong to the dedicated customer support channel
+        # or where customer_phone is the support phone itself
+        where_clauses.append("(lm.channel = 'support' OR lm.customer_phone = :support_phone)")
         params["support_phone"] = support_phone_clean
     else:
-        # Regular live chat inbox shows all conversations except isolated support-only thread
+        # Regular marketing live chat inbox excludes customer support conversations
+        where_clauses.append("(lm.channel IS NULL OR lm.channel != 'support')")
         if support_phone_clean:
             where_clauses.append("lm.customer_phone != :support_phone")
             params["support_phone"] = support_phone_clean
@@ -90,7 +92,7 @@ def list_conversations(
         c.custom_attributes->'last_order' as last_order
     FROM (
         SELECT DISTINCT ON (customer_phone) 
-            customer_phone, text, sender_type, created_at, id
+            customer_phone, text, sender_type, created_at, id, channel
         FROM chat_messages
         ORDER BY customer_phone, created_at DESC, id DESC
     ) lm
@@ -485,7 +487,14 @@ def send_agent_reply(
 
         # Determine if this message is routed to/from the dedicated Support number
         support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
-        is_support_chat = (clean_phone == support_phone_clean)
+        
+        # Check if destination phone is support OR if channel is explicitly 'support' OR if latest message in thread was support
+        latest_thread_msg = db.query(models.ChatMessage).filter(models.ChatMessage.customer_phone == clean_phone).order_by(models.ChatMessage.id.desc()).first()
+        is_support_chat = (
+            payload.channel == "support" or
+            clean_phone == support_phone_clean or
+            (latest_thread_msg and getattr(latest_thread_msg, "channel", None) == "support")
+        )
 
         active_token = config.SUPPORT_WHATSAPP_API_TOKEN if (is_support_chat and config.SUPPORT_WHATSAPP_API_TOKEN) else config.WHATSAPP_API_TOKEN
         active_phone_id = config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID if (is_support_chat and config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID) else config.WHATSAPP_PHONE_NUMBER_ID
@@ -525,6 +534,7 @@ def send_agent_reply(
         message_type="text",
         text=payload.text,
         meta_message_id=msg_id,
+        channel="support" if is_support_chat else "general",
         status=status_str,
         is_read=True,
         assigned_user_id=current_user.id
@@ -552,6 +562,7 @@ async def send_chat_media_message(
     customer_phone: str = Form(...),
     media_type: str = Form(...),  # "image", "document", "video", "audio"
     caption: Optional[str] = Form(None),
+    channel: Optional[str] = Form("general"),
     file: UploadFile = File(...),
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
@@ -593,7 +604,12 @@ async def send_chat_media_message(
 
     # Determine if this message is routed to/from the dedicated Support number
     support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
-    is_support_chat = (clean_phone == support_phone_clean)
+    latest_thread_msg = db.query(models.ChatMessage).filter(models.ChatMessage.customer_phone == clean_phone).order_by(models.ChatMessage.id.desc()).first()
+    is_support_chat = (
+        channel == "support" or
+        clean_phone == support_phone_clean or
+        (latest_thread_msg and getattr(latest_thread_msg, "channel", None) == "support")
+    )
 
     active_token = config.SUPPORT_WHATSAPP_API_TOKEN if (is_support_chat and config.SUPPORT_WHATSAPP_API_TOKEN) else config.WHATSAPP_API_TOKEN
     active_phone_id = config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID if (is_support_chat and config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID) else config.WHATSAPP_PHONE_NUMBER_ID
@@ -686,6 +702,7 @@ async def send_chat_media_message(
         media_url=relative_media_url,
         filename=orig_filename,
         meta_message_id=msg_id,
+        channel="support" if is_support_chat else "general",
         status=status_str,
         is_read=True,
         assigned_user_id=current_user.id
