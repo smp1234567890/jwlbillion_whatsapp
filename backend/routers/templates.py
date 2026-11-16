@@ -241,7 +241,10 @@ def list_templates(
     query = db.query(models.Template)
     if language and language != "ALL":
         query = query.filter(models.Template.language == language)
-    return query.order_by(models.Template.template_name.asc()).all()
+    return query.order_by(
+        models.Template.created_at.desc().nullslast(),
+        models.Template.id.desc()
+    ).all()
 
 
 def sanitize_whatsapp_markdown(text_val: Optional[str]) -> Optional[str]:

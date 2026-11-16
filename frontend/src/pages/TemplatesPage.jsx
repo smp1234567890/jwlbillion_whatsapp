@@ -100,7 +100,13 @@ export default function TemplatesPage({
                 </div>
               ) : (() => {
                 const templatesPerPage = 10;
-                const filteredTemplates = templates.filter(
+                const sortedTemplates = [...templates].sort((a, b) => {
+                  const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                  const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                  if (timeB !== timeA) return timeB - timeA;
+                  return (b.id || 0) - (a.id || 0);
+                });
+                const filteredTemplates = sortedTemplates.filter(
                   (t) => templateFilterLang === "ALL" || t.language === templateFilterLang
                 );
                 const totalTemplatePages = Math.ceil(filteredTemplates.length / templatesPerPage) || 1;
