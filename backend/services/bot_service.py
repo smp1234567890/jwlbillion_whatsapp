@@ -10,6 +10,7 @@ Handles intelligent conversational auto-replies and interactive in-chat menus fo
 """
 
 import re
+import os
 import logging
 from typing import Optional, Tuple, List, Dict, Any
 from sqlalchemy.orm import Session
@@ -24,6 +25,10 @@ from services.shopify_service import (
 from whatsapp_service import send_whatsapp_free_text, send_whatsapp_interactive, send_whatsapp_media
 
 logger = logging.getLogger("bot_service")
+
+# Master switch to pause or enable the bot auto-reply engine.
+# Set ENABLE_BOT_AUTOREPLY=true in .env to reactivate when ready.
+ENABLE_BOT_AUTOREPLY = os.getenv("ENABLE_BOT_AUTOREPLY", "false").lower() in ("true", "1", "yes")
 
 GREETING_WORDS = {
     "hi", "hello", "hey", "namaste", "namaskar", "kya haal", "kya haal hai", "kaisa hai", "kaise ho",
@@ -327,8 +332,14 @@ def _match_and_send_product_designs(
             ],
             "matcher": lambda p: (
                 p.get("product_type") == "Ring"
-                or any(w in p.get("title", "").lower().split() for w in ["ring", "rings"])
-                or "ring" in (p.get("handle") or "").lower()
+                or (
+                    (
+                        bool(re.search(r"\b(?:rings?|anguthi)\b", p.get("title", ""), re.IGNORECASE))
+                        or bool(re.search(r"\b(?:rings?|anguthi)\b", (p.get("handle") or "").replace("-", " "), re.IGNORECASE))
+                    )
+                    and not bool(re.search(r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?)\b", p.get("title", ""), re.IGNORECASE))
+                    and p.get("product_type") != "Earrings"
+                )
             )
         },
         {
@@ -378,8 +389,8 @@ def _match_and_send_product_designs(
             "label": "Earrings & Jhumkas",
             "collection_url": "https://jwlbillion.com/collections/earrings",
             "keywords": [
-                r"\b(?:earrings?|ear\s*rings?|studs?|jhumkas?|jhumki|balis?|hoops?|dangles?|tops|kaan\s*ke|kaan\s*bali)\b",
-                r"(?:झुमका|झुमके|बाली|बालियां|इयररिंग|कान के)"
+                r"\b(?:earrings?|ear\s*rings?|studs?|jhumkas?|jhumki|balis?|hoops?|dangles?|tops|kaan\s*ke|kaan\s*bali|jhalo|jhalar|jhal)\b",
+                r"(?:झुमका|झुमके|बाली|बालियां|इयररिंग|कान के|झाले|झालर)"
             ],
             "matcher": lambda p: (
                 p.get("product_type") == "Earrings"
@@ -660,6 +671,11 @@ def handle_inbound_auto_reply(
     Evaluates inbound customer message or interactive selection and delivers the response.
     Returns dict info on sent reply or None.
     """
+    # Immediate circuit breaker: pause bot auto-reply if disabled
+    if not ENABLE_BOT_AUTOREPLY:
+        logger.debug(f"[Bot Auto-Reply] Bot is currently paused. Skipping reply to {sender_phone}.")
+        return None
+
     text_clean = (message_text or "").strip().lower()
     sel_id = (interactive_id or "").strip()
 
