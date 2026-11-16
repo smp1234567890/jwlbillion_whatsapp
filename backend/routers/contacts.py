@@ -267,9 +267,10 @@ def toggle_contact_called(
     new_status = not current_status
 
     if new_status:
+        caller_name = getattr(current_user, "username", None) or getattr(current_user, "email", "Agent")
         attrs["called_status"] = {
             "called": True,
-            "called_by": current_user.name or current_user.email,
+            "called_by": caller_name,
             "called_at": datetime.utcnow().isoformat()
         }
     else:
