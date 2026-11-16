@@ -460,7 +460,7 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
                       {item.manual_response_time_minutes !== null && item.manual_response_time_minutes !== undefined ? (
                         <span className="inline-flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
                           {item.manual_response_time_minutes < 1
-                            ? `${Math.round(item.manual_response_time_minutes * 60)}s (Agent)`
+                            ? `${Math.round(item.manual_response_time_minutes * 60)}s`
                             : `${item.manual_response_time_minutes} min`}
                         </span>
                       ) : (
