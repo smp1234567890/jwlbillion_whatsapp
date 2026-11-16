@@ -16,7 +16,9 @@ import {
   MapPin,
   TrendingUp,
   UserCheck,
-  Tag
+  Tag,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { formatToISTDate, formatToISTTime } from "../utils/dateUtils";
 
@@ -25,8 +27,8 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState({ summary: {}, records: [] });
 
-  // Filters
-  const [interestFilter, setInterestFilter] = useState("ALL"); // ALL, HIGHLY_INTERESTED, INTERESTED, CLIENT_LEADS
+  // Filters (Removed CLIENT_LEADS)
+  const [interestFilter, setInterestFilter] = useState("ALL"); // ALL, HIGHLY_INTERESTED, INTERESTED
   const [calledFilter, setCalledFilter] = useState("ALL"); // ALL, YES, NO
   const [searchQuery, setSearchQuery] = useState("");
   const [callingPhone, setCallingPhone] = useState(null);
@@ -34,6 +36,10 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
   // Sorting
   const [sortField, setSortField] = useState("interest_score");
   const [sortOrder, setSortOrder] = useState("desc");
+
+  // Pagination (10 per page default, selectable up to 100)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10); // 10, 50, 100
 
   const fetchReport = async () => {
     setLoading(true);
@@ -48,6 +54,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       setReportData(res.data || { summary: {}, records: [] });
+      setCurrentPage(1);
     } catch (err) {
       console.error("Failed to load lead interest report:", err);
       setError(err.response?.data?.detail || "Failed to load report data");
@@ -113,6 +120,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
       setSortField(field);
       setSortOrder("desc");
     }
+    setCurrentPage(1);
   };
 
   const sortedRecords = [...(reportData.records || [])].sort((a, b) => {
@@ -135,22 +143,28 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
     return 0;
   });
 
+  // Pagination calculation
+  const totalCount = sortedRecords.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const paginatedRecords = sortedRecords.slice(startIndex, startIndex + pageSize);
+
   const { summary } = reportData;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* ── Top Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-xl border border-gray-200 shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <h1 className="text-xl font-bold text-gray-900">Lead Interest & Calling Report</h1>
-            <span className="bg-rose-50 text-rose-700 text-xs font-bold px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 text-rose-600 fill-current" />
+            <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-gray-200">
               Live Analysis
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            All customer chats organized by interest level, inbound lead signals, and team calling status.
+            All customer chats organized by interest level and team calling status.
           </p>
         </div>
         <button
@@ -163,59 +177,58 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
         </button>
       </div>
 
-      {/* ── Metric KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs">
+      {/* ── Metric KPI Cards (Clean Platform Theme - Removed Colors) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+        {/* Total Leads */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
           <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Total Leads</div>
-          <div className="text-xl font-black text-gray-900 mt-1">{summary?.total_leads || 0}</div>
+          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_leads || 0}</div>
           <div className="text-[10px] text-gray-400 mt-0.5">All customer threads</div>
         </div>
 
-        <div className="bg-rose-50/70 p-3.5 rounded-xl border border-rose-200 shadow-xs">
-          <div className="text-[11px] font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1">
-            <Flame className="w-3 h-3 text-rose-600 fill-current" />
-            Highly Interested
+        {/* Highly Interested */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+            <span>Highly Interested</span>
+            <Flame className="w-3.5 h-3.5 text-gray-400" />
           </div>
-          <div className="text-xl font-black text-rose-900 mt-1">{summary?.total_highly_interested || 0}</div>
-          <div className="text-[10px] text-rose-600 mt-0.5">High buyer intent</div>
+          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_highly_interested || 0}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">High buyer intent</div>
         </div>
 
-        <div className="bg-amber-50/70 p-3.5 rounded-xl border border-amber-200 shadow-xs">
-          <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
-            <Star className="w-3 h-3 text-amber-600 fill-current" />
-            Interested
+        {/* Interested */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+            <span>Interested</span>
+            <Star className="w-3.5 h-3.5 text-gray-400" />
           </div>
-          <div className="text-xl font-black text-amber-900 mt-1">{summary?.total_interested || 0}</div>
-          <div className="text-[10px] text-amber-600 mt-0.5">Active inquiries</div>
+          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_interested || 0}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">Active inquiries</div>
         </div>
 
-        <div className="bg-blue-50/70 p-3.5 rounded-xl border border-blue-200 shadow-xs">
-          <div className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">Lead Initiated</div>
-          <div className="text-xl font-black text-blue-900 mt-1">{summary?.total_client_initiated || 0}</div>
-          <div className="text-[10px] text-blue-600 mt-0.5">Client messaged first</div>
+        {/* Called */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+            <span>Called</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-gray-400" />
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_called || 0}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">Contacted by team</div>
         </div>
 
-        <div className="bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-200 shadow-xs">
-          <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            Called
+        {/* Pending Call */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
+          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+            <span>Pending Call</span>
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
           </div>
-          <div className="text-xl font-black text-emerald-900 mt-1">{summary?.total_called || 0}</div>
-          <div className="text-[10px] text-emerald-700 mt-0.5">Contacted by team</div>
-        </div>
-
-        <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200 shadow-xs">
-          <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-            <Clock className="w-3 h-3 text-gray-500" />
-            Pending Call
-          </div>
-          <div className="text-xl font-black text-gray-800 mt-1">{summary?.total_uncalled || 0}</div>
-          <div className="text-[10px] text-gray-500 mt-0.5">Needs follow-up</div>
+          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_uncalled || 0}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">Needs follow-up</div>
         </div>
       </div>
 
-      {/* ── Filters & Search Bar ── */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      {/* ── Filters & Search Bar (Clean Platform Theme) ── */}
+      <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Search */}
         <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -228,43 +241,39 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
           />
         </form>
 
-        {/* Filter Pills */}
+        {/* Filter Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Interest Tabs */}
-          <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg text-xs">
+          {/* Interest Tabs (Clean Platform Look - Removed Lead Initiated) */}
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg text-xs">
             <button
               onClick={() => setInterestFilter("ALL")}
-              className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
-                interestFilter === "ALL" ? "bg-white text-gray-900 font-bold shadow-xs" : "text-gray-600 hover:text-gray-900"
+              className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+                interestFilter === "ALL"
+                  ? "bg-white text-gray-900 font-bold shadow-xs border border-gray-200"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              All Intents
+              All Intents ({summary?.total_leads || 0})
             </button>
             <button
               onClick={() => setInterestFilter("HIGHLY_INTERESTED")}
-              className={`px-2.5 py-1 rounded-md font-medium transition flex items-center gap-1 cursor-pointer ${
-                interestFilter === "HIGHLY_INTERESTED" ? "bg-rose-600 text-white font-bold shadow-xs" : "text-rose-700 hover:bg-rose-50"
+              className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+                interestFilter === "HIGHLY_INTERESTED"
+                  ? "bg-white text-gray-900 font-bold shadow-xs border border-gray-200"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              <Flame className="w-3 h-3 fill-current" />
-              Highly Interested
+              Highly Interested ({summary?.total_highly_interested || 0})
             </button>
             <button
               onClick={() => setInterestFilter("INTERESTED")}
-              className={`px-2.5 py-1 rounded-md font-medium transition flex items-center gap-1 cursor-pointer ${
-                interestFilter === "INTERESTED" ? "bg-amber-600 text-white font-bold shadow-xs" : "text-amber-700 hover:bg-amber-50"
+              className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+                interestFilter === "INTERESTED"
+                  ? "bg-white text-gray-900 font-bold shadow-xs border border-gray-200"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              <Star className="w-3 h-3 fill-current" />
-              Interested
-            </button>
-            <button
-              onClick={() => setInterestFilter("CLIENT_LEADS")}
-              className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
-                interestFilter === "CLIENT_LEADS" ? "bg-blue-600 text-white font-bold shadow-xs" : "text-blue-700 hover:bg-blue-50"
-              }`}
-            >
-              Lead-Initiated
+              Interested ({summary?.total_interested || 0})
             </button>
           </div>
 
@@ -275,13 +284,30 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
             className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
           >
             <option value="ALL">All Call Status</option>
-            <option value="YES">📞 Called (Yes)</option>
-            <option value="NO">⏳ Not Called (No)</option>
+            <option value="YES">Called (Yes)</option>
+            <option value="NO">Not Called (No)</option>
           </select>
+
+          {/* Rows Per Page Options (10, 50, 100) */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium pl-1">
+            <span>Show:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* ── Main Report Table ── */}
+      {/* ── Main Report Table (Clean Platform Look) ── */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
@@ -289,7 +315,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
               <tr>
                 <th
                   onClick={() => handleSort("interest_score")}
-                  className="px-5 py-3 cursor-pointer hover:bg-gray-100 transition select-none"
+                  className="px-5 py-3.5 cursor-pointer hover:bg-gray-100 transition select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Interest Level</span>
@@ -298,7 +324,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                 </th>
                 <th
                   onClick={() => handleSort("name")}
-                  className="px-5 py-3 cursor-pointer hover:bg-gray-100 transition select-none"
+                  className="px-5 py-3.5 cursor-pointer hover:bg-gray-100 transition select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Lead Name</span>
@@ -307,7 +333,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                 </th>
                 <th
                   onClick={() => handleSort("phone")}
-                  className="px-5 py-3 cursor-pointer hover:bg-gray-100 transition select-none"
+                  className="px-5 py-3.5 cursor-pointer hover:bg-gray-100 transition select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Phone Number</span>
@@ -316,64 +342,63 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                 </th>
                 <th
                   onClick={() => handleSort("city")}
-                  className="px-5 py-3 cursor-pointer hover:bg-gray-100 transition select-none"
+                  className="px-5 py-3.5 cursor-pointer hover:bg-gray-100 transition select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Location</span>
                     <ArrowUpDown className="w-3 h-3 text-gray-400" />
                   </div>
                 </th>
-                <th className="px-5 py-3">Inbound Origin</th>
-                <th className="px-5 py-3 text-center">Called Status</th>
+                <th className="px-5 py-3.5 text-center">Called Status</th>
                 <th
                   onClick={() => handleSort("last_message_time")}
-                  className="px-5 py-3 cursor-pointer hover:bg-gray-100 transition select-none"
+                  className="px-5 py-3.5 cursor-pointer hover:bg-gray-100 transition select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Last Interaction</span>
                     <ArrowUpDown className="w-3 h-3 text-gray-400" />
                   </div>
                 </th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400 text-xs font-medium">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-xs font-medium">
                     <div className="flex items-center justify-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+                      <RefreshCw className="w-4 h-4 animate-spin text-gray-600" />
                       <span>Analyzing lead conversations across database...</span>
                     </div>
                   </td>
                 </tr>
-              ) : sortedRecords.length === 0 ? (
+              ) : paginatedRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400 text-xs font-medium">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-xs font-medium">
                     No leads found matching the selected filters.
                   </td>
                 </tr>
               ) : (
-                sortedRecords.map((r) => {
+                paginatedRecords.map((r) => {
                   const isUpdating = callingPhone === r.phone;
 
                   return (
                     <tr key={r.phone} className="hover:bg-gray-50/80 transition">
-                      {/* Interest Badge */}
+                      {/* Interest Badge (Clean neutral styling) */}
                       <td className="px-5 py-3.5">
                         {r.interest_level === "HIGHLY_INTERESTED" ? (
-                          <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold rounded-md border border-rose-200 text-xs shadow-2xs">
-                            <Flame className="w-3.5 h-3.5 fill-current text-rose-600" />
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-900 font-bold rounded-md border border-gray-300 text-xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
                             <span>Highly Interested ({r.interest_score}%)</span>
                           </div>
                         ) : r.interest_level === "INTERESTED" ? (
-                          <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 font-semibold rounded-md border border-amber-200 text-xs">
-                            <Star className="w-3.5 h-3.5 fill-current text-amber-600" />
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-700 font-medium rounded-md border border-gray-200 text-xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
                             <span>Interested ({r.interest_score}%)</span>
                           </div>
                         ) : (
-                          <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-600 font-medium rounded-md text-xs">
-                            <span>General Inquiry ({r.interest_score}%)</span>
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-500 font-normal rounded-md border border-gray-200 text-xs">
+                            <span>General ({r.interest_score}%)</span>
                           </div>
                         )}
                         {r.detected_signals && r.detected_signals.length > 0 && (
@@ -381,7 +406,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                             {r.detected_signals.map((sig, idx) => (
                               <span
                                 key={idx}
-                                className="text-[9px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded font-medium"
+                                className="text-[9px] bg-gray-50 text-gray-500 border border-gray-200 px-1.5 py-0.2 rounded font-medium"
                               >
                                 {sig}
                               </span>
@@ -394,7 +419,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                       <td className="px-5 py-3.5 font-bold text-gray-900">
                         {r.name || "Customer"}
                         {r.total_orders > 0 && (
-                          <span className="block text-[10px] text-emerald-600 font-semibold mt-0.5">
+                          <span className="block text-[10px] text-gray-500 font-medium mt-0.5">
                             {r.total_orders} past order{r.total_orders > 1 ? "s" : ""}
                           </span>
                         )}
@@ -417,21 +442,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                         )}
                       </td>
 
-                      {/* Inbound Origin */}
-                      <td className="px-5 py-3.5 text-xs">
-                        {r.is_client_initiated ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                            Client Started Chat
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-gray-400">Outbound Template</span>
-                        )}
-                        <span className="block text-[10px] text-gray-400 mt-0.5">
-                          {r.inbound_count} client message{r.inbound_count !== 1 ? "s" : ""}
-                        </span>
-                      </td>
-
-                      {/* Called Yes/No Toggle */}
+                      {/* Called Yes/No Toggle (Clean neutral styling) */}
                       <td className="px-5 py-3.5 text-center">
                         <button
                           type="button"
@@ -442,15 +453,15 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                               ? `Called by ${r.called_by || "Agent"} on ${r.called_at ? formatToISTDate(r.called_at) : "recently"}. Tap to toggle No.`
                               : "Tap to mark as Called"
                           }
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition shadow-xs cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
                             r.is_called
-                              ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300"
-                              : "bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300"
+                              ? "bg-gray-900 text-white border border-gray-900 hover:bg-black shadow-xs"
+                              : "bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200"
                           } ${isUpdating ? "opacity-50 cursor-wait" : ""}`}
                         >
                           {r.is_called ? (
                             <>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                               <span>Yes</span>
                             </>
                           ) : (
@@ -468,9 +479,9 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                       </td>
 
                       {/* Last Message Preview & Time */}
-                      <td className="px-5 py-3.5 text-xs text-gray-500 max-w-[220px]">
+                      <td className="px-5 py-3.5 text-xs text-gray-500 max-w-[240px]">
                         <p className="truncate text-gray-800">
-                          {r.last_sender === "AGENT" && <span className="text-emerald-600 font-semibold mr-1">You:</span>}
+                          {r.last_sender === "AGENT" && <span className="text-gray-900 font-semibold mr-1">You:</span>}
                           {r.last_message_text || "No text"}
                         </p>
                         {r.last_message_time && (
@@ -485,7 +496,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                         <button
                           type="button"
                           onClick={() => onOpenChat && onOpenChat(r.phone)}
-                          className="inline-flex items-center gap-1 bg-[#25D366] hover:bg-[#20ba59] text-black font-bold text-xs px-3 py-1.5 rounded-lg shadow-xs transition cursor-pointer"
+                          className="inline-flex items-center gap-1 bg-gray-900 hover:bg-black text-white font-semibold text-xs px-3 py-1.5 rounded-lg shadow-xs transition cursor-pointer"
                           title="Open Live Chat for this Lead"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
@@ -498,6 +509,40 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ── Pagination Footer (10, 50, 100 per page) ── */}
+        <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+          <div>
+            Showing <strong className="text-gray-900">{totalCount > 0 ? startIndex + 1 : 0}</strong> to{" "}
+            <strong className="text-gray-900">{Math.min(startIndex + pageSize, totalCount)}</strong> of{" "}
+            <strong className="text-gray-900">{totalCount}</strong> leads
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={validCurrentPage <= 1}
+              className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              title="Previous Page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <span className="px-2 font-medium">
+              Page <strong className="text-gray-900">{validCurrentPage}</strong> of{" "}
+              <strong className="text-gray-900">{totalPages}</strong>
+            </span>
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={validCurrentPage >= totalPages}
+              className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              title="Next Page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
