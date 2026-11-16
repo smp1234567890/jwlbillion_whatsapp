@@ -195,6 +195,159 @@ def get_conversation_analysis(
     }
 
 
+@router.get("/lead-interest-report")
+def get_lead_interest_report(
+    interest: Optional[str] = Query(None, description="ALL, HIGHLY_INTERESTED, INTERESTED, CLIENT_LEADS"),
+    called: Optional[str] = Query(None, description="ALL, YES, NO"),
+    search: Optional[str] = Query(None),
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Dedicated reporting query for all chats analyzed for lead interest,
+    initiation type, called status, and timestamps.
+    """
+    from sqlalchemy import text
+    from services.lead_intent_service import analyze_conversation_interest
+
+    # 1. Fetch all customer threads with messages
+    query_str = """
+    SELECT 
+        lm.customer_phone,
+        COALESCE(c.name, 'Customer') as customer_name,
+        c.city as customer_city,
+        c.total_orders,
+        c.custom_attributes,
+        c.created_at as contact_created_at,
+        c.id as contact_id,
+        lm.text as last_message_text,
+        lm.created_at as last_message_time,
+        lm.sender_type as last_sender
+    FROM (
+        SELECT DISTINCT ON (customer_phone) 
+            customer_phone, text, sender_type, created_at, id
+        FROM chat_messages
+        ORDER BY customer_phone, created_at DESC, id DESC
+    ) lm
+    LEFT JOIN contacts c ON c.phone = lm.customer_phone
+    ORDER BY lm.created_at DESC;
+    """
+    rows = db.execute(text(query_str)).fetchall()
+    customer_phones = [r[0] for r in rows if r[0]]
+
+    # 2. Batch fetch messages for thread analysis
+    phone_messages_map = {p: [] for p in customer_phones}
+    if customer_phones:
+        all_msgs = (
+            db.query(models.ChatMessage.customer_phone, models.ChatMessage.sender_type, models.ChatMessage.text, models.ChatMessage.created_at)
+            .filter(models.ChatMessage.customer_phone.in_(customer_phones))
+            .order_by(models.ChatMessage.customer_phone, models.ChatMessage.created_at.asc())
+            .all()
+        )
+        for msg in all_msgs:
+            phone_messages_map[msg[0]].append({
+                "sender_type": msg[1],
+                "text": msg[2],
+                "created_at": msg[3]
+            })
+
+    results = []
+    total_highly_interested = 0
+    total_interested = 0
+    total_client_initiated = 0
+    total_called = 0
+
+    for r in rows:
+        phone = r[0]
+        name = r[1]
+        city = r[2]
+        total_orders = r[3] or 0
+        custom_attrs = r[4] or {}
+        contact_created_at = r[5]
+        contact_id = r[6]
+        last_msg_text = r[7]
+        last_msg_time = r[8]
+        last_sender = r[9]
+
+        thread_msgs = phone_messages_map.get(phone, [])
+        analysis = analyze_conversation_interest(thread_msgs)
+
+        called_info = custom_attrs.get("called_status") if isinstance(custom_attrs, dict) else {}
+        is_called = bool(called_info.get("called")) if isinstance(called_info, dict) else False
+        called_by = called_info.get("called_by") if isinstance(called_info, dict) else None
+        called_at = called_info.get("called_at") if isinstance(called_info, dict) else None
+
+        if analysis["interest_level"] == "HIGHLY_INTERESTED":
+            total_highly_interested += 1
+        elif analysis["interest_level"] == "INTERESTED":
+            total_interested += 1
+
+        if analysis["is_client_initiated"]:
+            total_client_initiated += 1
+
+        if is_called:
+            total_called += 1
+
+        # Apply Filters
+        if interest and interest != "ALL":
+            if interest == "HIGHLY_INTERESTED" and analysis["interest_level"] != "HIGHLY_INTERESTED":
+                continue
+            if interest == "INTERESTED" and analysis["interest_level"] != "INTERESTED":
+                continue
+            if interest == "CLIENT_LEADS" and not analysis["is_client_initiated"]:
+                continue
+
+        if called and called != "ALL":
+            if called == "YES" and not is_called:
+                continue
+            if called == "NO" and is_called:
+                continue
+
+        if search and search.strip():
+            s = search.strip().lower()
+            match_name = name and s in name.lower()
+            match_phone = phone and s in phone.lower()
+            match_city = city and s in city.lower()
+            match_signals = any(s in str(sig).lower() for sig in analysis["detected_signals"])
+            if not (match_name or match_phone or match_city or match_signals):
+                continue
+
+        results.append({
+            "contact_id": contact_id,
+            "phone": phone,
+            "name": name,
+            "city": city,
+            "total_orders": total_orders,
+            "contact_created_at": contact_created_at.isoformat() if contact_created_at else None,
+            "last_message_text": last_msg_text,
+            "last_message_time": last_msg_time.isoformat() if last_msg_time else None,
+            "last_sender": last_sender,
+            "is_client_initiated": analysis["is_client_initiated"],
+            "interest_level": analysis["interest_level"],
+            "interest_score": analysis["interest_score"],
+            "detected_signals": analysis["detected_signals"],
+            "inbound_count": analysis["inbound_count"],
+            "is_called": is_called,
+            "called_by": called_by,
+            "called_at": called_at
+        })
+
+    # Sort results: Highest interest score first, then newest message
+    results.sort(key=lambda x: (x["interest_score"], x["last_message_time"] or ""), reverse=True)
+
+    return {
+        "summary": {
+            "total_leads": len(rows),
+            "total_highly_interested": total_highly_interested,
+            "total_interested": total_interested,
+            "total_client_initiated": total_client_initiated,
+            "total_called": total_called,
+            "total_uncalled": max(0, len(rows) - total_called)
+        },
+        "records": results
+    }
+
+
 @router.get("/history/{phone}", response_model=List[schemas.ChatMessageResponse])
 @router.get("/messages/{phone}", response_model=List[schemas.ChatMessageResponse])
 def get_chat_history(

@@ -16,6 +16,7 @@ import {
   LogOut,
   IndianRupee,
   MessageSquare,
+  Flame,
   Search,
   Filter,
   ArrowUpDown,
@@ -91,6 +92,7 @@ import ShopifyProductsPage from "./pages/ShopifyProductsPage";
 import SegmentsPage from "./pages/SegmentsPage";
 import QuickRepliesPage from "./pages/QuickRepliesPage";
 import ChatAnalyticsPage from "./pages/ChatAnalyticsPage";
+import LeadInterestReportPage from "./pages/LeadInterestReportPage";
 import ConfirmModal from "./components/modals/ConfirmModal";
 
 const INITIAL_API_BASE_URL = getApiBaseUrl();
@@ -2541,6 +2543,7 @@ export default function App() {
                 isDropdown: true,
                 children: [
                   { id: "chat", label: "Chats", icon: MessageSquare },
+                  { id: "lead_report", label: "Lead Interest & Calling", icon: Flame },
                   { id: "quick_replies", label: "Quick Replies", icon: Sparkles },
                   { id: "chat_analytics", label: "Chat Analytics", icon: BarChart3 }
                 ]
@@ -2567,7 +2570,7 @@ export default function App() {
               const Icon = item.icon;
 
               if (item.isDropdown) {
-                const isGroupActive = activeTab === "chat" || activeTab === "chat_analytics" || activeTab === "quick_replies";
+                const isGroupActive = activeTab === "chat" || activeTab === "lead_report" || activeTab === "chat_analytics" || activeTab === "quick_replies";
                 return (
                   <div key={item.id} className="space-y-1">
                     <button
@@ -2789,6 +2792,8 @@ export default function App() {
                     ? "Opt-Out (DND) Registry"
                     : activeTab === "chat"
                     ? "Two-Way WhatsApp Live Chat / Inbox"
+                    : activeTab === "lead_report"
+                    ? "Lead Interest & Calling Report"
                     : activeTab === "support_chat"
                     ? "Support Chat (+91 8888478888)"
                     : activeTab === "chat_analytics"
@@ -3167,6 +3172,16 @@ export default function App() {
               onLoadMoreConversations={() => {}}
               hasMoreConversations={false}
               loadingMoreConversations={false}
+            />
+          )}
+
+          {activeTab === "lead_report" && (
+            <LeadInterestReportPage
+              token={token}
+              onOpenChat={(phone) => {
+                handleSelectConversation(phone);
+                handleTabChange("chat");
+              }}
             />
           )}
 

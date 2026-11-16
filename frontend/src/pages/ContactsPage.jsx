@@ -21,11 +21,7 @@ import {
   Code2,
   ExternalLink,
   ShieldCheck,
-  X,
-  MessageSquare,
-  PhoneCall,
-  CheckCircle2,
-  XCircle
+  X
 } from "lucide-react";
 import { formatToISTDate } from "../utils/dateUtils";
 
@@ -53,35 +49,12 @@ export default function ContactsPage({
   handleOpenAddContact,
   handleOpenEditContact,
   setIsCsvModalOpen,
-  onRefreshContacts,
-  onOpenChat
+  onRefreshContacts
 }) {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [syncingShopify, setSyncingShopify] = useState(false);
   const [shopifySyncResult, setShopifySyncResult] = useState(null);
   const [copiedKey, setCopiedKey] = useState("");
-  const [contactFilterInterest, setContactFilterInterest] = useState("ALL");
-  const [contactFilterCalled, setContactFilterCalled] = useState("ALL");
-  const [callingContactId, setCallingContactId] = useState(null);
-
-  const handleToggleCalled = async (contact) => {
-    try {
-      setCallingContactId(contact.id);
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `/api/contacts/${contact.id}/toggle-called`,
-        {},
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
-      if (onRefreshContacts) {
-        onRefreshContacts();
-      }
-    } catch (err) {
-      console.error("Failed to toggle called status:", err);
-    } finally {
-      setCallingContactId(null);
-    }
-  };
 
   const handleSyncShopify = async () => {
     setSyncingShopify(true);
@@ -221,19 +194,7 @@ export default function ContactsPage({
                     (contactFilterOrders === "5_9" && orders >= 5 && orders <= 9) ||
                     (contactFilterOrders === "10_PLUS" && orders >= 10);
 
-                  const matchesInterest =
-                    contactFilterInterest === "ALL" ||
-                    (contactFilterInterest === "HIGHLY_INTERESTED" && c.interest_level === "HIGHLY_INTERESTED") ||
-                    (contactFilterInterest === "INTERESTED" && c.interest_level === "INTERESTED") ||
-                    (contactFilterInterest === "CLIENT_LEADS" && c.is_client_initiated);
-
-                  const isCalled = Boolean(c.custom_attributes?.called_status?.called);
-                  const matchesCalled =
-                    contactFilterCalled === "ALL" ||
-                    (contactFilterCalled === "YES" && isCalled) ||
-                    (contactFilterCalled === "NO" && !isCalled);
-
-                  return matchesSearch && matchesCity && matchesTag && matchesVip && matchesOrders && matchesInterest && matchesCalled;
+                  return matchesSearch && matchesCity && matchesTag && matchesVip && matchesOrders;
                 });
 
                 // Sorting
@@ -259,9 +220,6 @@ export default function ContactsPage({
                   } else if (contactSortField === "created_at") {
                     valA = a.created_at ? new Date(a.created_at).getTime() : 0;
                     valB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                  } else if (contactSortField === "interest_score" || contactSortField === "interest") {
-                    valA = Number(a.interest_score) || 0;
-                    valB = Number(b.interest_score) || 0;
                   } else if (contactSortField === "id") {
                     valA = Number(a.id) || 0;
                     valB = Number(b.id) || 0;
@@ -348,35 +306,6 @@ export default function ContactsPage({
                           <option value="SUPER_VIP">⭐ Super VIP (10+ Orders)</option>
                           <option value="VIP"> VIP Buyer (5-9 Orders)</option>
                           <option value="REGULAR">Regular (&lt; 5 Orders)</option>
-                        </select>
-
-                        {/* Lead Interest Filter */}
-                        <select
-                          value={contactFilterInterest}
-                          onChange={(e) => {
-                            setContactFilterInterest(e.target.value);
-                            setContactsPage(1);
-                          }}
-                          className="bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#25D366]"
-                        >
-                          <option value="ALL">All Lead Intents</option>
-                          <option value="HIGHLY_INTERESTED">🔥 Highly Interested</option>
-                          <option value="INTERESTED">⭐ Interested</option>
-                          <option value="CLIENT_LEADS">🔵 Lead-Initiated</option>
-                        </select>
-
-                        {/* Called Status Filter */}
-                        <select
-                          value={contactFilterCalled}
-                          onChange={(e) => {
-                            setContactFilterCalled(e.target.value);
-                            setContactsPage(1);
-                          }}
-                          className="bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#25D366]"
-                        >
-                          <option value="ALL">All Call Status</option>
-                          <option value="YES">📞 Called (Yes)</option>
-                          <option value="NO">⏳ Not Called (No)</option>
                         </select>
 
                         {/* Order Volume Filter */}
@@ -475,16 +404,6 @@ export default function ContactsPage({
                                 <ArrowUpDown className={`w-3 h-3 ${contactSortField === "created_at" ? "text-emerald-600 font-bold" : "text-gray-400"}`} />
                               </div>
                             </th>
-                            <th
-                              onClick={() => handleSort("interest_score")}
-                              className="px-6 py-3 cursor-pointer hover:bg-gray-100/80 transition select-none"
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span>Interest</span>
-                                <ArrowUpDown className={`w-3 h-3 ${contactSortField === "interest_score" ? "text-emerald-600 font-bold" : "text-gray-400"}`} />
-                              </div>
-                            </th>
-                            <th className="px-6 py-3 text-center">Called</th>
                             <th className="px-6 py-3">VIP Status</th>
                             <th className="px-6 py-3 text-right">Actions</th>
                           </tr>
@@ -492,7 +411,7 @@ export default function ContactsPage({
                         <tbody className="divide-y divide-gray-100">
                           {paginatedContacts.length === 0 ? (
                             <tr>
-                              <td colSpan={9} className="px-6 py-10 text-center text-gray-400 text-xs font-medium">
+                              <td colSpan={8} className="px-6 py-10 text-center text-gray-400 text-xs font-medium">
                                 No contacts found matching the active filters or search.
                               </td>
                             </tr>
@@ -576,107 +495,6 @@ export default function ContactsPage({
                                       <span className="text-gray-400">—</span>
                                     )}
                                   </td>
-                                  <td className="px-6 py-4 text-center">
-                                    {(() => {
-                                      const calledInfo = c.custom_attributes?.called_status;
-                                      const isCalled = Boolean(calledInfo?.called);
-                                      const isUpdating = callingContactId === c.id;
-
-                                      return (
-                                        <button
-                                          type="button"
-                                          disabled={isUpdating}
-                                          onClick={() => handleToggleCalled(c)}
-                                          title={
-                                            isCalled
-                                              ? `Called by ${calledInfo?.called_by || 'Agent'} on ${calledInfo?.called_at ? formatToISTDate(calledInfo.called_at) : 'recently'}. Click to toggle No.`
-                                              : "Click to mark as Called"
-                                          }
-                                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition shadow-xs cursor-pointer ${
-                                            isCalled
-                                              ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300"
-                                              : "bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300"
-                                          } ${isUpdating ? "opacity-50 cursor-wait" : ""}`}
-                                        >
-                                          {isCalled ? (
-                                            <>
-                                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                                              <span>Yes</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <XCircle className="w-3.5 h-3.5 text-gray-400" />
-                                              <span>No</span>
-                                            </>
-                                          )}
-                                        </button>
-                                      );
-                                    })()}
-                                    {c.custom_attributes?.called_status?.called && (
-                                      <div className="text-[9px] text-gray-400 mt-1 truncate max-w-[110px] mx-auto" title={c.custom_attributes.called_status.called_by}>
-                                        by {c.custom_attributes.called_status.called_by || "Agent"}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    {c.interest_level === "HIGHLY_INTERESTED" ? (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                        🔥 High ({c.interest_score || 0}%)
-                                      </span>
-                                    ) : c.interest_level === "INTERESTED" ? (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                        ⭐ Warm ({c.interest_score || 0}%)
-                                      </span>
-                                    ) : c.is_client_initiated ? (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700">
-                                        Inbound Lead
-                                      </span>
-                                    ) : (
-                                      <span className="text-gray-400 text-xs italic">—</span>
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4 text-center">
-                                    {(() => {
-                                      const calledInfo = c.custom_attributes?.called_status;
-                                      const isCalled = Boolean(calledInfo?.called);
-                                      const isUpdating = callingContactId === c.id;
-
-                                      return (
-                                        <button
-                                          type="button"
-                                          disabled={isUpdating}
-                                          onClick={() => handleToggleCalled(c)}
-                                          title={
-                                            isCalled
-                                              ? `Called by ${calledInfo?.called_by || 'Agent'} on ${calledInfo?.called_at ? formatToISTDate(calledInfo.called_at) : 'recently'}. Click to toggle No.`
-                                              : "Click to mark as Called"
-                                          }
-                                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition shadow-xs cursor-pointer ${
-                                            isCalled
-                                              ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300"
-                                              : "bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300"
-                                          } ${isUpdating ? "opacity-50 cursor-wait" : ""}`}
-                                        >
-                                          {isCalled ? (
-                                            <>
-                                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                                              <span>Yes</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <XCircle className="w-3.5 h-3.5 text-gray-400" />
-                                              <span>No</span>
-                                            </>
-                                          )}
-                                        </button>
-                                      );
-                                    })()}
-                                    {c.custom_attributes?.called_status?.called && (
-                                      <div className="text-[9px] text-gray-400 mt-1 truncate max-w-[110px] mx-auto" title={c.custom_attributes.called_status.called_by}>
-                                        by {c.custom_attributes.called_status.called_by || "Agent"}
-                                      </div>
-                                    )}
-                                  </td>
                                   <td className="px-6 py-4">
                                     {orders >= 10 ? (
                                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
@@ -694,16 +512,6 @@ export default function ContactsPage({
                                   </td>
                                   <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                      {onOpenChat && (
-                                        <button
-                                          onClick={() => onOpenChat(c.phone)}
-                                          className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition flex items-center gap-1 font-semibold text-xs px-2.5 py-1 border border-emerald-200"
-                                          title="Open Live Chat with this contact"
-                                        >
-                                          <MessageSquare className="w-3.5 h-3.5" />
-                                          <span>Chat</span>
-                                        </button>
-                                      )}
                                       <button
                                         onClick={() => handleOpenEditContact(c)}
                                         className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
