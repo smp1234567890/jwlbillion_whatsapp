@@ -150,12 +150,12 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                     "rows": [
                         {
                             "id": "menu_request_voice_call",
-                            "title": "📞 Request WhatsApp Call",
+                            "title": "📞 Request Call",
                             "description": "Allow our team to call you on WhatsApp"
                         },
                         {
                             "id": "menu_talk_agent",
-                            "title": "👤 Talk to Jewelry Consultant",
+                            "title": "👤 Talk to Consultant",
                             "description": "Connect with a live jewelry consultant"
                         }
                     ]
