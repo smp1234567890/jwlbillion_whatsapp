@@ -363,14 +363,16 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
                 <th className="py-3 px-4">Customer Message</th>
                 <th className="py-3 px-4">Interactive Menu</th>
                 <th className="py-3 px-4">Our Reply</th>
-                <th className="py-3 px-4">Response Time</th>
+                <th className="py-3 px-4">Auto Response</th>
+                <th className="py-3 px-4">Manual Response</th>
+                <th className="py-3 px-4">Customer Took</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                  <td colSpan={9} className="py-12 text-center text-gray-400">
                     <div className="inline-flex items-center gap-2">
                       <RefreshCw className="w-4 h-4 animate-spin text-amber-500" />
                       Loading chat analytics data...
@@ -379,7 +381,7 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
                 </tr>
               ) : contactsList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                  <td colSpan={9} className="py-12 text-center text-gray-500">
                     No inbound customer messages found in this selected time range.
                   </td>
                 </tr>
@@ -440,15 +442,41 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
                       )}
                     </td>
 
-                    {/* Response Time */}
+                    {/* Auto Response Time */}
                     <td className="py-3 px-4 whitespace-nowrap text-gray-600">
-                      {item.response_time_minutes !== null ? (
-                        <span className="font-medium text-gray-900">
-                          {item.response_time_minutes === 0 || item.response_time_minutes < 0.1
-                            ? "< 5s (Instant)"
-                            : item.response_time_minutes < 1
-                            ? `${Math.round(item.response_time_minutes * 60)}s`
-                            : `${item.response_time_minutes} min`}
+                      {item.auto_response_time_minutes !== null && item.auto_response_time_minutes !== undefined ? (
+                        <span className="inline-flex items-center gap-1 font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
+                          {item.auto_response_time_minutes < 0.1
+                            ? "< 3s (Bot)"
+                            : `${Math.round(item.auto_response_time_minutes * 60)}s`}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+
+                    {/* Manual Response Time */}
+                    <td className="py-3 px-4 whitespace-nowrap text-gray-600">
+                      {item.manual_response_time_minutes !== null && item.manual_response_time_minutes !== undefined ? (
+                        <span className="inline-flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                          {item.manual_response_time_minutes < 1
+                            ? `${Math.round(item.manual_response_time_minutes * 60)}s (Agent)`
+                            : `${item.manual_response_time_minutes} min`}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 italic">No manual reply</span>
+                      )}
+                    </td>
+
+                    {/* Customer Response Time (Turnaround) */}
+                    <td className="py-3 px-4 whitespace-nowrap text-gray-600">
+                      {item.customer_response_time_minutes !== null && item.customer_response_time_minutes !== undefined ? (
+                        <span className="inline-flex items-center gap-1 font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                          {item.customer_response_time_minutes < 1
+                            ? `${Math.round(item.customer_response_time_minutes * 60)}s`
+                            : item.customer_response_time_minutes < 60
+                            ? `${item.customer_response_time_minutes} min`
+                            : `${Math.round(item.customer_response_time_minutes / 60 * 10) / 10} hrs`}
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>

@@ -643,7 +643,7 @@ def get_chat_inbox_analytics(
     }
 
     # Query 1: Find all unique inbound customer conversations within [start_dt, end_dt]
-    # and accurately compute response time per inquiry
+    # and accurately compute automated response time, manual response time, and customer turnaround time
     query_str = """
     WITH inbound_inquiries AS (
         SELECT 
@@ -694,10 +694,20 @@ def get_chat_inbox_analytics(
         GROUP BY ii.customer_phone
     ),
     turnaround_calc AS (
-        -- For each inbound customer message, measure the latency to our first reply after it
+        -- Automated response time: bot menu or bot reply without assigned_user_id
         SELECT 
             cm.customer_phone,
-            MIN(am.created_at - cm.created_at) as min_latency
+            MIN(am.created_at - cm.created_at) as min_latency,
+            MIN(CASE 
+                WHEN am.assigned_user_id IS NULL OR am.text ILIKE '%Sent interactive%' OR am.message_type = 'interactive'
+                THEN am.created_at - cm.created_at 
+                ELSE NULL 
+            END) as auto_latency,
+            MIN(CASE 
+                WHEN am.assigned_user_id IS NOT NULL AND am.text NOT ILIKE '%Sent interactive%' AND am.message_type != 'interactive'
+                THEN am.created_at - cm.created_at 
+                ELSE NULL 
+            END) as manual_latency
         FROM chat_messages cm
         JOIN chat_messages am 
           ON am.customer_phone = cm.customer_phone 
@@ -707,6 +717,22 @@ def get_chat_inbox_analytics(
           AND cm.created_at >= :start_dt
           AND cm.created_at <= :end_dt
         GROUP BY cm.customer_phone
+    ),
+    cust_wait_calc AS (
+        -- Customer response time: how long customer took to respond after an agent/bot message
+        SELECT 
+            am.customer_phone,
+            MIN(cm.created_at - am.created_at) as customer_reply_latency
+        FROM chat_messages am
+        JOIN chat_messages cm 
+          ON cm.customer_phone = am.customer_phone 
+         AND cm.sender_type = 'CUSTOMER' 
+         AND cm.created_at >= am.created_at
+        WHERE am.sender_type = 'AGENT'
+          AND am.created_at >= (:start_dt - INTERVAL '24 hours')
+          AND cm.created_at >= :start_dt
+          AND cm.created_at <= :end_dt
+        GROUP BY am.customer_phone
     )
     SELECT 
         ii.customer_phone,
@@ -720,11 +746,15 @@ def get_chat_inbox_analytics(
         oa.first_reply_time,
         COALESCE(oa.reply_count, 0) as reply_count,
         oa.last_reply_preview,
-        ROUND(EXTRACT(EPOCH FROM tc.min_latency) / 60.0, 1) as accurate_turnaround_mins
+        ROUND(EXTRACT(EPOCH FROM tc.min_latency) / 60.0, 1) as accurate_turnaround_mins,
+        ROUND(EXTRACT(EPOCH FROM tc.auto_latency) / 60.0, 2) as auto_response_mins,
+        ROUND(EXTRACT(EPOCH FROM tc.manual_latency) / 60.0, 1) as manual_response_mins,
+        ROUND(EXTRACT(EPOCH FROM cwc.customer_reply_latency) / 60.0, 1) as customer_response_mins
     FROM inbound_inquiries ii
     LEFT JOIN contacts c ON c.phone = ii.customer_phone
     LEFT JOIN outbound_after oa ON oa.customer_phone = ii.customer_phone
     LEFT JOIN turnaround_calc tc ON tc.customer_phone = ii.customer_phone
+    LEFT JOIN cust_wait_calc cwc ON cwc.customer_phone = ii.customer_phone
     ORDER BY ii.last_inbound_time DESC;
     """
 
@@ -772,6 +802,9 @@ def get_chat_inbox_analytics(
             "reply_time": r.first_reply_time.isoformat() if r.first_reply_time else None,
             "reply_count": r.reply_count,
             "response_time_minutes": response_time_minutes,
+            "auto_response_time_minutes": float(r.auto_response_mins) if r.auto_response_mins is not None else None,
+            "manual_response_time_minutes": float(r.manual_response_mins) if r.manual_response_mins is not None else None,
+            "customer_response_time_minutes": float(r.customer_response_mins) if r.customer_response_mins is not None else None,
             "last_reply_preview": r.last_reply_preview
         })
 
