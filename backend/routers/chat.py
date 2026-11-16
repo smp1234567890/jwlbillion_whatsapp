@@ -643,7 +643,7 @@ def get_chat_inbox_analytics(
     }
 
     # Query 1: Find all unique inbound customer conversations within [start_dt, end_dt]
-    # and find whether they got an interactive menu, and whether they got a reply
+    # and accurately compute response time per inquiry
     query_str = """
     WITH inbound_inquiries AS (
         SELECT 
@@ -669,7 +669,7 @@ def get_chat_inbox_analytics(
                 THEN m.created_at 
                 ELSE NULL 
             END) as first_interactive_time,
-            -- First reply sent by our team/bot (text or image or quick reply)
+            -- First reply sent by our team/bot (text, image, quick reply)
             MIN(CASE 
                 WHEN m.sender_type = 'AGENT' 
                  AND (m.text NOT ILIKE '%Sent interactive%' AND m.message_type != 'interactive')
@@ -692,6 +692,21 @@ def get_chat_inbox_analytics(
         FROM inbound_inquiries ii
         JOIN chat_messages m ON m.customer_phone = ii.customer_phone
         GROUP BY ii.customer_phone
+    ),
+    turnaround_calc AS (
+        -- For each inbound customer message, measure the latency to our first reply after it
+        SELECT 
+            cm.customer_phone,
+            MIN(am.created_at - cm.created_at) as min_latency
+        FROM chat_messages cm
+        JOIN chat_messages am 
+          ON am.customer_phone = cm.customer_phone 
+         AND am.sender_type = 'AGENT' 
+         AND am.created_at >= cm.created_at
+        WHERE cm.sender_type = 'CUSTOMER'
+          AND cm.created_at >= :start_dt
+          AND cm.created_at <= :end_dt
+        GROUP BY cm.customer_phone
     )
     SELECT 
         ii.customer_phone,
@@ -704,10 +719,12 @@ def get_chat_inbox_analytics(
         oa.first_interactive_time,
         oa.first_reply_time,
         COALESCE(oa.reply_count, 0) as reply_count,
-        oa.last_reply_preview
+        oa.last_reply_preview,
+        ROUND(EXTRACT(EPOCH FROM tc.min_latency) / 60.0, 1) as accurate_turnaround_mins
     FROM inbound_inquiries ii
     LEFT JOIN contacts c ON c.phone = ii.customer_phone
     LEFT JOIN outbound_after oa ON oa.customer_phone = ii.customer_phone
+    LEFT JOIN turnaround_calc tc ON tc.customer_phone = ii.customer_phone
     ORDER BY ii.last_inbound_time DESC;
     """
 
@@ -730,7 +747,11 @@ def get_chat_inbox_analytics(
             replied_count += 1
 
         response_time_minutes = None
-        if r.first_reply_time and r.first_inbound_time:
+        if r.accurate_turnaround_mins is not None:
+            response_time_minutes = float(r.accurate_turnaround_mins)
+            total_response_time_seconds += (response_time_minutes * 60.0)
+            measured_replies += 1
+        elif r.first_reply_time and r.first_inbound_time:
             diff_secs = (r.first_reply_time - r.first_inbound_time).total_seconds()
             if diff_secs >= 0:
                 response_time_minutes = round(diff_secs / 60.0, 1)
