@@ -378,10 +378,28 @@ async def send_chat_media_message(
 
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
-    saved_filename = f"{uuid.uuid4().hex}_{orig_filename}"
-    local_path = os.path.join(upload_dir, saved_filename)
-    with open(local_path, "wb") as f_out:
-        f_out.write(file_bytes)
+
+    # Content-hash deduplication: check if identical file was already uploaded
+    file_hash = hashlib.sha256(file_bytes).hexdigest()[:16]
+    ext = os.path.splitext(orig_filename)[1].lower()
+    existing_match = None
+    try:
+        for fname in os.listdir(upload_dir):
+            if f"_{file_hash}" in fname or fname.startswith(f"hash_{file_hash}"):
+                existing_match = fname
+                break
+    except Exception:
+        pass
+
+    if existing_match:
+        saved_filename = existing_match
+        logger.info(f"[Chat Media Deduplication] Reused existing upload: {saved_filename}")
+    else:
+        clean_base = os.path.splitext(orig_filename)[0].replace(" ", "_")[:24]
+        saved_filename = f"hash_{file_hash}_{clean_base}{ext}"
+        local_path = os.path.join(upload_dir, saved_filename)
+        with open(local_path, "wb") as f_out:
+            f_out.write(file_bytes)
 
     relative_media_url = f"/uploads/{saved_filename}"
 

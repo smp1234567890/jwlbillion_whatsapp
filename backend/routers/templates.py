@@ -10,6 +10,7 @@ from typing import Optional
 
 import os
 import uuid
+import hashlib
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy import text
@@ -433,35 +434,61 @@ async def upload_template_media(
 
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
-    saved_filename = f"template_{uuid.uuid4().hex[:8]}_{orig_filename}"
-    local_path = os.path.join(upload_dir, saved_filename)
-    with open(local_path, "wb") as f_out:
-        f_out.write(file_bytes)
+
+    # Content-hash deduplication: check if identical file was already uploaded
+    file_hash = hashlib.sha256(file_bytes).hexdigest()[:16]
+    ext = os.path.splitext(orig_filename)[1].lower()
+    existing_match = None
+    try:
+        for fname in os.listdir(upload_dir):
+            if f"_{file_hash}" in fname or fname.startswith(f"hash_{file_hash}"):
+                existing_match = fname
+                break
+    except Exception:
+        pass
+
+    if existing_match:
+        saved_filename = existing_match
+        local_path = os.path.join(upload_dir, saved_filename)
+        logger.info(f"[Deduplication] Reused existing identical upload: {saved_filename}")
+    else:
+        clean_base = os.path.splitext(orig_filename)[0].replace(" ", "_")[:24]
+        saved_filename = f"hash_{file_hash}_{clean_base}{ext}"
+        local_path = os.path.join(upload_dir, saved_filename)
+        with open(local_path, "wb") as f_out:
+            f_out.write(file_bytes)
 
     # If it is a video, automatically transcode to Meta-compliant H.264/AAC with FastStart
-    if is_video:
+    if is_video and not saved_filename.startswith("transcoded_"):
         transcoded_path = os.path.join(upload_dir, f"transcoded_{saved_filename}")
         if not transcoded_path.lower().endswith(".mp4"):
             transcoded_path = f"{os.path.splitext(transcoded_path)[0]}.mp4"
-        transcode_ok = transcode_video_for_meta(local_path, transcoded_path)
-        if transcode_ok and os.path.exists(transcoded_path):
+        
+        if os.path.exists(transcoded_path):
             with open(transcoded_path, "rb") as f_tc:
                 file_bytes = f_tc.read()
             mime_type = "video/mp4"
             saved_filename = os.path.basename(transcoded_path)
-            orig_filename = f"{os.path.splitext(orig_filename)[0]}.mp4"
-            try:
-                os.remove(local_path)
-            except Exception:
-                pass
         else:
-            # Fall back to pure-python FastStart if ffmpeg is not ready
-            try:
-                file_bytes = optimize_mp4_faststart(file_bytes)
-                with open(local_path, "wb") as f_out:
-                    f_out.write(file_bytes)
-            except Exception as e:
-                logger.warning(f"Faststart fallback skipped: {e}")
+            transcode_ok = transcode_video_for_meta(local_path, transcoded_path)
+            if transcode_ok and os.path.exists(transcoded_path):
+                with open(transcoded_path, "rb") as f_tc:
+                    file_bytes = f_tc.read()
+                mime_type = "video/mp4"
+                saved_filename = os.path.basename(transcoded_path)
+                orig_filename = f"{os.path.splitext(orig_filename)[0]}.mp4"
+                try:
+                    os.remove(local_path)
+                except Exception:
+                    pass
+            else:
+                # Fall back to pure-python FastStart if ffmpeg is not ready
+                try:
+                    file_bytes = optimize_mp4_faststart(file_bytes)
+                    with open(local_path, "wb") as f_out:
+                        f_out.write(file_bytes)
+                except Exception as e:
+                    logger.warning(f"Faststart fallback skipped: {e}")
 
     relative_url = f"/uploads/{saved_filename}"
 
