@@ -1557,12 +1557,17 @@ async def receive_inbound_whatsapp_message(
                     if isinstance(contacts_list, list) and len(contacts_list) > 0 and isinstance(contacts_list[0], dict):
                         profile_name = contacts_list[0].get("profile", {}).get("name") or "New WhatsApp Lead"
 
+                    # Check if this message was sent to our dedicated support number or is from support
+                    metadata_phone = value.get("metadata", {}).get("display_phone_number", "")
+                    support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+                    is_support = (sender_phone == support_phone_clean) or (metadata_phone and normalize_phone(metadata_phone) == support_phone_clean)
+
                     new_contact = models.Contact(
                         phone=sender_phone,
-                        name=profile_name,
+                        name=profile_name if not is_support else f"Support: {profile_name}",
                         total_orders=0,
-                        tags="Inbound Lead",
-                        city="WhatsApp"
+                        tags="Support Lead" if is_support else "Inbound Lead",
+                        city="Support Desk" if is_support else "WhatsApp"
                     )
                     db.add(new_contact)
 

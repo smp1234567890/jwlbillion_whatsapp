@@ -121,26 +121,52 @@ def list_contacts(
 
     contacts = query.order_by(models.Contact.id.desc()).offset(skip).limit(effective_limit).all()
 
-    is_privileged = current_user.role in ("admin", "manager")
-    return [
-        schemas.ContactListItemResponse(
-            id=c.id,
-            phone=c.phone if is_privileged else pii_service.mask_phone(c.phone),
-            name=c.name,
-            email=c.email if is_privileged else pii_service.mask_email(c.email),
-            total_orders=c.total_orders or 0,
-            last_order_date=c.last_order_date,
-            city=c.city,
-            tags=c.tags,
-            birth_day=c.birth_day,
-            birth_month=c.birth_month,
-            is_active=c.is_active,
-            assigned_user_id=c.assigned_user_id,
-            custom_attributes=c.custom_attributes or {},
-            created_at=c.created_at
+    from services.lead_intent_service import analyze_conversation_interest
+    contact_phones = [c.phone for c in contacts if c.phone]
+    phone_messages_map = {p: [] for p in contact_phones}
+    if contact_phones:
+        all_msgs = (
+            db.query(models.ChatMessage.customer_phone, models.ChatMessage.sender_type, models.ChatMessage.text, models.ChatMessage.created_at)
+            .filter(models.ChatMessage.customer_phone.in_(contact_phones))
+            .order_by(models.ChatMessage.customer_phone, models.ChatMessage.created_at.asc())
+            .all()
         )
-        for c in contacts
-    ]
+        for msg in all_msgs:
+            phone_messages_map[msg[0]].append({
+                "sender_type": msg[1],
+                "text": msg[2],
+                "created_at": msg[3]
+            })
+
+    is_privileged = current_user.role in ("admin", "manager")
+    items = []
+    for c in contacts:
+        thread_msgs = phone_messages_map.get(c.phone, [])
+        analysis = analyze_conversation_interest(thread_msgs)
+
+        items.append(
+            schemas.ContactListItemResponse(
+                id=c.id,
+                phone=c.phone if is_privileged else pii_service.mask_phone(c.phone),
+                name=c.name,
+                email=c.email if is_privileged else pii_service.mask_email(c.email),
+                total_orders=c.total_orders or 0,
+                last_order_date=c.last_order_date,
+                city=c.city,
+                tags=c.tags,
+                birth_day=c.birth_day,
+                birth_month=c.birth_month,
+                is_active=c.is_active,
+                assigned_user_id=c.assigned_user_id,
+                custom_attributes=c.custom_attributes or {},
+                created_at=c.created_at,
+                is_client_initiated=analysis["is_client_initiated"],
+                interest_level=analysis["interest_level"],
+                interest_score=analysis["interest_score"],
+                detected_signals=analysis["detected_signals"]
+            )
+        )
+    return items
 
 
 @router.get("/{contact_id}", response_model=schemas.ContactResponse)
@@ -218,6 +244,52 @@ def update_contact(
     db.commit()
     db.refresh(contact)
     return contact
+
+
+@router.post("/{contact_id}/toggle-called")
+def toggle_contact_called(
+    contact_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Toggles the called status (Yes/No) for a contact with timestamp and user tracking.
+    """
+    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    pii_service.verify_contact_access(current_user, contact)
+
+    attrs = dict(contact.custom_attributes or {})
+    called_info = attrs.get("called_status") or {}
+    current_status = called_info.get("called", False)
+    new_status = not current_status
+
+    if new_status:
+        attrs["called_status"] = {
+            "called": True,
+            "called_by": current_user.name or current_user.email,
+            "called_at": datetime.utcnow().isoformat()
+        }
+    else:
+        attrs["called_status"] = {
+            "called": False,
+            "called_by": None,
+            "called_at": None
+        }
+
+    contact.custom_attributes = attrs
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(contact, "custom_attributes")
+    db.commit()
+    db.refresh(contact)
+
+    return {
+        "status": "success",
+        "contact_id": contact.id,
+        "called_status": attrs["called_status"]
+    }
 
 
 @router.post("/{contact_id}/assign", response_model=schemas.ContactResponse)

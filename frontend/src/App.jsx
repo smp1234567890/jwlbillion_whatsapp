@@ -69,7 +69,8 @@ import {
   Menu,
   X,
   ChevronDown,
-  Globe
+  Globe,
+  Headphones
 } from "lucide-react";
 import axios, { getApiBaseUrl, renderProductionUrl as RENDER_PROD_URL, setApiBaseUrl, cachedGet, invalidateCache, isNativePlatform } from "./api";
 import FlowchartCanvas from "./components/FlowchartCanvas";
@@ -164,7 +165,7 @@ export default function App() {
   const getInitialTab = () => {
     if (isNativePlatform) return "chat";
     const hash = window.location.hash.replace("#", "");
-    if (hash && ["dashboard", "chat", "quick_replies", "automations", "campaigns", "analytics", "performance", "templates", "contacts", "logs", "opt_out", "settings"].includes(hash)) {
+    if (hash && ["dashboard", "chat", "support_chat", "quick_replies", "automations", "campaigns", "analytics", "performance", "templates", "contacts", "logs", "opt_out", "settings"].includes(hash)) {
       return hash;
     }
     return localStorage.getItem("activeTab") || "dashboard";
@@ -391,6 +392,15 @@ export default function App() {
   const isInitialChatLoadRef = useRef(true);
   const lastKnownIncomingSignatureRef = useRef(null);
   const isInitialConversationsLoadRef = useRef(true);
+
+  // Dedicated Support Chat States (+91 8888478888)
+  const SUPPORT_PHONE_NUMBER = "+918888478888";
+  const [supportConversations, setSupportConversations] = useState([]);
+  const [selectedSupportPhone, setSelectedSupportPhone] = useState("+918888478888");
+  const [supportMessages, setSupportMessages] = useState([]);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [supportReplyText, setSupportReplyText] = useState("");
+  const [supportSending, setSupportSending] = useState(false);
 
 
   // Pleasant Web Audio Chime for Live Chat Incoming Messages (Zero external MP3 dependencies)
@@ -2900,6 +2910,10 @@ export default function App() {
               handleOpenEditContact={handleOpenEditContact}
               setIsCsvModalOpen={setIsCsvModalOpen}
               onRefreshContacts={() => fetchData(true)}
+              onOpenChat={(phone) => {
+                handleSelectConversation(phone);
+                handleTabChange("chat");
+              }}
             />
           )}
 

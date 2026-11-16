@@ -34,6 +34,7 @@ def list_conversations(
     offset: int = Query(0, ge=0),
     search: Optional[str] = Query(None),
     unread_only: bool = Query(False),
+    support_only: bool = Query(False),
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -54,6 +55,18 @@ def list_conversations(
 
     if unread_only:
         where_clauses.append("COALESCE(u.unread_count, 0) > 0")
+
+    support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+
+    if support_only:
+        # Show only conversations for the designated support number
+        where_clauses.append("lm.customer_phone = :support_phone")
+        params["support_phone"] = support_phone_clean
+    else:
+        # Regular live chat inbox shows all conversations except isolated support-only thread
+        if support_phone_clean:
+            where_clauses.append("lm.customer_phone != :support_phone")
+            params["support_phone"] = support_phone_clean
 
     if search and search.strip():
         where_clauses.append("(c.name ILIKE :search OR lm.customer_phone ILIKE :search OR lm.text ILIKE :search)")
@@ -96,14 +109,37 @@ def list_conversations(
     rows = db.execute(text(query_str), params).fetchall()
 
     import json
+    from services.lead_intent_service import analyze_conversation_interest
+
+    # Fetch messages for all retrieved phones in a single batch query for fast analysis
+    customer_phones = [r[0] for r in rows if r[0]]
+    phone_messages_map = {p: [] for p in customer_phones}
+    if customer_phones:
+        all_msgs = (
+            db.query(models.ChatMessage.customer_phone, models.ChatMessage.sender_type, models.ChatMessage.text, models.ChatMessage.created_at)
+            .filter(models.ChatMessage.customer_phone.in_(customer_phones))
+            .order_by(models.ChatMessage.customer_phone, models.ChatMessage.created_at.asc())
+            .all()
+        )
+        for msg in all_msgs:
+            phone_messages_map[msg[0]].append({
+                "sender_type": msg[1],
+                "text": msg[2],
+                "created_at": msg[3]
+            })
+
     summaries = []
     for r in rows:
+        phone = r[0]
         last_order = r[8]
         if isinstance(last_order, str):
             try:
                 last_order = json.loads(last_order)
             except Exception:
                 last_order = None
+
+        thread_msgs = phone_messages_map.get(phone, [])
+        analysis = analyze_conversation_interest(thread_msgs)
 
         summaries.append(schemas.ChatConversationSummary(
             customer_phone=r[0],
@@ -114,10 +150,49 @@ def list_conversations(
             last_message_text=r[5],
             last_message_time=r[6],
             last_sender=r[7],
-            last_order=last_order
+            last_order=last_order,
+            is_client_initiated=analysis["is_client_initiated"],
+            interest_level=analysis["interest_level"],
+            interest_score=analysis["interest_score"],
+            detected_signals=analysis["detected_signals"],
+            inbound_count=analysis["inbound_count"]
         ))
 
     return summaries
+
+
+@router.get("/analysis/{phone}")
+def get_conversation_analysis(
+    phone: str,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Detailed lead interest and conversation analysis for a specific chat thread.
+    """
+    try:
+        clean_phone = normalize_phone(phone)
+    except InvalidPhoneNumberError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    pii_service.verify_conversation_access(db, current_user, clean_phone)
+    from services.lead_intent_service import analyze_conversation_interest
+
+    msgs = (
+        db.query(models.ChatMessage)
+        .filter(models.ChatMessage.customer_phone == clean_phone)
+        .order_by(models.ChatMessage.created_at.asc())
+        .all()
+    )
+    raw_msgs = [
+        {"sender_type": m.sender_type, "text": m.text, "created_at": m.created_at}
+        for m in msgs
+    ]
+    analysis = analyze_conversation_interest(raw_msgs)
+    return {
+        "customer_phone": clean_phone,
+        **analysis
+    }
 
 
 @router.get("/history/{phone}", response_model=List[schemas.ChatMessageResponse])
@@ -255,7 +330,14 @@ def send_agent_reply(
             .first()
         )
 
-        if config.WHATSAPP_API_TOKEN and config.WHATSAPP_PHONE_NUMBER_ID and not last_inbound_msg:
+        # Determine if this message is routed to/from the dedicated Support number
+        support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+        is_support_chat = (clean_phone == support_phone_clean)
+
+        active_token = config.SUPPORT_WHATSAPP_API_TOKEN if (is_support_chat and config.SUPPORT_WHATSAPP_API_TOKEN) else config.WHATSAPP_API_TOKEN
+        active_phone_id = config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID if (is_support_chat and config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID) else config.WHATSAPP_PHONE_NUMBER_ID
+
+        if active_token and active_phone_id and not last_inbound_msg:
             logger.warning(f"[Chat Service Window] Customer {clean_phone} is outside Meta's 24-hour service window.")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -272,8 +354,15 @@ def send_agent_reply(
                 detail=f"Daily outbound message limit reached ({count_today}/{effective_limit}). Outbound message blocked."
             )
 
-        # Dispatch via whatsapp_service
-        res = send_whatsapp_free_text(clean_phone, payload.text)
+        # Dispatch via whatsapp_service using the dedicated credentials if support
+        res = send_whatsapp_free_text(
+            clean_phone,
+            payload.text,
+            sender_user=current_user.username,
+            db=db,
+            phone_number_id=active_phone_id,
+            api_token=active_token
+        )
         msg_id = res.get("message_id")
         status_str = "SENT" if res.get("status") in ["success", "success_simulated"] else "FAILED"
 
@@ -349,7 +438,14 @@ async def send_chat_media_message(
         .first()
     )
 
-    if config.WHATSAPP_API_TOKEN and config.WHATSAPP_PHONE_NUMBER_ID and not last_inbound_msg:
+    # Determine if this message is routed to/from the dedicated Support number
+    support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+    is_support_chat = (clean_phone == support_phone_clean)
+
+    active_token = config.SUPPORT_WHATSAPP_API_TOKEN if (is_support_chat and config.SUPPORT_WHATSAPP_API_TOKEN) else config.WHATSAPP_API_TOKEN
+    active_phone_id = config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID if (is_support_chat and config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID) else config.WHATSAPP_PHONE_NUMBER_ID
+
+    if active_token and active_phone_id and not last_inbound_msg:
         logger.warning(f"[Chat Media Service Window] Customer {clean_phone} is outside Meta's 24-hour service window.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -404,7 +500,13 @@ async def send_chat_media_message(
     relative_media_url = f"/uploads/{saved_filename}"
 
     # Upload to Meta Cloud API to obtain media_id
-    upload_res = upload_media_to_meta(file_bytes, mime_type, orig_filename)
+    upload_res = upload_media_to_meta(
+        file_bytes,
+        mime_type,
+        orig_filename,
+        phone_number_id=active_phone_id,
+        api_token=active_token
+    )
     meta_media_id = upload_res.get("media_id")
 
     # Dispatch to customer via WhatsApp
@@ -415,7 +517,9 @@ async def send_chat_media_message(
         caption=caption,
         filename=orig_filename,
         sender_user=current_user.username,
-        db=db
+        db=db,
+        phone_number_id=active_phone_id,
+        api_token=active_token
     )
 
     msg_id = res.get("message_id")
@@ -476,11 +580,17 @@ def react_to_chat_message(
     # If the message has an active WhatsApp wamid, send reaction to Meta API
     meta_result = None
     if msg.meta_message_id:
+        support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+        is_support_chat = (msg.customer_phone == support_phone_clean)
+        active_token = config.SUPPORT_WHATSAPP_API_TOKEN if (is_support_chat and config.SUPPORT_WHATSAPP_API_TOKEN) else config.WHATSAPP_API_TOKEN
+        active_phone_id = config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID if (is_support_chat and config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID) else config.WHATSAPP_PHONE_NUMBER_ID
         try:
             meta_result = send_whatsapp_reaction(
                 recipient_phone=msg.customer_phone,
                 target_meta_message_id=msg.meta_message_id,
-                emoji=target_emoji
+                emoji=target_emoji,
+                phone_number_id=active_phone_id,
+                api_token=active_token
             )
         except Exception as e:
             logger.warning(f"Failed to sync reaction to Meta for message {msg.id}: {e}")

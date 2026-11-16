@@ -84,6 +84,11 @@ class ContactListItemResponse(BaseModel):
     assigned_user_id: Optional[int] = None
     custom_attributes: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
+    # Inbound Lead Interest Fields
+    is_client_initiated: bool = False
+    interest_level: str = "LOW_INTEREST"
+    interest_score: int = 0
+    detected_signals: List[str] = []
 
     class Config:
         from_attributes = True
@@ -489,6 +494,12 @@ class ChatConversationSummary(BaseModel):
     last_message_time: Optional[datetime] = None
     last_sender: Optional[str] = None
     last_order: Optional[Dict[str, Any]] = None
+    # Inbound Lead Interest Fields
+    is_client_initiated: bool = False
+    interest_level: str = "LOW_INTEREST"  # HIGHLY_INTERESTED, INTERESTED, LOW_INTEREST, OUTBOUND_ONLY, NOT_INTERESTED
+    interest_score: int = 0
+    detected_signals: List[str] = []
+    inbound_count: int = 0
 
 
 class WorkflowFlowCreate(BaseModel):

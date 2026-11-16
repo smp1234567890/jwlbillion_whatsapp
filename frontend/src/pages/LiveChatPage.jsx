@@ -95,6 +95,7 @@ export default function LiveChatPage({
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [callStatusMsg, setCallStatusMsg] = useState("");
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [leadInterestTab, setLeadInterestTab] = useState("ALL"); // ALL | HIGHLY_INTERESTED | INTERESTED | CLIENT_LEADS
   const profileDrawerOpenRef = useRef(false);
 
   useEffect(() => {
@@ -673,6 +674,63 @@ export default function LiveChatPage({
                 {chatConversations.length} conversation{chatConversations.length !== 1 ? "s" : ""}
               </span>
             </div>
+
+            {/* Inbound Lead Analysis Sub-Sections */}
+            <div className="mt-2.5 pt-2 border-t border-gray-100">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center justify-between">
+                <span>Inbound Lead Intent</span>
+                <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded font-semibold">AI Analyzed</span>
+              </div>
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setLeadInterestTab("ALL")}
+                  className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition cursor-pointer ${
+                    leadInterestTab === "ALL"
+                      ? "bg-gray-900 text-white shadow-xs"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  All ({chatConversations.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadInterestTab("HIGHLY_INTERESTED")}
+                  className={`px-2 py-1 rounded-md font-semibold whitespace-nowrap transition flex items-center gap-1 cursor-pointer ${
+                    leadInterestTab === "HIGHLY_INTERESTED"
+                      ? "bg-rose-600 text-white shadow-xs"
+                      : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                  Highly Interested ({chatConversations.filter((c) => c.interest_level === "HIGHLY_INTERESTED").length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadInterestTab("INTERESTED")}
+                  className={`px-2 py-1 rounded-md font-medium whitespace-nowrap transition flex items-center gap-1 cursor-pointer ${
+                    leadInterestTab === "INTERESTED"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  Interested ({chatConversations.filter((c) => c.interest_level === "INTERESTED").length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadInterestTab("CLIENT_LEADS")}
+                  className={`px-2 py-1 rounded-md font-medium whitespace-nowrap transition flex items-center gap-1 cursor-pointer ${
+                    leadInterestTab === "CLIENT_LEADS"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  }`}
+                  title="Chats started from Client/Lead side"
+                >
+                  Lead-Initiated ({chatConversations.filter((c) => c.is_client_initiated).length})
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Conversation List */}
@@ -680,6 +738,10 @@ export default function LiveChatPage({
             {chatConversations
               .filter((conv) => {
                 if (chatFilterUnreadOnly && (conv.unread_count || 0) === 0) return false;
+                if (leadInterestTab === "HIGHLY_INTERESTED" && conv.interest_level !== "HIGHLY_INTERESTED") return false;
+                if (leadInterestTab === "INTERESTED" && conv.interest_level !== "INTERESTED") return false;
+                if (leadInterestTab === "CLIENT_LEADS" && !conv.is_client_initiated) return false;
+
                 if (!searchTerm.trim()) return true;
                 const q = searchTerm.toLowerCase();
                 return (
@@ -687,6 +749,15 @@ export default function LiveChatPage({
                   conv.customer_phone.includes(q) ||
                   (conv.last_message_text && conv.last_message_text.toLowerCase().includes(q))
                 );
+              })
+              .sort((a, b) => {
+                if (leadInterestTab === "HIGHLY_INTERESTED" || leadInterestTab === "INTERESTED" || leadInterestTab === "CLIENT_LEADS") {
+                  // Sort by interest_score descending, then by last message time
+                  if ((b.interest_score || 0) !== (a.interest_score || 0)) {
+                    return (b.interest_score || 0) - (a.interest_score || 0);
+                  }
+                }
+                return 0; // maintain default date order
               })
               .map((conv) => {
                 const isSelected = selectedChatPhone === conv.customer_phone;
@@ -751,14 +822,29 @@ export default function LiveChatPage({
                         )}
                       </div>
 
-                      {/* City & Orders Tag */}
-                      <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-gray-400">
+                      {/* City, Orders & Interest Badges */}
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px] text-gray-400">
                         <span className="font-mono">{conv.customer_phone}</span>
                         {conv.customer_city && (
                           <>
                             <span>•</span>
                             <span>{conv.customer_city}</span>
                           </>
+                        )}
+                        {conv.interest_level === "HIGHLY_INTERESTED" && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-rose-50 text-rose-700 font-bold rounded text-[9px] border border-rose-200">
+                            🔥 Highly Interested
+                          </span>
+                        )}
+                        {conv.interest_level === "INTERESTED" && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-amber-50 text-amber-700 font-semibold rounded text-[9px] border border-amber-200">
+                            ⭐ Interested
+                          </span>
+                        )}
+                        {conv.is_client_initiated && (
+                          <span className="inline-flex items-center px-1.5 py-0.2 bg-blue-50 text-blue-700 font-medium rounded text-[9px]" title="Client initiated conversation">
+                            Inbound Lead
+                          </span>
                         )}
                       </div>
                     </div>

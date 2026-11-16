@@ -915,7 +915,9 @@ def send_whatsapp_free_text(
     message_text: str,
     sender_user: str = "Agent",
     db: Optional[Session] = None,
-    bypass_policy: bool = False
+    bypass_policy: bool = False,
+    phone_number_id: Optional[str] = None,
+    api_token: Optional[str] = None
 ) -> dict:
     """
     Sends a free-form customer service text message (used within Meta's 24-hour service window).
@@ -926,6 +928,9 @@ def send_whatsapp_free_text(
         db = SessionLocal()
         owns_db = True
     try:
+        active_phone_id = phone_number_id or WHATSAPP_PHONE_NUMBER_ID
+        active_token = api_token or WHATSAPP_API_TOKEN
+
         if not bypass_policy:
             is_auth, auth_reason = authorize_outbound_message(
                 db=db,
@@ -952,7 +957,7 @@ def send_whatsapp_free_text(
         clean_phone = normalize_phone(recipient_phone)
 
         # Check if simulated or live
-        if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+        if not active_token or not active_phone_id:
             mock_id = f"sim_chat_{int(datetime.utcnow().timestamp())}"
             logger.info(f"[SIMULATED 2-WAY CHAT] Agent sent to {mask_phone(clean_phone)}: '{message_text}'")
             return {
@@ -962,7 +967,7 @@ def send_whatsapp_free_text(
             }
 
         headers = {
-            "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
+            "Authorization": f"Bearer {active_token}",
             "Content-Type": "application/json"
         }
 
@@ -977,8 +982,9 @@ def send_whatsapp_free_text(
             }
         }
 
+        url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{active_phone_id}/messages"
         with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
-            resp = client.post(META_API_URL, headers=headers, json=payload)
+            resp = client.post(url, headers=headers, json=payload)
             data = resp.json()
             if resp.status_code == 200:
                 msg_id = data.get("messages", [{}])[0].get("id", "")
@@ -1091,19 +1097,28 @@ def upload_template_sample_to_meta(file_bytes: bytes, mime_type: str, filename: 
         return {"status": "error", "error": str(e)}
 
 
-def upload_media_to_meta(file_bytes: bytes, mime_type: str, filename: str) -> dict:
+def upload_media_to_meta(
+    file_bytes: bytes,
+    mime_type: str,
+    filename: str,
+    phone_number_id: Optional[str] = None,
+    api_token: Optional[str] = None
+) -> dict:
     """
     Uploads a file directly to Meta's Cloud API media endpoint:
     POST /v19.0/{PHONE_NUMBER_ID}/media
     Returns {"status": "success", "media_id": "..."} or {"status": "failed", "error": "..."}.
     """
-    if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+    active_phone_id = phone_number_id or WHATSAPP_PHONE_NUMBER_ID
+    active_token = api_token or WHATSAPP_API_TOKEN
+
+    if not active_token or not active_phone_id:
         mock_id = f"sim_media_{int(datetime.utcnow().timestamp())}"
         return {"status": "success_simulated", "media_id": mock_id}
 
-    url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/media"
+    url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{active_phone_id}/media"
     headers = {
-        "Authorization": f"Bearer {WHATSAPP_API_TOKEN}"
+        "Authorization": f"Bearer {active_token}"
     }
     files = {
         "file": (filename, file_bytes, mime_type)
@@ -1135,11 +1150,16 @@ def send_whatsapp_media(
     caption: Optional[str] = None,
     filename: Optional[str] = None,
     sender_user: str = "Agent",
-    db: Optional[Session] = None
+    db: Optional[Session] = None,
+    phone_number_id: Optional[str] = None,
+    api_token: Optional[str] = None
 ) -> dict:
     """
     Sends an outbound media message (document, image, video, audio) to a recipient via WhatsApp Cloud API.
     """
+    active_phone_id = phone_number_id or WHATSAPP_PHONE_NUMBER_ID
+    active_token = api_token or WHATSAPP_API_TOKEN
+
     owns_db = False
     if db is None:
         db = SessionLocal()
@@ -1169,7 +1189,7 @@ def send_whatsapp_media(
 
         clean_phone = normalize_phone(recipient_phone)
 
-        if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+        if not active_token or not active_phone_id:
             mock_id = f"sim_media_msg_{int(datetime.utcnow().timestamp())}"
             logger.info(f"[SIMULATED MEDIA CHAT] Agent sent {media_type} to {mask_phone(clean_phone)}: url={media_url}, id={media_id}")
             return {
@@ -1179,7 +1199,7 @@ def send_whatsapp_media(
             }
 
         headers = {
-            "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
+            "Authorization": f"Bearer {active_token}",
             "Content-Type": "application/json"
         }
 
@@ -1205,8 +1225,9 @@ def send_whatsapp_media(
             media_type: media_obj
         }
 
+        url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{active_phone_id}/messages"
         with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
-            resp = client.post(META_API_URL, headers=headers, json=payload)
+            resp = client.post(url, headers=headers, json=payload)
             data = resp.json()
             if resp.status_code == 200:
                 msg_id = data.get("messages", [{}])[0].get("id", "")
@@ -1227,19 +1248,24 @@ def send_whatsapp_reaction(
     recipient_phone: str,
     target_meta_message_id: str,
     emoji: str = "👍",
-    db: Optional[Session] = None
+    db: Optional[Session] = None,
+    phone_number_id: Optional[str] = None,
+    api_token: Optional[str] = None
 ) -> dict:
     """
     Sends a WhatsApp message reaction (e.g. 👍 or 👎) via Meta Cloud API.
     To remove a reaction, pass emoji="".
     """
+    active_phone_id = phone_number_id or WHATSAPP_PHONE_NUMBER_ID
+    active_token = api_token or WHATSAPP_API_TOKEN
+
     clean_phone = normalize_phone(recipient_phone)
-    if not WHATSAPP_API_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+    if not active_token or not active_phone_id:
         return {"status": "success_simulated", "message_id": f"sim_react_{int(datetime.utcnow().timestamp())}"}
 
-    url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+    url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{active_phone_id}/messages"
     headers = {
-        "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
+        "Authorization": f"Bearer {active_token}",
         "Content-Type": "application/json"
     }
     payload = {
