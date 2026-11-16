@@ -664,8 +664,19 @@ def handle_inbound_auto_reply(
     sel_id = (interactive_id or "").strip()
 
     # -------------------------------------------------------------
-    # 1. Handle Interactive Menu Selection (Button or List tap)
+    # 0. Check for Inbound Customer Image/Photo Message
+    # If the customer sends a photo (e.g. of a ring, earring, or screenshot),
+    # acknowledge the photo directly instead of dumping generic necklace catalog.
     # -------------------------------------------------------------
+    is_photo_message = bool(re.match(r"^\[IMAGE\]", text_clean, re.IGNORECASE) or text_clean == "[image]")
+    if is_photo_message:
+        photo_reply = (
+            "Thank you for sharing the photo! ✨\n\n"
+            "Our jewelry consultant is reviewing this design right now and will get back to you with live stock availability, purity, and best pricing shortly."
+        )
+        res = send_whatsapp_free_text(sender_phone, photo_reply, db=db)
+        _save_bot_message(db, sender_phone, photo_reply, res.get("message_id"))
+        return res
     if sel_id:
         if sel_id == "menu_track_order" or sel_id == "track_order":
             recent_orders = get_customer_recent_orders(sender_phone, db)
