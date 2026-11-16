@@ -251,6 +251,206 @@ def build_recent_orders_interactive(orders: List[Dict[str, Any]], customer_name:
     }
 
 
+def _select_best_jewelry_photo(product: dict) -> Optional[str]:
+    """
+    Selects a clean, high-quality jewelry product image.
+    Filters out internal measurement/scale photos (e.g. ruler markings, cm grids)
+    and prefers real jewelry lifestyle or catalog angles.
+    """
+    images = product.get("all_images") or product.get("images") or []
+    img_urls = []
+    for im in images:
+        if isinstance(im, dict):
+            u = im.get("src")
+            if u:
+                img_urls.append(u)
+        elif isinstance(im, str):
+            img_urls.append(im)
+    if not img_urls and product.get("image_url"):
+        img_urls = [product["image_url"]]
+    if not img_urls:
+        return None
+
+    clean_photos = []
+    for u in img_urls:
+        fn = u.split("/")[-1].split("?")[0].lower()
+        if any(fn.startswith(pfx) for pfx in [
+            "img-20261103-wa0060",
+            "img-20261104-wa0007",
+            "img-20261104-wa0012",
+            "img-20261104-wa0013",
+            "img-20261104-wa0018"
+        ]):
+            continue
+        if any(bad in fn for bad in ["scale", "ruler", "measurement", "cm_"]):
+            continue
+        clean_photos.append(u)
+
+    if clean_photos:
+        return clean_photos[0]
+    return img_urls[0]
+
+
+def _match_and_send_product_designs(
+    sender_phone: str,
+    text_clean: str,
+    db: Optional[Session]
+) -> Optional[dict]:
+    """
+    Intelligent category-aware product discovery engine:
+    1. Understands customer intent across rings, bracelets, bangles, earrings, necklaces, chains, anklets.
+    2. Tolerates common typos (e.g. 'breslet', 'cocktail rings', 'anguthi').
+    3. Fetches live matching products from Shopify catalog.
+    4. Automatically selects clean, high-quality jewelry photos (skipping measurement scales).
+    5. Sends image and formatted WhatsApp text with title, price, and direct product links.
+    """
+    category_definitions = [
+        {
+            "id": "rings",
+            "label": "Rings & Cocktail Rings",
+            "keywords": [r"\b(?:rings?|cocktail\s*rings?|finger\s*rings?|anguthi|anguthiyan)\b"],
+            "matcher": lambda p: (
+                p.get("product_type") == "Ring"
+                or any(w in p.get("title", "").lower().split() for w in ["ring", "rings"])
+            )
+        },
+        {
+            "id": "bracelets",
+            "label": "Bracelets & Bangles",
+            "keywords": [r"\b(?:bracelets?|breslets?|braclet|braclets|bangles?|kadas?|hathphool|wrist)\b"],
+            "matcher": lambda p: (
+                p.get("product_type") in ["Bracelet", "Bangle", "Kada"]
+                or any(k in p.get("title", "").lower() for k in ["bracelet", "bangle", "kada"])
+            )
+        },
+        {
+            "id": "earrings",
+            "label": "Earrings & Studs",
+            "keywords": [r"\b(?:earrings?|studs?|jhumkas?|jhumki|balis?|hoops?|dangles?|tops)\b"],
+            "matcher": lambda p: (
+                p.get("product_type") == "Earrings"
+                or any(k in p.get("title", "").lower() for k in ["earring", "stud", "hoop", "jhumka", "bali"])
+            )
+        },
+        {
+            "id": "pendant_necklace",
+            "label": "Pendant Sets & Necklaces",
+            "keywords": [r"\b(?:pendants?|pendant\s*sets?|necklaces?|haars?|chokers?|mangalsutras?|chains?|malas?|kanthi)\b"],
+            "matcher": lambda p: (
+                p.get("product_type") in ["Necklace", "Chain"]
+                or any(k in p.get("title", "").lower() for k in ["pendant", "necklace", "chain", "mangalsutra", "mala"])
+            )
+        },
+        {
+            "id": "anklets",
+            "label": "Anklets & Payal",
+            "keywords": [r"\b(?:anklets?|payals?|pajeb)\b"],
+            "matcher": lambda p: (
+                p.get("product_type") == "Anklet"
+                or any(k in p.get("title", "").lower() for k in ["anklet", "payal"])
+            )
+        }
+    ]
+
+    matched_categories = []
+    for cat in category_definitions:
+        for pat in cat["keywords"]:
+            if re.search(pat, text_clean):
+                matched_categories.append(cat)
+                break
+
+    has_design_intent = bool(re.search(r"\b(?:design|designs|catalog|catalogue|photos?|pics?|collection|sample|samples|bhejo|dikhao|dekhao|tasveer)\b", text_clean))
+
+    if not matched_categories and not has_design_intent:
+        return None
+
+    shopify_res = fetch_shopify_products(limit=250)
+    all_products = shopify_res.get("products", [])
+    if not all_products:
+        return None
+
+    if matched_categories:
+        items_to_send = []
+        lead_product = None
+
+        for cat in matched_categories:
+            matching_prods = [p for p in all_products if cat["matcher"](p)]
+            if matching_prods:
+                if not lead_product:
+                    lead_product = matching_prods[0]
+                for p in matching_prods[:2]:
+                    if p not in items_to_send:
+                        items_to_send.append((cat["label"], p))
+
+        if not items_to_send:
+            items_to_send = [(matched_categories[0]["label"], p) for p in all_products[:3]]
+            lead_product = all_products[0]
+
+        best_photo = _select_best_jewelry_photo(lead_product)
+        if best_photo:
+            cap = (
+                f"✨ *{lead_product['title']}*\n"
+                f"• Price: ₹{float(lead_product.get('price') or 0):,.0f}\n"
+                f"• View Design: {lead_product.get('product_url') or 'https://jwlbillion.com/'}"
+            )
+            media_res = send_whatsapp_media(sender_phone, "image", media_url=best_photo, caption=cap, db=db)
+            _save_bot_message(
+                db,
+                sender_phone,
+                f"*{lead_product['title']}*\nPrice: ₹{float(lead_product.get('price') or 0):,.0f}",
+                media_res.get("message_id"),
+                media_url=best_photo,
+                message_type="image"
+            )
+
+        cat_names = " & ".join([c["label"] for c in matched_categories])
+        msg = f"✨ *JWL Billion {cat_names} Designs* ✨\n\nHere are the designs you requested:\n\n"
+        for i, (cat_label, p) in enumerate(items_to_send[:4], 1):
+            price_val = f"₹{float(p.get('price') or 0):,.0f}"
+            msg += f"*{i}. {p['title']}*\n"
+            msg += f"• Price: {price_val}\n"
+            if p.get("product_url"):
+                msg += f"• Link: {p['product_url']}\n"
+            msg += "\n"
+
+        msg += "Explore more designs on our website: https://jwlbillion.com/\n\nNeed video call viewing or custom size? Just let us know!"
+        res = send_whatsapp_free_text(sender_phone, msg, db=db)
+        _save_bot_message(db, sender_phone, msg, res.get("message_id"))
+        return res
+
+    # Generic design request
+    first_p = all_products[0]
+    best_photo = _select_best_jewelry_photo(first_p)
+    if best_photo:
+        first_cap = (
+            f"✨ *{first_p['title']}*\n"
+            f"• Price: ₹{float(first_p.get('price') or 0):,.0f}\n"
+            f"• View Design: {first_p.get('product_url') or 'https://jwlbillion.com/'}"
+        )
+        media_res = send_whatsapp_media(sender_phone, "image", media_url=best_photo, caption=first_cap, db=db)
+        _save_bot_message(
+            db,
+            sender_phone,
+            f"*{first_p['title']}*\nPrice: ₹{float(first_p.get('price') or 0):,.0f}",
+            media_res.get("message_id"),
+            media_url=best_photo,
+            message_type="image"
+        )
+
+    msg = "✨ *JWL Billion Handcrafted Jewelry Designs* ✨\n\nHere are some of our trending designs:\n\n"
+    for i, p in enumerate(all_products[:4], 1):
+        price_val = f"₹{float(p.get('price') or 0):,.0f}"
+        msg += f"*{i}. {p['title']}*\n"
+        msg += f"• Price: {price_val}\n"
+        if p.get("product_url"):
+            msg += f"• Link: {p['product_url']}\n"
+        msg += "\n"
+    msg += "Explore our complete catalogue online: https://jwlbillion.com/"
+    res = send_whatsapp_free_text(sender_phone, msg, db=db)
+    _save_bot_message(db, sender_phone, msg, res.get("message_id"))
+    return res
+
+
 def handle_inbound_auto_reply(
     sender_phone: str,
     message_text: str,
@@ -550,134 +750,15 @@ def handle_inbound_auto_reply(
             return res
 
     # -------------------------------------------------------------
-    # 4. Check for Pendant Sets Inquiry (e.g. "pendant", "pendant set", "pendants")
+    # 4. Check for Product Designs / Category Discovery Intent
+    # (Rings, Cocktail Rings, Bracelets, Bangles, Earrings, Necklaces, etc.)
     # -------------------------------------------------------------
-    is_pendant_query = bool(re.search(r"\b(?:pendant|pendants|pendant set|pendant sets)\b", text_clean))
-    if is_pendant_query:
-        shopify_res = fetch_shopify_products(limit=50)
-        all_prods = shopify_res.get("products", [])
-        pendants = [
-            p for p in all_prods
-            if "pendant" in p.get("title", "").lower()
-            or "pendant" in str(p.get("tags", "")).lower()
-        ]
-        items_to_show = pendants[:4] if pendants else all_prods[:4]
-
-        if items_to_show and items_to_show[0].get("image_url"):
-            p_first = items_to_show[0]
-            p_cap = (
-                f"💎 *{p_first['title']}*\n"
-                f"• Price: ₹{float(p_first.get('price') or 0):,.0f}\n"
-                f"• View Design: {p_first.get('product_url') or 'https://jwlbillion.com/'}"
-            )
-            media_res = send_whatsapp_media(sender_phone, "image", media_url=p_first["image_url"], caption=p_cap, db=db)
-            _save_bot_message(
-                db,
-                sender_phone,
-                f"*{p_first['title']}*\nPrice: ₹{float(p_first.get('price') or 0):,.0f}",
-                media_res.get("message_id"),
-                media_url=p_first["image_url"],
-                message_type="image"
-            )
-
-        msg = "💎 *JWL Billion Pendant Sets & Necklaces* 💎\n\nHere are some of our trending designs:\n\n"
-        for i, p in enumerate(items_to_show, 1):
-            price_val = f"₹{float(p.get('price') or 0):,.0f}"
-            msg += f"*{i}. {p['title']}*\n"
-            msg += f"• Price: {price_val}\n"
-            if p.get("product_url"):
-                msg += f"• Link: {p['product_url']}\n"
-            msg += "\n"
-        msg += "Explore all pendant sets: https://jwlbillion.com/\n\nNeed assistance or live video viewing? We're here to help!"
-        res = send_whatsapp_free_text(sender_phone, msg, db=db)
-        _save_bot_message(db, sender_phone, msg, res.get("message_id"))
-        return res
+    design_match_res = _match_and_send_product_designs(sender_phone, text_clean, db=db)
+    if design_match_res:
+        return design_match_res
 
     # -------------------------------------------------------------
-    # 5. Check for Chains Inquiry (e.g. "chains", "show chain", "gold chain")
-    # -------------------------------------------------------------
-    is_chain_query = bool(re.search(r"\b(?:chain|chains|kanthi|mala|necklace)\b", text_clean))
-    if is_chain_query:
-        shopify_res = fetch_shopify_products(limit=50)
-        all_prods = shopify_res.get("products", [])
-        chains = [
-            p for p in all_prods
-            if "chain" in p.get("title", "").lower()
-            or "chain" in str(p.get("tags", "")).lower()
-            or "necklace" in p.get("title", "").lower()
-        ]
-        items_to_show = chains[:4] if chains else all_prods[:4]
-
-        # Send photo of first chain if available
-        if items_to_show and items_to_show[0].get("image_url"):
-            c_first = items_to_show[0]
-            c_cap = (
-                f"⛓️ *{c_first['title']}*\n"
-                f"• Price: ₹{float(c_first.get('price') or 0):,.0f}\n"
-                f"• Link: {c_first.get('product_url') or 'https://jwlbillion.com/'}"
-            )
-            media_res = send_whatsapp_media(sender_phone, "image", media_url=c_first["image_url"], caption=c_cap, db=db)
-            _save_bot_message(
-                db,
-                sender_phone,
-                f"*{c_first['title']}*\nPrice: ₹{float(c_first.get('price') or 0):,.0f}",
-                media_res.get("message_id"),
-                media_url=c_first["image_url"],
-                message_type="image"
-            )
-
-        msg = "⛓️ *JWL Billion Chains & Necklaces Collection* ⛓️\n\nHere are some of our popular designs:\n\n"
-        for i, p in enumerate(items_to_show, 1):
-            price_val = f"₹{float(p.get('price') or 0):,.0f}"
-            msg += f"*{i}. {p['title']}*\n"
-            msg += f"• Price: {price_val}\n"
-            if p.get("product_url"):
-                msg += f"• Link: {p['product_url']}\n"
-            msg += "\n"
-        msg += "Explore all chains & jewellery: https://jwlbillion.com/\n\nNeed help with custom length or live video viewing? Just ask!"
-        res = send_whatsapp_free_text(sender_phone, msg, db=db)
-        _save_bot_message(db, sender_phone, msg, res.get("message_id"))
-        return res
-
-    # -------------------------------------------------------------
-    # 6. Check for Designs / Catalog Inquiry (e.g. "design", "designs", "photo", "catalog", "bhejo", "dikhao")
-    # -------------------------------------------------------------
-    is_design_query = bool(re.search(r"\b(?:design|designs|catalog|photos?|pics?|collection|sample|samples|bhejo|dikhao|dekhao|photo bhejo|design bhejo|tasveer)\b", text_clean))
-    if is_design_query:
-        shopify_res = fetch_shopify_products(limit=10)
-        products = shopify_res.get("products", [])
-        if products and products[0].get("image_url"):
-            first_p = products[0]
-            first_cap = (
-                f"✨ *{first_p['title']}*\n"
-                f"• Price: ₹{float(first_p.get('price') or 0):,.0f}\n"
-                f"• View Design: {first_p.get('product_url') or 'https://jwlbillion.com/'}"
-            )
-            media_res = send_whatsapp_media(sender_phone, "image", media_url=first_p["image_url"], caption=first_cap, db=db)
-            _save_bot_message(
-                db,
-                sender_phone,
-                f"*{first_p['title']}*\nPrice: ₹{float(first_p.get('price') or 0):,.0f}",
-                media_res.get("message_id"),
-                media_url=first_p["image_url"],
-                message_type="image"
-            )
-
-        msg = "✨ *JWL Billion Handcrafted Jewelry Designs* ✨\n\nHere are some of our trending designs:\n\n"
-        for i, p in enumerate(products[:4], 1):
-            price_val = f"₹{float(p.get('price') or 0):,.0f}"
-            msg += f"*{i}. {p['title']}*\n"
-            msg += f"• Price: {price_val}\n"
-            if p.get("product_url"):
-                msg += f"• Link: {p['product_url']}\n"
-            msg += "\n"
-        msg += "Explore our complete catalogue online: https://jwlbillion.com/"
-        res = send_whatsapp_free_text(sender_phone, msg, db=db)
-        _save_bot_message(db, sender_phone, msg, res.get("message_id"))
-        return res
-
-    # -------------------------------------------------------------
-    # 6. Check for Greeting, Info Request, or General Help -> Show Interactive Menu
+    # 5. Check for Greeting, Info Request, or General Help -> Show Interactive Menu
     # -------------------------------------------------------------
     words = [w.strip() for w in re.split(r"[^\w#]+", text_clean) if w.strip()]
     normalized_words = [re.sub(r'(.)\1{1,}', r'\1', w) for w in words]
