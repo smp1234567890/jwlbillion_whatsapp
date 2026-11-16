@@ -444,7 +444,11 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
                     <td className="py-3 px-4 whitespace-nowrap text-gray-600">
                       {item.response_time_minutes !== null ? (
                         <span className="font-medium text-gray-900">
-                          {item.response_time_minutes} min
+                          {item.response_time_minutes === 0 || item.response_time_minutes < 0.1
+                            ? "< 5s (Instant)"
+                            : item.response_time_minutes < 1
+                            ? `${Math.round(item.response_time_minutes * 60)}s`
+                            : `${item.response_time_minutes} min`}
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>
