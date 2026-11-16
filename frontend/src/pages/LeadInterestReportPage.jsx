@@ -33,9 +33,22 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [callingPhone, setCallingPhone] = useState(null);
 
-  // Sorting
-  const [sortField, setSortField] = useState("interest_score");
+  // Sorting (Default to 'last_message_time' desc when on ALL intents, or 'interest_score' when filtered)
+  const [sortField, setSortField] = useState("last_message_time");
   const [sortOrder, setSortOrder] = useState("desc");
+
+  // When switching between "ALL" and specific intent tabs, intelligently adjust default sort
+  const handleInterestFilterChange = (newFilter) => {
+    setInterestFilter(newFilter);
+    if (newFilter === "ALL") {
+      setSortField("last_message_time");
+      setSortOrder("desc");
+    } else {
+      setSortField("interest_score");
+      setSortOrder("desc");
+    }
+    setCurrentPage(1);
+  };
 
   // Pagination (10 per page default, selectable 10, 50, 100)
   const [currentPage, setCurrentPage] = useState(1);
@@ -277,7 +290,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
           {/* Interest Tabs with Theme Colors */}
           <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200 text-xs">
             <button
-              onClick={() => setInterestFilter("ALL")}
+              onClick={() => handleInterestFilterChange("ALL")}
               className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
                 interestFilter === "ALL"
                   ? "bg-white text-gray-900 shadow-xs border border-gray-200"
@@ -287,7 +300,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
               All Intents ({summary?.total_leads || 0})
             </button>
             <button
-              onClick={() => setInterestFilter("HIGHLY_INTERESTED")}
+              onClick={() => handleInterestFilterChange("HIGHLY_INTERESTED")}
               className={`px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
                 interestFilter === "HIGHLY_INTERESTED"
                   ? "bg-rose-50 text-rose-700 shadow-xs border border-rose-200"
@@ -298,7 +311,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
               Highly Interested ({summary?.total_highly_interested || 0})
             </button>
             <button
-              onClick={() => setInterestFilter("INTERESTED")}
+              onClick={() => handleInterestFilterChange("INTERESTED")}
               className={`px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
                 interestFilter === "INTERESTED"
                   ? "bg-amber-50 text-amber-700 shadow-xs border border-amber-200"

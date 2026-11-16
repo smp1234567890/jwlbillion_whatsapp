@@ -334,8 +334,13 @@ def get_lead_interest_report(
             "called_at": called_at
         })
 
-    # Sort results: Highest interest score first, then newest message
-    results.sort(key=lambda x: (x["interest_score"], x["last_message_time"] or ""), reverse=True)
+    # Sort results:
+    # If viewing ALL intents, sort strictly chronological by latest message received on top.
+    # If filtered to specific interest (e.g. HIGHLY_INTERESTED or INTERESTED), prioritize highest interest score, then newest message.
+    if not interest or interest == "ALL":
+        results.sort(key=lambda x: (x["last_message_time"] or ""), reverse=True)
+    else:
+        results.sort(key=lambda x: (x["interest_score"], x["last_message_time"] or ""), reverse=True)
 
     return {
         "summary": {
