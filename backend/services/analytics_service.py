@@ -294,6 +294,29 @@ def get_system_performance_noc(db: Session) -> Dict[str, Any]:
     else:
         memory_mb = round(max_rss / 1024, 1)
 
+    # Server Total System RAM Telemetry (from /proc/meminfo on Linux host/container)
+    sys_ram_total_mb = 0.0
+    sys_ram_used_mb = 0.0
+    sys_ram_pct = 0.0
+    try:
+        if os.path.exists("/proc/meminfo"):
+            with open("/proc/meminfo", "r") as f_mem:
+                mem_dict = {}
+                for line in f_mem:
+                    parts = line.split(":")
+                    if len(parts) == 2:
+                        k = parts[0].strip()
+                        v = parts[1].strip().split()[0]
+                        mem_dict[k] = int(v)
+                t_kb = mem_dict.get("MemTotal", 0)
+                a_kb = mem_dict.get("MemAvailable", 0)
+                u_kb = t_kb - a_kb
+                sys_ram_total_mb = round(t_kb / 1024, 1)
+                sys_ram_used_mb = round(u_kb / 1024, 1)
+                sys_ram_pct = round((u_kb / t_kb) * 100, 1) if t_kb else 0.0
+    except Exception as mem_err:
+        logger.warning(f"Failed to read /proc/meminfo: {mem_err}")
+
     # 2. Database Health
     db_status = "HEALTHY"
     db_latency_ms = 0.0
@@ -416,6 +439,9 @@ def get_system_performance_noc(db: Session) -> Dict[str, Any]:
             "load_15m": round(load_avg[2], 2),
             "load_capacity_pct": cpu_load_pct,
             "memory_resident_mb": memory_mb,
+            "system_ram_total_mb": sys_ram_total_mb,
+            "system_ram_used_mb": sys_ram_used_mb,
+            "system_ram_pct": sys_ram_pct,
             "disk_used_gb": disk_used_gb,
             "disk_total_gb": disk_total_gb,
             "disk_free_gb": disk_free_gb,

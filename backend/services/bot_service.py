@@ -47,6 +47,13 @@ ORDER_QUERY_TRIGGERS = [
     "kaha hai", "kaha pahucha", "kab aayega", "kab milega", "dispatch"
 ]
 
+COD_QUERY_PATTERNS = [
+    r"\b(?:cod|cash\s*on\s*delivery)\b",
+    r"\b(?:cod\s*(?:ha|hai|he|hoga|milega|available|options?))\b",
+    r"\b(?:cash\s*on\s*delivery\s*(?:available|milega|hoga|hai)?)\b",
+    r"(?:सीओडी|कैश ऑन डिलीवरी)"
+]
+
 
 def match_order_number(text: str) -> Optional[str]:
     """
@@ -947,6 +954,29 @@ def handle_inbound_auto_reply(
     design_match_res = _match_and_send_product_designs(sender_phone, text_clean, db=db)
     if design_match_res:
         return design_match_res
+
+    # -------------------------------------------------------------
+    # 4b. Check for COD / Cash on Delivery inquiries (e.g. "cod ha", "cod available?")
+    # -------------------------------------------------------------
+    is_cod_query = any(re.search(pat, text_clean, re.IGNORECASE) for pat in COD_QUERY_PATTERNS)
+    if is_cod_query:
+        is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:ha|hai|he|hoga|milega|kya|batao)", text_clean, re.IGNORECASE))
+        if is_hindi:
+            cod_reply = (
+                "Haan ji, JWL Billion par *Cash on Delivery (COD)* uplabdh hai! \n\n"
+                "Aap bina kisi advance payment ke order place kar sakte hain. "
+                "Saath hi hum *7 Days Easy Return & Exchange* policy dete hain.\n\n"
+                "Aapko kaun sa design pasand aaya hai? Batayein, hum direct order link bhej denge: https://jwlbillion.com/"
+            )
+        else:
+            cod_reply = (
+                "Yes, *Cash on Delivery (COD)* is available across India at JWL Billion! \n\n"
+                "You can pay conveniently upon delivery. We also offer *7 Days Easy Returns & Exchanges*.\n\n"
+                "Which jewelry design would you like to order? Browse our full catalogue here: https://jwlbillion.com/"
+            )
+        res = send_whatsapp_free_text(sender_phone, cod_reply, db=db)
+        _save_bot_message(db, sender_phone, cod_reply, res.get("message_id"))
+        return res
 
     # -------------------------------------------------------------
     # 5. Check for Greeting, Info Request, or General Help -> Show Interactive Menu
