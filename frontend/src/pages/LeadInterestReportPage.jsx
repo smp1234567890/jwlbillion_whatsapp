@@ -27,7 +27,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState({ summary: {}, records: [] });
 
-  // Filters (Removed CLIENT_LEADS)
+  // Filters
   const [interestFilter, setInterestFilter] = useState("ALL"); // ALL, HIGHLY_INTERESTED, INTERESTED
   const [calledFilter, setCalledFilter] = useState("ALL"); // ALL, YES, NO
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,9 +37,9 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
   const [sortField, setSortField] = useState("interest_score");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  // Pagination (10 per page default, selectable up to 100)
+  // Pagination (10 per page default, selectable 10, 50, 100)
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10); // 10, 50, 100
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -76,21 +76,23 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
     if (!record.contact_id) return;
     try {
       setCallingPhone(record.phone);
-      await axios.post(
+      const res = await axios.post(
         `/api/contacts/${record.contact_id}/toggle-called`,
         {},
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
-      // Update local state without full reload
+      const nextCalled = Boolean(res.data?.called_status?.called);
+      const nextCalledBy = res.data?.called_status?.called_by || "Agent";
+      const nextCalledAt = res.data?.called_status?.called_at || new Date().toISOString();
+
       setReportData((prev) => {
         const nextRecords = prev.records.map((r) => {
           if (r.phone === record.phone) {
-            const nextCalled = !r.is_called;
             return {
               ...r,
               is_called: nextCalled,
-              called_by: nextCalled ? "You" : null,
-              called_at: nextCalled ? new Date().toISOString() : null
+              called_by: nextCalled ? nextCalledBy : null,
+              called_at: nextCalled ? nextCalledAt : null
             };
           }
           return r;
@@ -153,81 +155,110 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
   const { summary } = reportData;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* ── Top Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-xl border border-gray-200 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-gray-900">Lead Interest & Calling Report</h1>
-            <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-gray-200">
-              Live Analysis
-            </span>
+      <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+            <Flame className="w-5 h-5" />
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            All customer chats organized by interest level and team calling status.
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-gray-900">Lead Interest & Calling Report</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Live Database Analysis
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Organized lead interest levels, detected intent topics, and team calling follow-ups.
+            </p>
+          </div>
         </div>
+
         <button
           onClick={fetchReport}
           disabled={loading}
-          className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer self-start sm:self-auto disabled:opacity-50"
+          className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           <span>Refresh Report</span>
         </button>
       </div>
 
-      {/* ── Metric KPI Cards (Clean Platform Theme - Removed Colors) ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+      {/* ── Metric KPI Cards (Platform Native Theme with Dedicated Distinct Badges) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
         {/* Total Leads */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
-          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Total Leads</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_leads || 0}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">All customer threads</div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between hover:border-gray-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Total Leads</span>
+            <div className="w-7 h-7 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center">
+              <UserCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-black text-gray-900">{summary?.total_leads || 0}</span>
+            <span className="block text-[11px] text-gray-400 mt-0.5">All customer threads</span>
+          </div>
         </div>
 
         {/* Highly Interested */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
-          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Highly Interested</span>
-            <Flame className="w-3.5 h-3.5 text-gray-400" />
+        <div className="bg-white p-4 rounded-xl border border-rose-200 shadow-xs flex flex-col justify-between hover:border-rose-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">Highly Interested</span>
+            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+              <Flame className="w-4 h-4 fill-current" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_highly_interested || 0}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">High buyer intent</div>
+          <div className="mt-3">
+            <span className="text-2xl font-black text-rose-700">{summary?.total_highly_interested || 0}</span>
+            <span className="block text-[11px] text-rose-600/80 font-medium mt-0.5">High buyer intent</span>
+          </div>
         </div>
 
         {/* Interested */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
-          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Interested</span>
-            <Star className="w-3.5 h-3.5 text-gray-400" />
+        <div className="bg-white p-4 rounded-xl border border-amber-200 shadow-xs flex flex-col justify-between hover:border-amber-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Interested</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <Star className="w-4 h-4 fill-current" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_interested || 0}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">Active inquiries</div>
+          <div className="mt-3">
+            <span className="text-2xl font-black text-amber-700">{summary?.total_interested || 0}</span>
+            <span className="block text-[11px] text-amber-600/80 font-medium mt-0.5">Active inquiries</span>
+          </div>
         </div>
 
         {/* Called */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
-          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Called</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-gray-400" />
+        <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-xs flex flex-col justify-between hover:border-emerald-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Called</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_called || 0}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">Contacted by team</div>
+          <div className="mt-3">
+            <span className="text-2xl font-black text-emerald-700">{summary?.total_called || 0}</span>
+            <span className="block text-[11px] text-emerald-600 font-medium mt-0.5">Contacted by team</span>
+          </div>
         </div>
 
         {/* Pending Call */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
-          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Pending Call</span>
-            <Clock className="w-3.5 h-3.5 text-gray-400" />
+        <div className="bg-white p-4 rounded-xl border border-blue-200 shadow-xs flex flex-col justify-between hover:border-blue-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Pending Call</span>
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Clock className="w-4 h-4 animate-pulse" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{summary?.total_uncalled || 0}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">Needs follow-up</div>
+          <div className="mt-3">
+            <span className="text-2xl font-black text-blue-700">{summary?.total_uncalled || 0}</span>
+            <span className="block text-[11px] text-blue-600 font-medium mt-0.5">Needs follow-up</span>
+          </div>
         </div>
       </div>
 
-      {/* ── Filters & Search Bar (Clean Platform Theme) ── */}
+      {/* ── Filters & Search Controls ── */}
       <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Search */}
         <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
@@ -243,36 +274,38 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
 
         {/* Filter Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Interest Tabs (Clean Platform Look - Removed Lead Initiated) */}
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg text-xs">
+          {/* Interest Tabs with Theme Colors */}
+          <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200 text-xs">
             <button
               onClick={() => setInterestFilter("ALL")}
-              className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+              className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
                 interestFilter === "ALL"
-                  ? "bg-white text-gray-900 font-bold shadow-xs border border-gray-200"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-white text-gray-900 shadow-xs border border-gray-200"
+                  : "text-gray-500 hover:text-gray-800"
               }`}
             >
               All Intents ({summary?.total_leads || 0})
             </button>
             <button
               onClick={() => setInterestFilter("HIGHLY_INTERESTED")}
-              className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+              className={`px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
                 interestFilter === "HIGHLY_INTERESTED"
-                  ? "bg-white text-gray-900 font-bold shadow-xs border border-gray-200"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-rose-50 text-rose-700 shadow-xs border border-rose-200"
+                  : "text-gray-500 hover:text-rose-600"
               }`}
             >
+              <Flame className="w-3.5 h-3.5 text-rose-600 fill-current" />
               Highly Interested ({summary?.total_highly_interested || 0})
             </button>
             <button
               onClick={() => setInterestFilter("INTERESTED")}
-              className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+              className={`px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
                 interestFilter === "INTERESTED"
-                  ? "bg-white text-gray-900 font-bold shadow-xs border border-gray-200"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-amber-50 text-amber-700 shadow-xs border border-amber-200"
+                  : "text-gray-500 hover:text-amber-600"
               }`}
             >
+              <Star className="w-3.5 h-3.5 text-amber-600 fill-current" />
               Interested ({summary?.total_interested || 0})
             </button>
           </div>
@@ -281,15 +314,15 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
           <select
             value={calledFilter}
             onChange={(e) => setCalledFilter(e.target.value)}
-            className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+            className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-xs"
           >
             <option value="ALL">All Call Status</option>
             <option value="YES">Called (Yes)</option>
-            <option value="NO">Not Called (No)</option>
+            <option value="NO">Pending Call (No)</option>
           </select>
 
-          {/* Rows Per Page Options (10, 50, 100) */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium pl-1">
+          {/* Rows Per Page (10, 50, 100) */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-semibold pl-1">
             <span>Show:</span>
             <select
               value={pageSize}
@@ -297,7 +330,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+              className="bg-white border border-gray-200 text-gray-800 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-xs"
             >
               <option value={10}>10</option>
               <option value={50}>50</option>
@@ -307,7 +340,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
         </div>
       </div>
 
-      {/* ── Main Report Table (Clean Platform Look) ── */}
+      {/* ── Main Report Table ── */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
@@ -367,7 +400,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-xs font-medium">
                     <div className="flex items-center justify-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-gray-600" />
+                      <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
                       <span>Analyzing lead conversations across database...</span>
                     </div>
                   </td>
@@ -384,29 +417,29 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
 
                   return (
                     <tr key={r.phone} className="hover:bg-gray-50/80 transition">
-                      {/* Interest Badge (Clean neutral styling) */}
+                      {/* Interest Badge (Theme Styled: Rose for High, Amber for Interested) */}
                       <td className="px-5 py-3.5">
                         {r.interest_level === "HIGHLY_INTERESTED" ? (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-900 font-bold rounded-md border border-gray-300 text-xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold rounded-md border border-rose-200 text-xs shadow-2xs">
+                            <Flame className="w-3.5 h-3.5 fill-current text-rose-600" />
                             <span>Highly Interested ({r.interest_score}%)</span>
                           </div>
                         ) : r.interest_level === "INTERESTED" ? (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-700 font-medium rounded-md border border-gray-200 text-xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 font-semibold rounded-md border border-amber-200 text-xs">
+                            <Star className="w-3.5 h-3.5 fill-current text-amber-600" />
                             <span>Interested ({r.interest_score}%)</span>
                           </div>
                         ) : (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-500 font-normal rounded-md border border-gray-200 text-xs">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-600 font-medium rounded-md border border-gray-200 text-xs">
                             <span>General ({r.interest_score}%)</span>
                           </div>
                         )}
                         {r.detected_signals && r.detected_signals.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
+                          <div className="flex flex-wrap gap-1 mt-1.5">
                             {r.detected_signals.map((sig, idx) => (
                               <span
                                 key={idx}
-                                className="text-[9px] bg-gray-50 text-gray-500 border border-gray-200 px-1.5 py-0.2 rounded font-medium"
+                                className="text-[9px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.2 rounded font-medium"
                               >
                                 {sig}
                               </span>
@@ -419,7 +452,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                       <td className="px-5 py-3.5 font-bold text-gray-900">
                         {r.name || "Customer"}
                         {r.total_orders > 0 && (
-                          <span className="block text-[10px] text-gray-500 font-medium mt-0.5">
+                          <span className="block text-[10px] text-emerald-600 font-semibold mt-0.5">
                             {r.total_orders} past order{r.total_orders > 1 ? "s" : ""}
                           </span>
                         )}
@@ -442,7 +475,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                         )}
                       </td>
 
-                      {/* Called Yes/No Toggle (Clean neutral styling) */}
+                      {/* Called Yes/No Interactive Button */}
                       <td className="px-5 py-3.5 text-center">
                         <button
                           type="button"
@@ -453,15 +486,15 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                               ? `Called by ${r.called_by || "Agent"} on ${r.called_at ? formatToISTDate(r.called_at) : "recently"}. Tap to toggle No.`
                               : "Tap to mark as Called"
                           }
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition shadow-xs cursor-pointer ${
                             r.is_called
-                              ? "bg-gray-900 text-white border border-gray-900 hover:bg-black shadow-xs"
-                              : "bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200"
+                              ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : "bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300"
                           } ${isUpdating ? "opacity-50 cursor-wait" : ""}`}
                         >
                           {r.is_called ? (
                             <>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                               <span>Yes</span>
                             </>
                           ) : (
@@ -472,7 +505,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                           )}
                         </button>
                         {r.is_called && r.called_by && (
-                          <span className="block text-[9px] text-gray-400 mt-0.5 truncate max-w-[100px] mx-auto">
+                          <span className="block text-[10px] text-emerald-700/80 font-medium mt-0.5 truncate max-w-[110px] mx-auto">
                             by {r.called_by}
                           </span>
                         )}
@@ -481,7 +514,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                       {/* Last Message Preview & Time */}
                       <td className="px-5 py-3.5 text-xs text-gray-500 max-w-[240px]">
                         <p className="truncate text-gray-800">
-                          {r.last_sender === "AGENT" && <span className="text-gray-900 font-semibold mr-1">You:</span>}
+                          {r.last_sender === "AGENT" && <span className="text-emerald-600 font-semibold mr-1">You:</span>}
                           {r.last_message_text || "No text"}
                         </p>
                         {r.last_message_time && (
@@ -491,12 +524,12 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                         )}
                       </td>
 
-                      {/* Action: Redirect to Chat */}
+                      {/* Action: Redirect to Chat (WhatsApp Brand Green) */}
                       <td className="px-5 py-3.5 text-right">
                         <button
                           type="button"
                           onClick={() => onOpenChat && onOpenChat(r.phone)}
-                          className="inline-flex items-center gap-1 bg-gray-900 hover:bg-black text-white font-semibold text-xs px-3 py-1.5 rounded-lg shadow-xs transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#20ba59] text-black font-bold text-xs px-3.5 py-1.5 rounded-lg shadow-xs transition cursor-pointer"
                           title="Open Live Chat for this Lead"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
@@ -511,7 +544,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
           </table>
         </div>
 
-        {/* ── Pagination Footer (10, 50, 100 per page) ── */}
+        {/* ── Pagination Footer ── */}
         <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
           <div>
             Showing <strong className="text-gray-900">{totalCount > 0 ? startIndex + 1 : 0}</strong> to{" "}
@@ -523,7 +556,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={validCurrentPage <= 1}
-              className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
               title="Previous Page"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -537,7 +570,7 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={validCurrentPage >= totalPages}
-              className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
               title="Next Page"
             >
               <ChevronRight className="w-4 h-4" />
