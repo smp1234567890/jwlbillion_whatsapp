@@ -27,8 +27,8 @@ from whatsapp_service import send_whatsapp_free_text, send_whatsapp_interactive,
 logger = logging.getLogger("bot_service")
 
 # Master switch to pause or enable the bot auto-reply engine.
-# Set ENABLE_BOT_AUTOREPLY=true in .env to reactivate when ready.
-ENABLE_BOT_AUTOREPLY = os.getenv("ENABLE_BOT_AUTOREPLY", "false").lower() in ("true", "1", "yes")
+# Set ENABLE_BOT_AUTOREPLY=false in .env to disable if needed.
+ENABLE_BOT_AUTOREPLY = os.getenv("ENABLE_BOT_AUTOREPLY", "true").lower() in ("true", "1", "yes")
 
 GREETING_WORDS = {
     "hi", "hello", "hey", "namaste", "namaskar", "kya haal", "kya haal hai", "kaisa hai", "kaise ho",
