@@ -295,7 +295,11 @@ export default function App() {
   const [chatConversations, setChatConversations] = useState(() => {
     try {
       const cached = localStorage.getItem("cached_chat_conversations");
-      return cached ? JSON.parse(cached) : [];
+      if (!cached) return [];
+      const parsed = JSON.parse(cached);
+      return Array.isArray(parsed)
+        ? parsed.filter(c => !(c.customer_phone || "").startsWith("fb_") && !(c.customer_phone || "").startsWith("ig_"))
+        : [];
     } catch {
       return [];
     }
@@ -1302,12 +1306,18 @@ export default function App() {
       });
       const convs = res.data || [];
       setChatConversations((prev) => {
-        if (convs.length === 0) return prev;
+        if (convs.length === 0) return prev.filter(c => !(c.customer_phone || "").startsWith("fb_") && !(c.customer_phone || "").startsWith("ig_"));
         // Merge or replace initial 20 while keeping any extra pages loaded
         const map = new Map();
-        convs.forEach(c => map.set(c.customer_phone, c));
+        convs.forEach(c => {
+          if (!(c.customer_phone || "").startsWith("fb_") && !(c.customer_phone || "").startsWith("ig_")) {
+            map.set(c.customer_phone, c);
+          }
+        });
         prev.forEach(c => {
-          if (!map.has(c.customer_phone)) map.set(c.customer_phone, c);
+          if (!(c.customer_phone || "").startsWith("fb_") && !(c.customer_phone || "").startsWith("ig_")) {
+            if (!map.has(c.customer_phone)) map.set(c.customer_phone, c);
+          }
         });
         const merged = Array.from(map.values());
         merged.sort((a, b) => new Date(b.last_message_time || 0) - new Date(a.last_message_time || 0));
