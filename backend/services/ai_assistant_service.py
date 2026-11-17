@@ -41,19 +41,21 @@ FORBIDDEN_PATTERNS = [
 
 HINDI_PATTERNS = [
     r"[\u0900-\u097F]",
-    r"\b(?:kya|hai|hain|ho|batao|bhejo|dikhao|dekhao|chahiye|chiya|chahie|muje|mujhe|hum|hume|apka|aapka|kripya|kitna|kitne|kaise|kaha|kab|nahi|bhai|bhaiya|didi|kaisa|kaisi|ye|yeh|wo|woh|wale|wali|wala|mil|milega|milegi|shukriya|dhanyawad|dekhna)\b"
+    r"\b(?:kya|keya|kia|h|hai|hain|he|ho|batao|bhejo|dikhao|dekhao|chahiye|chiya|chahie|muje|mujhe|hum|hume|apka|aapka|kripya|kitna|kitne|kaise|kaha|kab|nahi|bhai|bhaiya|didi|kaisa|kaisi|ye|yeh|wo|woh|wale|wali|wala|mil|milega|milegi|shukriya|dhanyawad|dekhna|soch|ke|batati|batata|achha|acha|sahi|bilkul|aur|kuch|kisko|kiske|apne|liye)\b"
 ]
 
 SALES_SYSTEM_PROMPT = """You are Maya, warm, personal jewelry stylist for JWL Billion (jwlbillion.com).
 JWL Billion crafts premium 18K/24K gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
 
 CORE CONVERSATION RULES:
-1. NATURAL HINGLISH WITH RESPECTFUL "AAP": Never use 'tu/tum'. Speak warm, friendly, natural Hinglish.
+1. NATURAL HINGLISH WITH RESPECTFUL "AAP":
+   - When language is Conversational Hinglish, NEVER speak in pure English! Speak in natural Hindi/Hinglish with respectful "Aap" (never use 'tu/tum').
+   - Example Hinglish: "Haan ji, bilkul! Hamare paas ladies ke liye kaafi pretty chains hain. Is design ka price ₹749 hai. Aapko simple daily wear chahiye ya party wear?"
 2. FORMULA: Listen -> React -> Guide -> Recommend -> Help.
-3. MAX 1 QUESTION PER MESSAGE: Never overwhelm with multiple questions.
+3. NEVER OVERWHELM: Maximum 1 short question or next step per message. Never ask multiple questions. Never ask for "a price quote or live store page" like an IT system!
 4. PRICE DISCLOSURE: If asked "Price?", give the exact ₹ price immediately! Never hide it.
 5. RECOMMENDATION & LINK RULES (CRITICAL):
-   - Output the FULL product URL starting with https:// directly in the text!
+   - When recommending or sharing a product, output the FULL product URL starting with https:// directly in the text!
    - NEVER EVER say '[Link]', '[here]', or use markdown link syntax like [text](url).
    - WhatsApp does NOT support markdown links. Write the complete link directly so customer can click it.
    - Example: "The Gold Plated Chain is available at ₹749.00. You can check it out here: https://jwlbillion.com/products/gold-toned-classic-rectangular-link-chain-necklace"
@@ -114,7 +116,7 @@ JEWELRY_CATEGORY_CANONICAL = {
     "bracelet": [r"\b(?:bracelets?|bracelete?|breslets?|breslete?|braclets?|wristlets?|kadas?|kade|kara|cuff)\b", r"ब्रेसलेट|कड़ा"],
     "anklet": [r"\b(?:anklets?|payals?|pajeb|panjeb|pair\s*ke)\b", r"पायल|पाजेब|एंक्लेट"],
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"अंगूठी|रिंग"],
-    "chain": [r"\b(?:chains?|chane|chaines?)\b", r"चैन|चेन"],
+    "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene)\b", r"चैन|चेन"],
     "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?)\b", r"हार|नेकलेस|पेंडेंट"],
     "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?)\b", r"झुमका|बाली|इयररिंग"]
 }
@@ -139,7 +141,7 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
                     break
 
         is_men = bool(re.search(r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai)\b", combined_text))
-        is_women = bool(re.search(r"\b(?:women|womens|ladies|girls?|female|aurat|wife|sister|didi)\b", combined_text))
+        is_women = bool(re.search(r"\b(?:women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi)\b", combined_text))
 
         matches = []
         for p in products:
@@ -253,7 +255,9 @@ def generate_qwen_reply(
     # 3. Retrieve live Shopify product context matching customer's inquiry
     product_context, top_matches = get_relevant_product_context(customer_query, chat_history)
 
-    is_customer_hindi = any(bool(re.search(p, customer_query.lower(), re.I)) for p in HINDI_PATTERNS)
+    # Detect Hindi/Hinglish across query and chat history
+    combined_convo = f"{chat_history} {customer_query}".lower()
+    is_customer_hindi = any(bool(re.search(p, combined_convo, re.I)) for p in HINDI_PATTERNS)
     lang_pref = "Conversational Hinglish" if is_customer_hindi else "Natural English"
 
     prompt_parts = []
@@ -265,6 +269,7 @@ def generate_qwen_reply(
     prompt_parts.append(
         f"New Customer Message: {customer_query}\n"
         f"Language to reply in: {lang_pref}\n"
+        f"CRITICAL: If language is Conversational Hinglish, reply ONLY in natural Hindi/Hinglish using respectful 'Aap'.\n"
         f"Maya (JWL Stylist response, concise, friendly, selling with links/prices if product was asked):"
     )
 
@@ -304,6 +309,9 @@ def generate_qwen_reply(
             if top_matches and re.search(r'\[(?:Link|here|view|details?|product|website)\]', answer, re.I):
                 primary_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
                 answer = re.sub(r'\[(?:Link|here|view|details?|product|website)\]', primary_url, answer, flags=re.I)
+
+            # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
+            answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()
             
             return {
                 "status": "success",

@@ -1012,6 +1012,10 @@ def verify_whatsapp_webhook(
     raise HTTPException(status_code=403, detail="Verification token mismatch")
 
 
+import time
+
+_PHONE_LAST_REPLY_TIME: Dict[str, float] = {}
+
 def _run_bot_reply_in_background(
     sender_phone: str,
     message_text: str,
@@ -1022,7 +1026,15 @@ def _run_bot_reply_in_background(
     """
     Executes bot/Qwen AI inference in a background thread so the HTTP webhook responds
     instantly (200 OK within 50ms) to Meta. This prevents Meta timeout retries and CPU deadlocks.
+    Includes rapid-burst debouncing so if a customer sends 2 messages in 3 seconds,
+    the bot doesn't spam two separate simultaneous replies.
     """
+    now = time.time()
+    last_time = _PHONE_LAST_REPLY_TIME.get(sender_phone, 0.0)
+    if (now - last_time) < 3.0:
+        time.sleep(2.0)
+    _PHONE_LAST_REPLY_TIME[sender_phone] = time.time()
+
     from database import SessionLocal
     bg_db = SessionLocal()
     try:
