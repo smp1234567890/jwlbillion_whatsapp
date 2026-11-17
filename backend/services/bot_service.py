@@ -31,11 +31,11 @@ logger = logging.getLogger("bot_service")
 ENABLE_BOT_AUTOREPLY = os.getenv("ENABLE_BOT_AUTOREPLY", "true").lower() in ("true", "1", "yes")
 
 GREETING_WORDS = {
-    "hi", "hello", "hey", "namaste", "namaskar", "kya haal", "kya haal hai", "kaisa hai", "kaise ho",
+    "hi", "hello", "hey", "namaste", "namasta", "namaskar", "namaskaram", "kya haal", "kya haal hai", "kaisa hai", "kaise ho",
     "ram ram", "radhe radhe", "jai shri krishna", "pranam", "salaam", "adaab",
     "hi there", "hey there", "heya", "hiya", "howdy", "sup", "yo", "yoo", "yoyoo",
     "good morning", "good afternoon", "good evening", "good night", "start", "menu",
-    "namasteji", "namaskaram", "kem cho", "kem chho", "shubh prabhat", "shubh ratri", "pranamji"
+    "namasteji", "kem cho", "kem chho", "shubh prabhat", "shubh ratri", "pranamji"
 }
 
 GREETING_PHRASES = [
@@ -1180,7 +1180,7 @@ def handle_inbound_auto_reply(
         any(w in GREETING_WORDS for w in words)
         or any(nw in GREETING_WORDS for nw in normalized_words)
         or any(phrase in text_clean for phrase in GREETING_PHRASES)
-        or text_clean in ["hi", "hello", "hey", "namaste", "start"]
+        or text_clean in ["hi", "hello", "hey", "namaste", "namasta", "start"]
     )
 
     # If greeting with no specific product/order mentioned, send conversational human hook

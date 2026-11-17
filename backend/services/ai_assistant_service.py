@@ -266,6 +266,7 @@ def generate_qwen_reply(
 
     # Default to Conversational Hinglish for all Indian customer conversations,
     # unless customer explicitly asks or speaks in pure formal English without Indian phrasing
+    combined_convo = f"{chat_history} {customer_query}".lower()
     is_pure_english = bool(re.search(r"^[a-zA-Z0-9\s\.,!\?']+$", customer_query)) and not any(bool(re.search(p, combined_convo, re.I)) for p in HINDI_PATTERNS)
     # Even if in English, if it's an initial Meta inquiry or greeting, we greet in warm Hinglish
     lang_pref = "Conversational Hinglish"

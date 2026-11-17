@@ -1014,7 +1014,7 @@ def verify_whatsapp_webhook(
 
 import time
 
-_PHONE_LAST_REPLY_TIME: Dict[str, float] = {}
+_PHONE_LAST_INBOUND_TIME: Dict[str, float] = {}
 
 def _run_bot_reply_in_background(
     sender_phone: str,
@@ -1025,15 +1025,21 @@ def _run_bot_reply_in_background(
 ):
     """
     Executes bot/Qwen AI inference in a background thread so the HTTP webhook responds
-    instantly (200 OK within 50ms) to Meta. This prevents Meta timeout retries and CPU deadlocks.
-    Includes rapid-burst debouncing so if a customer sends 2 messages in 3 seconds,
-    the bot doesn't spam two separate simultaneous replies.
+    instantly (200 OK within 50ms) to Meta.
+    Includes a 4-second debouncing delay: if the customer is typing multiple quick messages
+    in succession, we wait so the conversation buffer captures them together rather than
+    firing premature or overlapping replies.
     """
-    now = time.time()
-    last_time = _PHONE_LAST_REPLY_TIME.get(sender_phone, 0.0)
-    if (now - last_time) < 3.0:
-        time.sleep(2.0)
-    _PHONE_LAST_REPLY_TIME[sender_phone] = time.time()
+    registered_time = time.time()
+    _PHONE_LAST_INBOUND_TIME[sender_phone] = registered_time
+
+    # Wait 4 seconds for user to finish sending multi-part messages
+    time.sleep(4.0)
+
+    # If another message arrived from this customer while we were sleeping, let the newest one handle it
+    if _PHONE_LAST_INBOUND_TIME.get(sender_phone, 0.0) > registered_time:
+        logger.info(f"[Bot Debounce] Newer message arrived from {sender_phone}, superseding earlier task.")
+        return
 
     from database import SessionLocal
     bg_db = SessionLocal()
