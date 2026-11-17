@@ -56,28 +56,43 @@ def is_forbidden_query(query: str) -> bool:
 def get_relevant_product_context(customer_query: str) -> str:
     """Finds matching live Shopify products and returns a short summary context for Qwen."""
     try:
-        data = fetch_shopify_products(limit=50)
+        data = fetch_shopify_products(limit=100)
         products = data.get("products", [])
         if not products:
             return ""
 
         q_terms = [w for w in re.split(r"\W+", customer_query.lower()) if len(w) > 2]
+        is_men_query = bool(re.search(r"\b(?:men|mens|gents|boys?)\b", customer_query.lower()))
+        is_women_query = bool(re.search(r"\b(?:women|womens|ladies|girls?)\b", customer_query.lower()))
+
         matches = []
         for p in products:
-            p_text = f"{p.get('title', '')} {p.get('product_type', '')}".lower()
-            score = sum(1 for t in q_terms if t in p_text)
+            p_text = f"{p.get('title', '')} {p.get('product_type', '')} {' '.join(p.get('tags', []))}".lower()
+            p_has_men = bool(re.search(r"\b(?:men|mens|gents|boys?)\b", p_text))
+            p_has_women = bool(re.search(r"\b(?:women|womens|ladies|girls?)\b", p_text))
+
+            # Strictly enforce gender constraint when specified
+            if is_men_query and not is_women_query:
+                if not p_has_men or (p_has_women and not bool(re.search(r"\b(?:men|mens|gents|boys?)\b", p.get('title', ''), re.I))):
+                    continue
+            elif is_women_query and not is_men_query:
+                if p_has_men and not p_has_women:
+                    continue
+
+            score = sum(1 for t in q_terms if re.search(r"\b" + re.escape(t), p_text))
             if score > 0:
                 matches.append((score, p))
 
         matches.sort(key=lambda x: x[0], reverse=True)
         top_matches = [m[1] for m in matches[:3]]
-        if not top_matches:
+        if not top_matches and not is_men_query:
             top_matches = products[:2]
 
         lines = ["Available Live Store Products:"]
         for p in top_matches:
             price_val = p.get("price") or "Price on inquiry"
-            lines.append(f"- {p.get('title')}: ₹{price_val} | Link: {p.get('shop_url') or 'https://jwlbillion.com'}")
+            prod_link = p.get("product_url") or p.get("shop_url") or "https://jwlbillion.com"
+            lines.append(f"- {p.get('title')}: ₹{price_val} | Link: {prod_link}")
         return "\n".join(lines)
     except Exception as e:
         logger.warning(f"[AI Service] Error loading product context: {e}")

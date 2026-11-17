@@ -448,9 +448,18 @@ def _match_and_send_product_designs(
                 r"(?:पुरुष|जेंट्स|लड़कों के लिए)"
             ],
             "matcher": lambda p: (
-                "men" in p.get("title", "").lower()
-                or "men" in [t.lower() for t in p.get("tags", [])]
-                or "mens" in (p.get("handle") or "").lower()
+                (
+                    any(re.search(r"\b(?:men|mens|gents|boys?)\b", t, re.I) for t in p.get("tags", []))
+                    or bool(re.search(r"\b(?:men|mens|gents|boys?)\b", p.get("title", ""), re.I))
+                    or bool(re.search(r"\b(?:men|mens|gents|boys?)\b", p.get("handle") or "", re.I))
+                )
+                and not (
+                    (
+                        bool(re.search(r"\b(?:women|womens|ladies|girls?)\b", p.get("title", ""), re.I))
+                        or any(re.search(r"\b(?:women|womens|ladies|girls?)\b", t, re.I) for t in p.get("tags", []))
+                    )
+                    and not bool(re.search(r"\b(?:men|mens|gents|boys?)\b", p.get("title", ""), re.I))
+                )
             )
         }
     ]
@@ -499,14 +508,29 @@ def _match_and_send_product_designs(
         items_to_send = []
         lead_product = None
 
-        for cat in matched_categories:
-            matching_prods = [p for p in all_products if cat["matcher"](p)]
-            if matching_prods:
-                if not lead_product:
-                    lead_product = matching_prods[0]
-                for p in matching_prods[:2]:
-                    if p not in items_to_send:
-                        items_to_send.append((cat, p))
+        # Check if user specified a gender/audience constraint alongside jewelry type (e.g. "mens bracelet")
+        gender_cats = [c for c in matched_categories if c["id"] == "mens_collection"]
+        type_cats = [c for c in matched_categories if c["id"] != "mens_collection"]
+
+        if gender_cats and type_cats:
+            gender_matcher = gender_cats[0]["matcher"]
+            # Prioritize intersection: products matching BOTH the category and gender
+            intersect_prods = [p for p in all_products if any(tc["matcher"](p) for tc in type_cats) and gender_matcher(p)]
+            if intersect_prods:
+                lead_product = intersect_prods[0]
+                for p in intersect_prods[:4]:
+                    items_to_send.append((type_cats[0], p))
+                matched_categories = [type_cats[0]]  # Narrow display collection to the specific type
+
+        if not items_to_send:
+            for cat in matched_categories:
+                matching_prods = [p for p in all_products if cat["matcher"](p)]
+                if matching_prods:
+                    if not lead_product:
+                        lead_product = matching_prods[0]
+                    for p in matching_prods[:2]:
+                        if p not in items_to_send:
+                            items_to_send.append((cat, p))
 
         if not items_to_send:
             items_to_send = [(matched_categories[0], p) for p in all_products[:3]]
