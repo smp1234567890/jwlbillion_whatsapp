@@ -47,11 +47,46 @@ import ChatInputBox from "../components/ChatInputBox";
 
 function renderFormattedText(text) {
   if (!text) return null;
-  // Split on *bold* pattern
-  const parts = text.split(/(\*[^*\n]+\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
-      return <strong key={i} className="font-semibold">{part.slice(1, -1)}</strong>;
+  // URL matching pattern for auto-linking in chat messages
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+  // First split by bold markup *...*
+  const boldParts = text.split(/(\*[^*\n]+\*)/g);
+
+  return boldParts.map((part, i) => {
+    const isBold = part.startsWith("*") && part.endsWith("*") && part.length > 2;
+    const content = isBold ? part.slice(1, -1) : part;
+
+    // Check if content contains URLs
+    if (urlRegex.test(content)) {
+      const subParts = content.split(/(https?:\/\/[^\s]+)/g);
+      const renderedSub = subParts.map((sub, j) => {
+        if (/^https?:\/\/[^\s]+$/.test(sub)) {
+          return (
+            <a
+              key={`${i}-${j}`}
+              href={sub}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 break-all font-medium inline-block"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {sub}
+            </a>
+          );
+        }
+        return sub;
+      });
+
+      return isBold ? (
+        <strong key={i} className="font-semibold">{renderedSub}</strong>
+      ) : (
+        <React.Fragment key={i}>{renderedSub}</React.Fragment>
+      );
+    }
+
+    if (isBold) {
+      return <strong key={i} className="font-semibold">{content}</strong>;
     }
     return part;
   });

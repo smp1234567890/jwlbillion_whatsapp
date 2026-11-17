@@ -52,7 +52,11 @@ CORE CONVERSATION RULES:
 2. FORMULA: Listen -> React -> Guide -> Recommend -> Help.
 3. MAX 1 QUESTION PER MESSAGE: Never overwhelm with multiple questions.
 4. PRICE DISCLOSURE: If asked "Price?", give the exact ₹ price immediately! Never hide it.
-5. RECOMMENDATION: Show AT MOST 1 or 2 matching items with title, price (₹), and store link.
+5. RECOMMENDATION & LINK RULES (CRITICAL):
+   - Output the FULL product URL starting with https:// directly in the text!
+   - NEVER EVER say '[Link]', '[here]', or use markdown link syntax like [text](url).
+   - WhatsApp does NOT support markdown links. Write the complete link directly so customer can click it.
+   - Example: "The Gold Plated Chain is available at ₹749.00. You can check it out here: https://jwlbillion.com/products/gold-toned-classic-rectangular-link-chain-necklace"
 
 OBJECTION RESPONSES:
 - "Colour fade toh nahi hoga?": Multi-layer gold plating over brass with anti-tarnish coating. Proper care maintains shine for long. Care guide included. ❤️
@@ -116,13 +120,13 @@ JEWELRY_CATEGORY_CANONICAL = {
 }
 
 
-def get_relevant_product_context(customer_query: str, chat_history: str = "") -> str:
+def get_relevant_product_context(customer_query: str, chat_history: str = "") -> tuple[str, list[dict]]:
     """Finds matching live Shopify products based on query and accumulated conversation history with robust typo tolerance."""
     try:
         data = fetch_shopify_products(limit=150)
         products = data.get("products", [])
         if not products:
-            return ""
+            return "", []
 
         combined_text = f"{chat_history} {customer_query}".lower()
         
@@ -194,11 +198,11 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         for p in top_matches:
             price_val = p.get("price") or "Price on inquiry"
             prod_link = p.get("product_url") or p.get("shop_url") or "https://jwlbillion.com"
-            lines.append(f"- {p.get('title')}: ₹{price_val} | Link: {prod_link}")
-        return "\n".join(lines)
+            lines.append(f"- {p.get('title')}: ₹{price_val} | Product Link: {prod_link}")
+        return "\n".join(lines), top_matches
     except Exception as e:
         logger.warning(f"[AI Service] Error loading product context: {e}")
-        return ""
+        return "", []
 
 
 def generate_qwen_reply(
@@ -247,7 +251,7 @@ def generate_qwen_reply(
     chat_history = get_recent_chat_history(customer_phone, db, limit=6) if (customer_phone and db) else ""
 
     # 3. Retrieve live Shopify product context matching customer's inquiry
-    product_context = get_relevant_product_context(customer_query, chat_history)
+    product_context, top_matches = get_relevant_product_context(customer_query, chat_history)
 
     is_customer_hindi = any(bool(re.search(p, customer_query.lower(), re.I)) for p in HINDI_PATTERNS)
     lang_pref = "Conversational Hinglish" if is_customer_hindi else "Natural English"
@@ -295,6 +299,11 @@ def generate_qwen_reply(
             # Clean markdown link syntax: WhatsApp does not support markdown links like [here](https://...)
             # Convert [text](url) -> url so WhatsApp displays a clean, clickable preview link
             answer = re.sub(r'\[([^\]]+)\]\((https?://[^\s\)]+)\)', r'\2', answer)
+
+            # If Qwen outputted literal placeholder like [Link], [here], [view] instead of the actual URL
+            if top_matches and re.search(r'\[(?:Link|here|view|details?|product|website)\]', answer, re.I):
+                primary_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
+                answer = re.sub(r'\[(?:Link|here|view|details?|product|website)\]', primary_url, answer, flags=re.I)
             
             return {
                 "status": "success",
