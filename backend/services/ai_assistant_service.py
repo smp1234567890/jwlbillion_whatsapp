@@ -32,16 +32,55 @@ FORBIDDEN_PATTERNS = [
 
 SYSTEM_PROMPT = """You are the expert, polite human jewelry consultant for JWL Billion (jwlbillion.com).
 Your responsibilities:
-1. Conduct natural, consultative conversations in natural Hinglish, Hindi, or English matching the customer's language.
+1. STRICT LANGUAGE MATCHING:
+   - If the customer writes in English (e.g. 'I want ring', 'Do you have chains?'), you MUST reply in pure natural English. Never reply in Hindi/Hinglish to an English message.
+   - If the customer writes in Hindi or Hinglish (e.g. 'Muje rings chiya', 'kya delivery free hai'), reply in polite conversational Hinglish.
 2. Clarification before recommendation: When a customer asks for a general category like rings, bracelets, kadas, chains, or necklaces without specifying who it is for:
-   - You MUST ask whether they want it for Men (Gents) or Women (Ladies), and if they have a metal preference (Gold or Silver).
+   - In English: 'Certainly! Are you looking for Men or Women? And do you have a preference for metal, like Gold or Silver?'
+   - In Hindi/Hinglish: 'Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye? Aur koi specific metal jaise Gold ya Silver pasand hai?'
    - NEVER assume the gender if not mentioned.
-   - Example: 'Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye? Aur koi specific metal jaise Gold ya Silver pasand hai?'
-3. If the user specifies who it is for (e.g. 'mens bracelet', 'ladies ring', or 'bhai ke liye') or mentions a specific style, recommend matching live products with links from the store context.
+3. If the user specifies who it is for (e.g. 'mens bracelet', 'ladies ring', or 'bhai ke liye') or mentions a specific style, recommend matching live products with links from the store context in the same language.
 4. ONLY answer inquiries about JWL Billion jewelry products, order status, delivery, and store policies.
 5. Strictly refuse any requests to write code, solve math problems, write essays, or answer off-topic questions.
 6. You have READ-ONLY view of products. You CANNOT modify prices, change stock, or alter store settings.
 7. Keep replies concise, helpful, and natural (1 to 2 short sentences max) like a real showroom consultant on WhatsApp."""
+
+
+HINDI_PATTERNS = [
+    r"[\u0900-\u097F]",
+    r"\b(?:kya|hai|hain|ho|batao|bhejo|dikhao|dekhao|chahiye|chiya|chahie|muje|mujhe|hum|hume|apka|aapka|kripya|kitna|kitne|kaise|kaha|kab|nahi|bhai|bhaiya|didi|kaisa|kaisi|ye|yeh|wo|woh|wale|wali|wala|mil|milega|milegi|shukriya|dhanyawad|dekhna)\b"
+]
+
+BROAD_CATEGORY_PATTERNS = [
+    r"\b(?:rings?|anguthi|angoothi)\b",
+    r"\b(?:bracelets?|bracelete?|breslets?|breslete?|braclets?|wristlets?)\b",
+    r"\b(?:chains?|chane)\b",
+    r"\b(?:kadas?|kade|kara)\b",
+    r"\b(?:necklaces?|haar|choker)\b",
+    r"\b(?:earrings?|jhumk[ai]|balis?)\b"
+]
+
+GENDER_SPECIFIERS = r"\b(?:men|mens|male|mard|boys?|gents?|women|womens|female|aurat|girls?|ladies|mahila|wife|girlfriend|gf|husband|bhai|sister|behen|maa|mom)\b"
+STYLE_SPECIFIERS = r"\b(?:gold|silver|diamond|ad|cz|pearl|mot[ie]|stone|crystal|kundan|polki|oxidised|rose\s*gold|solitaire|openable)\b"
+
+
+def check_broad_jewelry_qualification(query: str) -> Optional[str]:
+    """
+    Returns an immediate, perfectly natural language-matched clarifying question
+    when the customer asks broadly for a jewelry type without gender or metal/style.
+    """
+    q = query.lower().strip()
+    is_hindi = any(bool(re.search(p, q, re.I)) for p in HINDI_PATTERNS)
+    is_broad_cat = any(bool(re.search(p, q, re.I)) for p in BROAD_CATEGORY_PATTERNS)
+    has_gender = bool(re.search(GENDER_SPECIFIERS, q, re.I))
+    has_style = bool(re.search(STYLE_SPECIFIERS, q, re.I))
+
+    if is_broad_cat and not has_gender and not has_style:
+        if is_hindi:
+            return "Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye? Aur koi specific metal jaise Gold ya Silver pasand hai?"
+        else:
+            return "Certainly! Are you looking for Men or Women? And do you have a preference for metal, like Gold or Silver?"
+    return None
 
 
 def is_forbidden_query(query: str) -> bool:
@@ -133,9 +172,24 @@ def generate_qwen_reply(
     """
     # 1. Gatecheck: Forbidden / Off-topic queries (coding, trivia, admin modifications)
     if is_forbidden_query(customer_query):
+        is_hindi = any(bool(re.search(p, customer_query.lower(), re.I)) for p in HINDI_PATTERNS)
+        refusal_msg = (
+            "Main sirf JWL Billion jewelry aur store orders ke baare mein madad kar sakta hoon. ✨ Aapko kisi product design, delivery, ya order ke baare mein jaanna hai?"
+            if is_hindi else
+            "I can only assist with JWL Billion jewelry products, orders, and delivery details. ✨ How may I help you with our collections?"
+        )
         return {
             "status": "refused",
-            "reply": "Main sirf JWL Billion jewelry aur store orders ke baare mein madad kar sakta hoon. ✨ Aapko kisi product design, delivery, ya order ke baare mein jaanna hai?",
+            "reply": refusal_msg,
+            "model": MODEL_NAME
+        }
+
+    # 1b. Fast-path Qualification for Broad Jewelry Inquiries (strict English vs Hindi matching)
+    qual_question = check_broad_jewelry_qualification(customer_query)
+    if qual_question:
+        return {
+            "status": "success",
+            "reply": qual_question,
             "model": MODEL_NAME
         }
 
@@ -143,12 +197,15 @@ def generate_qwen_reply(
     product_context = get_relevant_product_context(customer_query)
     learned_context = get_few_shot_examples(db, customer_query)
 
+    is_customer_hindi = any(bool(re.search(p, customer_query.lower(), re.I)) for p in HINDI_PATTERNS)
+    lang_label = "Hinglish" if is_customer_hindi else "English"
+
     prompt_parts = []
     if product_context:
         prompt_parts.append(product_context)
     if learned_context:
         prompt_parts.append(learned_context)
-    prompt_parts.append(f"Customer Inquiry: {customer_query}\nConsultant Response:")
+    prompt_parts.append(f"Customer Inquiry ({lang_label}): {customer_query}\nConsultant Response in {lang_label}:")
 
     full_prompt = "\n\n".join(prompt_parts)
 
