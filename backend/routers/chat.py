@@ -64,8 +64,10 @@ def list_conversations(
         where_clauses.append("(lm.channel = 'support' OR lm.customer_phone = :support_phone)")
         params["support_phone"] = support_phone_clean
     else:
-        # Regular marketing live chat inbox excludes customer support conversations
+        # Regular marketing live chat inbox excludes customer support and social channels (fb, ig)
         where_clauses.append("(lm.channel IS NULL OR lm.channel != 'support')")
+        where_clauses.append("lm.customer_phone NOT LIKE 'fb_%'")
+        where_clauses.append("lm.customer_phone NOT LIKE 'ig_%'")
         if support_phone_clean:
             where_clauses.append("lm.customer_phone != :support_phone")
             params["support_phone"] = support_phone_clean
