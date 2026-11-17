@@ -1,6 +1,16 @@
 import re
+import json
+import logging
+import urllib.request
+import urllib.error
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+
+logger = logging.getLogger("lead_intent_service")
+
+# Ollama endpoint on host machine from within Docker container
+OLLAMA_API_URL = "http://172.17.0.1:11434/api/generate"
+QWEN_MODEL_NAME = "qwen2.5:3b"
 
 # Keyword & Pattern Definitions for Lead Intent Classification
 HIGH_INTENT_PATTERNS = [
@@ -32,16 +42,100 @@ NEGATIVE_PATTERNS = [
     r"\b(stop|unsubscribe|cancel|opt out|remove me|don'?t message|wrong number|not interested|no thanks|spam)\b",
 ]
 
-def analyze_conversation_interest(messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+
+def classify_intent_with_qwen(messages: List[Dict[str, Any]], timeout: float = 12.0) -> Optional[Dict[str, Any]]:
+    """
+    Invokes the local Qwen 2.5 LLM via Ollama to classify customer interest level,
+    numerical score, and detected intent topics based on conversational context.
+    """
+    if not messages:
+        return None
+
+    # Format transcript lines (limit to last 8 messages for speed)
+    recent_msgs = messages[-8:]
+    transcript_lines = []
+    for m in recent_msgs:
+        sender = "Customer" if m.get("sender_type") == "CUSTOMER" else "Agent"
+        txt = (m.get("text") or "").strip().replace("\n", " ")
+        if txt:
+            transcript_lines.append(f"{sender}: {txt[:200]}")
+
+    if not transcript_lines:
+        return None
+
+    transcript_str = "\n".join(transcript_lines)
+
+    prompt = f"""You are an expert sales qualification AI for JWL Billion jewelry.
+Analyze this WhatsApp customer conversation:
+{transcript_str}
+
+Instructions:
+1. Ignore automated ad greeting lines (e.g. "Hello! Can I get more info on this?"). Focus on what the customer actually asked for or replied with.
+2. If customer asks about pricing, buying, catalog, delivery, wholesale, or resell, classify as HIGHLY_INTERESTED (score 70-100).
+3. If customer asks general product questions, affirms interest, or engages actively, classify as INTERESTED (score 40-69).
+4. If customer sends only the default ad greeting without any other response, classify as LOW_INTEREST (score 20-39).
+5. If customer opts out or says not interested/stop, classify as NOT_INTERESTED (score 0-19).
+
+Respond strictly with a single JSON object in this format:
+{{
+  "interest_level": "HIGHLY_INTERESTED" or "INTERESTED" or "LOW_INTEREST" or "NOT_INTERESTED",
+  "interest_score": integer between 0 and 100,
+  "detected_signals": ["keyword1", "keyword2"],
+  "summary": "1 brief sentence summarizing customer intent"
+}}"""
+
+    payload = {
+        "model": QWEN_MODEL_NAME,
+        "prompt": prompt,
+        "stream": False,
+        "format": "json",
+        "options": {
+            "temperature": 0.1,
+            "num_predict": 90
+        }
+    }
+
+    try:
+        req = urllib.request.Request(
+            OLLAMA_API_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        resp = urllib.request.urlopen(req, timeout=timeout)
+        data = json.loads(resp.read().decode("utf-8"))
+        raw_output = data.get("response", "").strip()
+
+        parsed = json.loads(raw_output)
+        level = parsed.get("interest_level", "LOW_INTEREST").upper()
+        if level not in ["HIGHLY_INTERESTED", "INTERESTED", "LOW_INTEREST", "NOT_INTERESTED"]:
+            level = "LOW_INTEREST"
+
+        score = int(parsed.get("interest_score", 30))
+        score = max(0, min(100, score))
+
+        signals = parsed.get("detected_signals") or []
+        if not isinstance(signals, list):
+            signals = [str(signals)]
+
+        summary = parsed.get("summary") or f"{level.replace('_', ' ').title()} lead"
+
+        return {
+            "interest_level": level,
+            "interest_score": score,
+            "detected_signals": signals[:6],
+            "summary": summary,
+            "analyzed_by": "qwen2.5"
+        }
+    except Exception as e:
+        logger.debug(f"[Lead Intent Service] Qwen inference skipped/failed ({e}); using rule engine.")
+        return None
+
+
+def analyze_conversation_interest(messages: List[Dict[str, Any]], use_qwen: bool = False) -> Dict[str, Any]:
     """
     Analyzes the complete sequence of messages in a conversation.
-    Determines:
-    1. is_client_initiated: Whether the client/lead initiated the thread.
-    2. interest_level: "HIGHLY_INTERESTED", "INTERESTED", "LOW_INTEREST", or "OUTBOUND_ONLY".
-    3. interest_score: 0-100 score.
-    4. detected_signals: Key intents found (e.g. ['pricing', 'ordering', 'availability']).
-    5. inbound_count: Number of customer messages.
-    6. client_first_message: The text of the lead's opening query.
+    If use_qwen is True and Qwen responds, uses Qwen 2.5 classification.
+    Otherwise uses the refined intent pattern engine.
     """
     if not messages:
         return {
@@ -82,6 +176,23 @@ def analyze_conversation_interest(messages: List[Dict[str, Any]]) -> Dict[str, A
         }
 
     client_first_message = customer_msgs[0].get("text") or ""
+
+    # Try Qwen 2.5 if requested
+    if use_qwen:
+        qwen_res = classify_intent_with_qwen(sorted_msgs)
+        if qwen_res:
+            return {
+                "is_client_initiated": is_client_initiated,
+                "interest_level": qwen_res["interest_level"],
+                "interest_score": qwen_res["interest_score"],
+                "detected_signals": qwen_res["detected_signals"],
+                "inbound_count": inbound_count,
+                "outbound_count": outbound_count,
+                "client_first_message": client_first_message,
+                "summary": qwen_res["summary"],
+                "analyzed_by": "qwen2.5"
+            }
+
     all_customer_text = " ".join((m.get("text") or "").lower() for m in customer_msgs)
 
     # Check for hard negative / unsubscribe
