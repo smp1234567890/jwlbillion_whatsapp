@@ -172,10 +172,13 @@ def get_conversation_analysis(
     """
     Detailed lead interest and conversation analysis for a specific chat thread.
     """
-    try:
-        clean_phone = normalize_phone(phone)
-    except InvalidPhoneNumberError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    if phone.startswith("fb_") or phone.startswith("ig_"):
+        clean_phone = phone
+    else:
+        try:
+            clean_phone = normalize_phone(phone)
+        except InvalidPhoneNumberError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     pii_service.verify_conversation_access(db, current_user, clean_phone)
     from services.lead_intent_service import analyze_conversation_interest
@@ -367,10 +370,13 @@ def get_chat_history(
     Marks customer messages as read.
     Enforces record-level access check for agents.
     """
-    try:
-        clean_phone = normalize_phone(phone)
-    except InvalidPhoneNumberError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    if phone.startswith("fb_") or phone.startswith("ig_"):
+        clean_phone = phone
+    else:
+        try:
+            clean_phone = normalize_phone(phone)
+        except InvalidPhoneNumberError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     # Enforce record scope
     pii_service.verify_conversation_access(db, current_user, clean_phone)
@@ -788,10 +794,13 @@ def delete_conversation(
     Deletes all chat messages and historical logs for the given customer phone number.
     Only accessible by authorized users.
     """
-    try:
-        clean_phone = normalize_phone(phone)
-    except InvalidPhoneNumberError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    if phone.startswith("fb_") or phone.startswith("ig_"):
+        clean_phone = phone
+    else:
+        try:
+            clean_phone = normalize_phone(phone)
+        except InvalidPhoneNumberError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     pii_service.verify_conversation_access(db, current_user, clean_phone)
 
