@@ -512,21 +512,17 @@ def _match_and_send_product_designs(
         gender_cats = [c for c in matched_categories if c["id"] == "mens_collection"]
         type_cats = [c for c in matched_categories if c["id"] != "mens_collection"]
 
-        # Human Consultative Behavior: If user asks for a broad category (like "rings", "bracelets", "chains")
-        # without specifying gender or material/style, let Qwen ask a natural clarifying question instead of blasting random photos
+        # Human Consultative Behavior: If user asks for a category (like "rings", "bracelets", "necklaces", "chains")
+        # without specifying gender (Men or Women), ALWAYS delegate to Qwen to clarify gender first.
+        # Even if they say "Gold", we still do not know if it is for Men or Women!
         has_explicit_gender = bool(gender_cats) or bool(re.search(
             r"\b(?:men|mens|male|mard|boys?|gents?|women|womens|female|aurat|girls?|ladies|mahila|wife|girlfriend|gf|husband|bhai|sister|behen|maa|mom)\b",
             text_clean,
             re.IGNORECASE
         ))
-        has_explicit_style = bool(re.search(
-            r"\b(?:gold|silver|diamond|ad|cz|pearl|mot[ie]|stone|crystal|kundan|polki|oxidised|rose\s*gold|solitaire|openable)\b",
-            text_clean,
-            re.IGNORECASE
-        ))
 
-        if type_cats and not has_explicit_gender and not has_explicit_style:
-            # Delegate to Qwen to ask a warm, consultative qualifying question (e.g. "Men ya Women?")
+        if type_cats and not has_explicit_gender:
+            # Delegate to Qwen to ask whether it is for Men or Women
             return None
 
         if gender_cats and type_cats:

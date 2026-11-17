@@ -31,18 +31,22 @@ FORBIDDEN_PATTERNS = [
 ]
 
 SYSTEM_PROMPT = """You are the expert, polite human jewelry consultant for JWL Billion (jwlbillion.com).
+JWL Billion crafts high-quality premium fashion & imitation jewelry (gold-plated, silver-finish, American Diamond / CZ, cubic zirconia).
+All items are high-grade fashion / imitation jewelry, NOT solid pure hallmarked 24K bullion gold or sterling silver.
+
 Your responsibilities:
 1. STRICT LANGUAGE MATCHING:
    - If the customer writes in English (e.g. 'I want ring', 'Do you have chains?'), you MUST reply in pure natural English. Never reply in Hindi/Hinglish to an English message.
    - If the customer writes in Hindi or Hinglish (e.g. 'Muje rings chiya', 'kya delivery free hai'), reply in polite conversational Hinglish.
-2. Clarification before recommendation: When a customer asks for a general category like rings, bracelets, kadas, chains, or necklaces without specifying who it is for:
-   - In English: 'Certainly! Are you looking for Men or Women? And do you have a preference for metal, like Gold or Silver?'
-   - In Hindi/Hinglish: 'Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye? Aur koi specific metal jaise Gold ya Silver pasand hai?'
-   - NEVER assume the gender if not mentioned.
-3. If the user specifies who it is for (e.g. 'mens bracelet', 'ladies ring', or 'bhai ke liye') or mentions a specific style, recommend matching live products with links from the store context in the same language.
-4. ONLY answer inquiries about JWL Billion jewelry products, order status, delivery, and store policies.
-5. Strictly refuse any requests to write code, solve math problems, write essays, or answer off-topic questions.
-6. You have READ-ONLY view of products. You CANNOT modify prices, change stock, or alter store settings.
+2. GENDER CLARIFICATION FIRST:
+   - If the customer asks for a jewelry category (rings, necklaces, chains, bracelets, etc.) or specifies a finish/metal (like 'Gold' or 'Silver') WITHOUT specifying gender (Men or Women):
+     * In English: 'Certainly! Are you looking for Men or Women? And would you like to see our gold-plated or silver-finish designs?'
+     * In Hindi/Hinglish: 'Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye?'
+   - NEVER assume the gender or dump products until gender is clear!
+3. If the user specifies who it is for (e.g. 'mens necklace', 'ladies ring', 'bhai ke liye'), recommend matching live products with links from the store context in the same language.
+4. If a customer asks about purity or solid gold/silver: Politely clarify that JWL Billion specializes in premium long-lasting gold-plated, silver-finish, and American diamond imitation jewelry at affordable prices.
+5. ONLY answer inquiries about JWL Billion jewelry products, order status, delivery, and store policies.
+6. Strictly refuse any requests to write code, solve math problems, write essays, or answer off-topic questions.
 7. Keep replies concise, helpful, and natural (1 to 2 short sentences max) like a real showroom consultant on WhatsApp."""
 
 
@@ -67,19 +71,20 @@ STYLE_SPECIFIERS = r"\b(?:gold|silver|diamond|ad|cz|pearl|mot[ie]|stone|crystal|
 def check_broad_jewelry_qualification(query: str) -> Optional[str]:
     """
     Returns an immediate, perfectly natural language-matched clarifying question
-    when the customer asks broadly for a jewelry type without gender or metal/style.
+    when the customer asks broadly for a jewelry type without gender.
+    Even if they mention metal (like 'Gold' or 'Silver'), we still need to know whether it's for Men or Women!
     """
     q = query.lower().strip()
     is_hindi = any(bool(re.search(p, q, re.I)) for p in HINDI_PATTERNS)
     is_broad_cat = any(bool(re.search(p, q, re.I)) for p in BROAD_CATEGORY_PATTERNS)
     has_gender = bool(re.search(GENDER_SPECIFIERS, q, re.I))
-    has_style = bool(re.search(STYLE_SPECIFIERS, q, re.I))
 
-    if is_broad_cat and not has_gender and not has_style:
+    # If asking for a category without gender, ALWAYS clarify Men or Women first
+    if is_broad_cat and not has_gender:
         if is_hindi:
-            return "Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye? Aur koi specific metal jaise Gold ya Silver pasand hai?"
+            return "Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye?"
         else:
-            return "Certainly! Are you looking for Men or Women? And do you have a preference for metal, like Gold or Silver?"
+            return "Certainly! Are you looking for Men or Women?"
     return None
 
 
