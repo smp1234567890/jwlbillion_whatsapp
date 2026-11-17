@@ -1027,6 +1027,22 @@ def handle_inbound_auto_reply(
         _save_bot_message(db, sender_phone, "Sent interactive main menu", res.get("message_id"))
         return res
 
+    # -------------------------------------------------------------
+    # 6. Qwen 2.5:3B Sandboxed Assistant (Free-form Customer Inquiries)
+    # Strictly answers platform, order, and jewelry questions with photo/links.
+    # Refuses coding, essays, and off-topic questions.
+    # -------------------------------------------------------------
+    try:
+        from services.ai_assistant_service import generate_qwen_reply
+        ai_result = generate_qwen_reply(message_text, sender_phone, db=db)
+        if ai_result and ai_result.get("reply"):
+            qwen_text = ai_result["reply"]
+            res = send_whatsapp_free_text(sender_phone, qwen_text, db=db)
+            _save_bot_message(db, sender_phone, qwen_text, res.get("message_id"))
+            return res
+    except Exception as qwen_err:
+        logger.warning(f"[Bot Qwen Auto-Reply] Fallback triggered: {qwen_err}")
+
     return None
 
 

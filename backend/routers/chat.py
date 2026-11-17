@@ -564,6 +564,19 @@ def send_agent_reply(
         meta_message_id=msg_id
     )
     db.add(log_entry)
+
+    # Auto-Learning: Pair customer query with human agent reply for Qwen few-shot learning
+    try:
+        if last_inbound_msg and last_inbound_msg.text and len(last_inbound_msg.text.strip()) > 3:
+            db.add(models.AILearnedInteraction(
+                customer_query=last_inbound_msg.text.strip(),
+                agent_reply=payload.text.strip(),
+                category="general",
+                is_approved=True
+            ))
+    except Exception as learn_err:
+        logger.debug(f"[Auto-Learning] Interaction capture skipped: {learn_err}")
+
     db.commit()
     db.refresh(chat_entry)
 
@@ -731,6 +744,19 @@ async def send_chat_media_message(
         meta_message_id=msg_id
     )
     db.add(log_entry)
+
+    # Auto-Learning: Pair customer query with human agent reply for Qwen few-shot learning
+    try:
+        if last_inbound_msg and last_inbound_msg.text and len(last_inbound_msg.text.strip()) > 3:
+            db.add(models.AILearnedInteraction(
+                customer_query=last_inbound_msg.text.strip(),
+                agent_reply=payload.text.strip(),
+                category="general",
+                is_approved=True
+            ))
+    except Exception as learn_err:
+        logger.debug(f"[Auto-Learning] Interaction capture skipped: {learn_err}")
+
     db.commit()
     db.refresh(chat_entry)
 

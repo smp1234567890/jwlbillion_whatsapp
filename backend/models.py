@@ -458,3 +458,20 @@ class DeviceToken(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class AILearnedInteraction(Base):
+    """
+    Stores human agent replies paired with customer queries.
+    Provides dynamic Few-Shot examples for Qwen without retraining the model.
+    """
+    __tablename__ = "ai_learned_interactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_query = Column(Text, nullable=False)
+    agent_reply = Column(Text, nullable=False)
+    category = Column(String(50), nullable=True)  # "chains", "pricing", "delivery", etc.
+    language = Column(String(20), default="hinglish")  # "en", "hi", "hinglish"
+    is_approved = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+
