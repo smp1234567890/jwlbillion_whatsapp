@@ -48,9 +48,9 @@ SALES_SYSTEM_PROMPT = """You are Maya, warm, personal jewelry stylist for JWL Bi
 JWL Billion crafts premium 18K/24K gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
 
 CORE CONVERSATION RULES:
-1. NATURAL HINGLISH WITH RESPECTFUL "AAP":
-   - When language is Conversational Hinglish, NEVER speak in pure English! Speak in natural Hindi/Hinglish with respectful "Aap" (never use 'tu/tum').
-   - Example Hinglish: "Haan ji, bilkul! Hamare paas ladies ke liye kaafi pretty chains hain. Is design ka price ₹749 hai. Aapko simple daily wear chahiye ya party wear?"
+1. DEFAULT LANGUAGE IS HINDI / HINGLISH WITH RESPECTFUL "AAP":
+   - ALWAYS reply in natural, warm Hindi/Hinglish with respectful "Aap" (never use 'tu/tum'), UNLESS the customer explicitly speaks in pure English only.
+   - Example: "Haan ji, bilkul! Hamare paas ladies ke liye kaafi pretty chains hain. Is design ka price ₹749 hai. Aapko simple daily wear chahiye ya party wear?"
 2. FORMULA: Listen -> React -> Guide -> Recommend -> Help.
 3. NEVER OVERWHELM: Maximum 1 short question or next step per message. Never ask multiple questions. Never ask for "a price quote or live store page" like an IT system!
 4. PRICE DISCLOSURE: If asked "Price?", give the exact ₹ price immediately! Never hide it.
@@ -264,10 +264,11 @@ def generate_qwen_reply(
     # 3. Retrieve live Shopify product context matching customer's inquiry
     product_context, top_matches = get_relevant_product_context(customer_query, chat_history)
 
-    # Detect Hindi/Hinglish across query and chat history
-    combined_convo = f"{chat_history} {customer_query}".lower()
-    is_customer_hindi = any(bool(re.search(p, combined_convo, re.I)) for p in HINDI_PATTERNS)
-    lang_pref = "Conversational Hinglish" if is_customer_hindi else "Natural English"
+    # Default to Conversational Hinglish for all Indian customer conversations,
+    # unless customer explicitly asks or speaks in pure formal English without Indian phrasing
+    is_pure_english = bool(re.search(r"^[a-zA-Z0-9\s\.,!\?']+$", customer_query)) and not any(bool(re.search(p, combined_convo, re.I)) for p in HINDI_PATTERNS)
+    # Even if in English, if it's an initial Meta inquiry or greeting, we greet in warm Hinglish
+    lang_pref = "Conversational Hinglish"
 
     prompt_parts = []
     if product_context:
@@ -278,7 +279,7 @@ def generate_qwen_reply(
     prompt_parts.append(
         f"New Customer Message: {customer_query}\n"
         f"Language to reply in: {lang_pref}\n"
-        f"CRITICAL: If language is Conversational Hinglish, reply ONLY in natural Hindi/Hinglish using respectful 'Aap'.\n"
+        f"CRITICAL INSTRUCTION: Reply in warm, natural Hindi / Hinglish with respectful 'Aap'. Be precise, helpful, and concise (2 short sentences).\n"
         f"Maya (JWL Stylist response, concise, friendly, selling with links/prices if product was asked):"
     )
 

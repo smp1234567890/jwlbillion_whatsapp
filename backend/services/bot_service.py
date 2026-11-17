@@ -1185,20 +1185,12 @@ def handle_inbound_auto_reply(
 
     # If greeting with no specific product/order mentioned, send conversational human hook
     if is_greeting and len(words) <= 5:
-        # Check if they are a returning customer or 1st time
-        is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:namaste|kaisa|kaise|haal|kem cho)", text_clean, re.I))
-        if is_hindi:
-            welcome_text = (
-                "Namaste! 🙏 Welcome to *JWL Billion*.\n\n"
-                "Aapka connect karne ke liye bohot shukriya! ✨\n\n"
-                "Aap kisi specific jewelry design (jaise rings, chains, bracelets) ki talaash mein hain, ya hamari nayi collection explore karna chahenge? 😊"
-            )
-        else:
-            welcome_text = (
-                "Hey! 👋 Welcome to *JWL Billion*.\n\n"
-                "Glad you found us! I'd love to help you find exactly what you're looking for. ✨\n\n"
-                "Just curious, are you looking for something specific, or would you like to explore our collection? 😊"
-            )
+        # Default to warm Hindi/Hinglish welcome for all Indian jewellery customers
+        welcome_text = (
+            "Hey! Welcome to JWL Billion 😊\n\n"
+            "Thanks for checking out our collection!\n\n"
+            "Aap kuch specific jewellery dekh rahe hain ya bas collection explore kar rahe hain?"
+        )
         res = send_whatsapp_free_text(sender_phone, welcome_text, db=db)
         _save_bot_message(db, sender_phone, welcome_text, res.get("message_id"))
         return res
