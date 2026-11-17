@@ -217,7 +217,16 @@ def generate_qwen_reply(
     """
     q_clean = (customer_query or "").strip().lower()
 
-    # 0. Instant Fast-Path for Common Exploring / Greeting Hooks (0.01s latency)
+    # 0a. Instant Fast-Path for Meta Ads Default Inbound ("Hello! Can I get more info on this?")
+    if re.search(r"^(?:hello!?\s*)?can\s*i\s*get\s*more\s*info\s*(?:on\s*this)?\??$", q_clean):
+        welcome_hinglish = (
+            "Hey! Welcome to JWL Billion 😊\n\n"
+            "Thanks for checking out our collection!\n\n"
+            "Aap kuch specific jewellery dekh rahe hain ya bas collection explore kar rahe hain?"
+        )
+        return {"status": "success", "reply": welcome_hinglish, "model": "qwen2.5:1.5b"}
+
+    # 0b. Instant Fast-Path for Common Exploring / Greeting Hooks (0.01s latency)
     if re.search(r"^(?:lets?\s*explore|just\s*(?:exploring|looking|browsing)|bas\s*dekh\s*(?:rahi|raha)\s*hoon)$", q_clean):
         is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:bas|dekh|rahi|raha|hoon)", q_clean))
         if is_hindi:
@@ -304,11 +313,13 @@ def generate_qwen_reply(
             # Clean markdown link syntax: WhatsApp does not support markdown links like [here](https://...)
             # Convert [text](url) -> url so WhatsApp displays a clean, clickable preview link
             answer = re.sub(r'\[([^\]]+)\]\((https?://[^\s\)]+)\)', r'\2', answer)
+            # Also clean broken markdown patterns like [Product Link](https://...) or [text]\s*\((https?://...)\)
+            answer = re.sub(r'\[[^\]]*\]\s*\(?(https?://[^\s\)]+)\)?', r'\1', answer)
 
             # If Qwen outputted literal placeholder like [Link], [here], [view] instead of the actual URL
-            if top_matches and re.search(r'\[(?:Link|here|view|details?|product|website)\]', answer, re.I):
+            if top_matches and re.search(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', answer, re.I):
                 primary_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
-                answer = re.sub(r'\[(?:Link|here|view|details?|product|website)\]', primary_url, answer, flags=re.I)
+                answer = re.sub(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', primary_url, answer, flags=re.I)
 
             # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
             answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()
