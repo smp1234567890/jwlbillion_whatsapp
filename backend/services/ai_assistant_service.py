@@ -292,6 +292,10 @@ def generate_qwen_reply(
             # Clean any leftover meta tags or artifacts if present
             answer = re.sub(r"^(Maya|Consultant|JWL Stylist):\s*", "", answer, flags=re.I).strip()
             
+            # Clean markdown link syntax: WhatsApp does not support markdown links like [here](https://...)
+            # Convert [text](url) -> url so WhatsApp displays a clean, clickable preview link
+            answer = re.sub(r'\[([^\]]+)\]\((https?://[^\s\)]+)\)', r'\2', answer)
+            
             return {
                 "status": "success",
                 "reply": answer,
