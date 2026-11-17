@@ -82,9 +82,9 @@ def check_broad_jewelry_qualification(query: str) -> Optional[str]:
     # If asking for a category without gender, ALWAYS clarify Men or Women first
     if is_broad_cat and not has_gender:
         if is_hindi:
-            return "Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye?"
+            return "Bilkul! Aap Men (Gents) ke liye dekh rahe hain ya Women (Ladies) ke liye? Aur Gold-Plated pasand hai ya Silver-Finish?"
         else:
-            return "Certainly! Are you looking for Men or Women?"
+            return "Certainly! Are you looking for Men or Women? And would you prefer our Gold-Plated or Silver-Finish designs?"
     return None
 
 

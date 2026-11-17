@@ -525,19 +525,64 @@ def _match_and_send_product_designs(
             # Delegate to Qwen to ask whether it is for Men or Women
             return None
 
+        # Check if user requested a specific style/finish (e.g. silver, gold, diamond)
+        requested_silver = bool(re.search(r"\b(?:silver|chandi|rupeya)\b", text_clean, re.IGNORECASE))
+        requested_gold = bool(re.search(r"\b(?:gold|sona|sone)\b", text_clean, re.IGNORECASE))
+
+        def matches_style(p, silver_req=requested_silver, gold_req=requested_gold):
+            if not silver_req and not gold_req:
+                return True
+            p_text = f"{p.get('title', '')} {' '.join(p.get('tags', []))}".lower()
+            if silver_req:
+                return bool(re.search(r"\bsilver\b", p_text))
+            if gold_req:
+                return bool(re.search(r"\bgold\b", p_text))
+            return True
+
         if gender_cats and type_cats:
             gender_matcher = gender_cats[0]["matcher"]
             # Prioritize intersection: products matching BOTH the category and gender
-            intersect_prods = [p for p in all_products if any(tc["matcher"](p) for tc in type_cats) and gender_matcher(p)]
-            if intersect_prods:
-                lead_product = intersect_prods[0]
-                for p in intersect_prods[:4]:
+            all_intersect = [p for p in all_products if any(tc["matcher"](p) for tc in type_cats) and gender_matcher(p)]
+            styled_intersect = [p for p in all_intersect if matches_style(p)]
+
+            if requested_silver and not styled_intersect and all_intersect:
+                # Store does not have silver in this specific category for men/women (e.g. men's silver necklace)
+                # Honestly inform the customer and suggest available alternatives (e.g. gold necklaces or silver kadas/bracelets)
+                type_label = type_cats[0]["label"].lower()
+                alt_silver_prods = [p for p in all_products if gender_matcher(p) and matches_style(p, silver_req=True, gold_req=False)]
+                
+                if is_hindi_language:
+                    no_stock_msg = (
+                        f"Filhal hamare paas men's {type_label} sirf premium *Gold-Plated* finish mein available hain, "
+                        f"silver-finish mein available nahi hain.\n\n"
+                    )
+                    if alt_silver_prods:
+                        no_stock_msg += "Silver-finish mein hamare paas Men's Kadas & Bracelets hain. Kya aap gold-plated chains dekhna chahenge ya silver bracelets?"
+                    else:
+                        no_stock_msg += "Kya aap hamare gold-plated designs dekhna chahenge?"
+                else:
+                    no_stock_msg = (
+                        f"Currently, our men's {type_label} are available exclusively in premium *Gold-Plated* finish (we do not have them in silver-finish right now).\n\n"
+                    )
+                    if alt_silver_prods:
+                        no_stock_msg += "However, we do have Men's Kadas and Bracelets in *Silver-Finish*. Would you like to see our gold chains or explore our silver bracelets?"
+                    else:
+                        no_stock_msg += "Would you like to explore our gold-plated designs instead?"
+
+                res = send_whatsapp_free_text(sender_phone, no_stock_msg, db=db)
+                _save_bot_message(db, sender_phone, no_stock_msg, res.get("message_id"))
+                return res
+
+            target_prods = styled_intersect if styled_intersect else all_intersect
+            if target_prods:
+                lead_product = target_prods[0]
+                for p in target_prods[:4]:
                     items_to_send.append((type_cats[0], p))
                 matched_categories = [type_cats[0]]  # Narrow display collection to the specific type
 
         if not items_to_send:
             for cat in matched_categories:
-                matching_prods = [p for p in all_products if cat["matcher"](p)]
+                matching_prods = [p for p in all_products if cat["matcher"](p) and matches_style(p)]
                 if matching_prods:
                     if not lead_product:
                         lead_product = matching_prods[0]
@@ -546,8 +591,11 @@ def _match_and_send_product_designs(
                             items_to_send.append((cat, p))
 
         if not items_to_send:
-            items_to_send = [(matched_categories[0], p) for p in all_products[:3]]
-            lead_product = all_products[0]
+            fallback_prods = [p for p in all_products if matches_style(p)]
+            if not fallback_prods:
+                fallback_prods = all_products
+            items_to_send = [(matched_categories[0], p) for p in fallback_prods[:3]]
+            lead_product = fallback_prods[0]
 
         best_photo = _select_best_jewelry_photo(lead_product)
         if best_photo:
@@ -720,7 +768,7 @@ def handle_inbound_auto_reply(
     sel_id = (interactive_id or "").strip()
 
     # Conversational Context Recovery: If customer sends a short qualifier (e.g. 'mens', 'women', 'gold', 'silver')
-    # in response to the bot's qualifying question, enrich it with the prior product category (e.g. 'ring', 'bracelet')
+    # in response to the bot's qualifying question, collect ALL accumulated attributes (product, gender, metal) from recent conversation
     QUALIFIER_PATTERNS = [
         r"^\s*(?:men|mens|male|mard|boys?|gents?)\s*$",
         r"^\s*(?:women|womens|female|aurat|girls?|ladies|mahila)\s*$",
@@ -738,6 +786,8 @@ def handle_inbound_auto_reply(
         r"\b(?:anklets?|payal)\b",
         r"\b(?:pyrite|crystal)\b"
     ]
+    GENDER_PATTERNS = r"\b(?:men|mens|male|mard|boys?|gents?|women|womens|female|aurat|girls?|ladies|mahila)\b"
+    STYLE_PATTERNS = r"\b(?:gold|silver|diamond|rose\s*gold|ad|cz|pearl|mot[ie]|crystal|oxidised)\b"
 
     is_qualifier = any(bool(re.match(p, text_clean, re.IGNORECASE)) for p in QUALIFIER_PATTERNS)
     if is_qualifier and db and sender_phone:
@@ -748,26 +798,41 @@ def handle_inbound_auto_reply(
                 db.query(ChatMessage)
                 .filter(ChatMessage.customer_phone.in_([sender_phone, clean_p]))
                 .order_by(ChatMessage.created_at.desc())
-                .limit(6)
+                .limit(8)
                 .all()
             )
-            # Find the most recently inquired product from earlier customer messages
+            # Scan backward through customer messages in this session to gather accumulated context
+            accumulated_product = None
+            accumulated_gender = None
+            accumulated_style = None
+
+            # First, check current message
+            m_gen = re.search(GENDER_PATTERNS, text_clean, re.I)
+            if m_gen: accumulated_gender = m_gen.group(0).lower()
+            m_sty = re.search(STYLE_PATTERNS, text_clean, re.I)
+            if m_sty: accumulated_style = m_sty.group(0).lower()
+
             for prev_m in recent_msgs:
                 if prev_m.sender_type == "CUSTOMER" and prev_m.text:
-                    prev_text = prev_m.text.strip().lower()
-                    if prev_text == text_clean:
-                        continue
-                    found_term = None
-                    for pat in PRODUCT_TERMS:
-                        m_term = re.search(pat, prev_text, re.IGNORECASE)
-                        if m_term:
-                            found_term = m_term.group(0).lower()
-                            break
-                    if found_term:
-                        text_clean = f"{text_clean} {found_term}".strip()
-                        message_text = f"{message_text} {found_term}".strip()
-                        logger.info(f"[Bot Context Memory] Enriched short query with prior context: '{text_clean}'")
-                        break
+                    p_txt = prev_m.text.strip().lower()
+                    if not accumulated_product:
+                        for pat in PRODUCT_TERMS:
+                            m_p = re.search(pat, p_txt, re.I)
+                            if m_p:
+                                accumulated_product = m_p.group(0).lower()
+                                break
+                    if not accumulated_gender:
+                        m_g = re.search(GENDER_PATTERNS, p_txt, re.I)
+                        if m_g: accumulated_gender = m_g.group(0).lower()
+                    if not accumulated_style:
+                        m_s = re.search(STYLE_PATTERNS, p_txt, re.I)
+                        if m_s: accumulated_style = m_s.group(0).lower()
+
+            parts = [p for p in [accumulated_gender, accumulated_style, accumulated_product] if p]
+            if parts and accumulated_product:
+                text_clean = " ".join(parts)
+                message_text = " ".join(parts)
+                logger.info(f"[Bot Context Memory] Enriched multi-turn query: '{text_clean}'")
         except Exception as ctx_err:
             logger.warning(f"[Bot Context Memory] Failed to restore context: {ctx_err}")
 
