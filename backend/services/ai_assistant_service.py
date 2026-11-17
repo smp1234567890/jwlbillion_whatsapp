@@ -105,8 +105,8 @@ def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int
         msgs.reverse()
         history_lines = ["Recent Conversation History:"]
         for m in msgs:
-            sender = "Customer" if m.sender_type == "customer" else "Maya (JWL Stylist)"
-            body = (m.message_text or "").strip()
+            sender = "Customer" if m.sender_type == "CUSTOMER" else "Maya (JWL Stylist)"
+            body = (m.text or "").strip()
             if body and not body.startswith("Sent interactive"):
                 history_lines.append(f"{sender}: {body}")
         
@@ -116,24 +116,43 @@ def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int
         return ""
 
 
+JEWELRY_CATEGORY_CANONICAL = {
+    "bracelet": [r"\b(?:bracelets?|bracelete?|breslets?|breslete?|braclets?|wristlets?|kadas?|kade|kara|cuff)\b", r"ब्रेसलेट|कड़ा"],
+    "anklet": [r"\b(?:anklets?|payals?|pajeb|panjeb|pair\s*ke)\b", r"पायल|पाजेब|एंक्लेट"],
+    "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"अंगूठी|रिंग"],
+    "chain": [r"\b(?:chains?|chane|chaines?)\b", r"चैन|चेन"],
+    "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?)\b", r"हार|नेकलेस|पेंडेंट"],
+    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?)\b", r"झुमका|बाली|इयररिंग"]
+}
+
+
 def get_relevant_product_context(customer_query: str, chat_history: str = "") -> str:
-    """Finds matching live Shopify products based on query and accumulated conversation history."""
+    """Finds matching live Shopify products based on query and accumulated conversation history with robust typo tolerance."""
     try:
-        data = fetch_shopify_products(limit=100)
+        data = fetch_shopify_products(limit=150)
         products = data.get("products", [])
         if not products:
             return ""
 
         combined_text = f"{chat_history} {customer_query}".lower()
-        q_terms = [w for w in re.split(r"\W+", combined_text) if len(w) > 2]
+        
+        # 1. Detect active jewelry categories (with typo tolerance across history and current query)
+        active_categories = set()
+        for cat_name, patterns in JEWELRY_CATEGORY_CANONICAL.items():
+            for pat in patterns:
+                if re.search(pat, combined_text, re.IGNORECASE):
+                    active_categories.add(cat_name)
+                    break
 
-        is_men = bool(re.search(r"\b(?:men|mens|male|gents|boys?|husband|bhai)\b", combined_text))
-        is_women = bool(re.search(r"\b(?:women|womens|ladies|girls?|female|wife|sister|didi)\b", combined_text))
+        is_men = bool(re.search(r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai)\b", combined_text))
+        is_women = bool(re.search(r"\b(?:women|womens|ladies|girls?|female|aurat|wife|sister|didi)\b", combined_text))
 
         matches = []
         for p in products:
             p_title = p.get("title", "").lower()
-            p_text = f"{p_title} {p.get('product_type', '')} {' '.join(p.get('tags', []))}".lower()
+            p_type = (p.get("product_type") or "").lower()
+            p_tags = " ".join(p.get("tags", [])).lower()
+            p_text = f"{p_title} {p_type} {p_tags}"
 
             p_has_men = bool(re.search(r"\b(?:men|mens|gents|boys?)\b", p_text))
             p_has_women = bool(re.search(r"\b(?:women|womens|ladies|girls?)\b", p_text))
@@ -146,13 +165,39 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
                 if p_has_men and not p_has_women:
                     continue
 
-            score = sum(2 if re.search(r"\b" + re.escape(t), p_title) else 1 for t in q_terms if re.search(r"\b" + re.escape(t), p_text))
-            if score > 0:
-                matches.append((score, p))
+            # Category score
+            cat_score = 0
+            if active_categories:
+                for cat in active_categories:
+                    if cat == "bracelet" and ("bracelet" in p_text or "bangle" in p_text or "kada" in p_text or p_type in ["bracelet", "bangle", "kada"]):
+                        cat_score += 15
+                    elif cat == "anklet" and ("anklet" in p_text or "payal" in p_text or p_type == "anklet"):
+                        cat_score += 15
+                    elif cat == "ring" and ("ring" in p_text or p_type == "ring") and "earring" not in p_text:
+                        cat_score += 15
+                    elif cat == "necklace" and ("necklace" in p_text or "pendant" in p_text or "choker" in p_text or p_type in ["necklace", "pendant"]):
+                        cat_score += 15
+                    elif cat == "chain" and ("chain" in p_text or p_type == "chain"):
+                        cat_score += 15
+                    elif cat == "earring" and ("earring" in p_text or "jhumka" in p_text or "bali" in p_text or p_type == "earrings"):
+                        cat_score += 15
+            
+            # If user actively asked for a specific category, reject products that don't match that category
+            if active_categories and cat_score == 0:
+                continue
+
+            # Keyword score
+            q_terms = [w for w in re.split(r"\W+", customer_query.lower()) if len(w) > 2]
+            text_score = sum(3 if re.search(r"\b" + re.escape(t), p_title) else 1 for t in q_terms if re.search(r"\b" + re.escape(t), p_text))
+
+            total_score = cat_score + text_score
+            matches.append((total_score, p))
 
         matches.sort(key=lambda x: x[0], reverse=True)
         top_matches = [m[1] for m in matches[:3]]
-        if not top_matches and not is_men:
+
+        # Fallback if nothing matched the specific filter
+        if not top_matches:
             top_matches = products[:2]
 
         lines = ["Available Live Store Products:"]
