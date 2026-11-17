@@ -48,26 +48,20 @@ SALES_SYSTEM_PROMPT = """You are Maya, warm, personal jewelry stylist for JWL Bi
 JWL Billion crafts premium 18K/24K gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
 
 CORE CONVERSATION RULES:
-1. DEFAULT LANGUAGE IS HINDI / HINGLISH WITH RESPECTFUL "AAP":
-   - ALWAYS reply in natural, warm Hindi/Hinglish with respectful "Aap" (never use 'tu/tum'), UNLESS the customer explicitly speaks in pure English only.
-   - Example: "Haan ji, bilkul! Hamare paas ladies ke liye kaafi pretty chains hain. Is design ka price ₹749 hai. Aapko simple daily wear chahiye ya party wear?"
+1. STRICT ROMAN HINGLISH WITH RESPECTFUL "AAP":
+   - You MUST speak ONLY in natural Romanized Hinglish (Hindi written in English alphabet, e.g. "Haan ji, iska price ₹749 hai. Aapko simple design chahiye ya thoda trendy?").
+   - NEVER write in English sentences.
+   - NEVER write in Devanagari script.
+   - Always use respectful "Aap" (never use tu/tum).
 2. FORMULA: Listen -> React -> Guide -> Recommend -> Help.
-3. NEVER OVERWHELM: Maximum 1 short question or next step per message. Never ask multiple questions. Never ask for "a price quote or live store page" like an IT system!
+3. NEVER OVERWHELM: Maximum 1 short question or next step per message. Never ask multiple questions.
 4. PRICE DISCLOSURE: If asked "Price?", give the exact ₹ price immediately! Never hide it.
 5. RECOMMENDATION & LINK RULES (CRITICAL):
    - When recommending or sharing a product, output the FULL product URL starting with https:// directly in the text!
    - NEVER EVER say '[Link]', '[here]', or use markdown link syntax like [text](url).
    - WhatsApp does NOT support markdown links. Write the complete link directly so customer can click it.
-   - Example: "The Gold Plated Chain is available at ₹749.00. You can check it out here: https://jwlbillion.com/products/gold-toned-classic-rectangular-link-chain-necklace"
 
-OBJECTION RESPONSES:
-- "Colour fade toh nahi hoga?": Multi-layer gold plating over brass with anti-tarnish coating. Proper care maintains shine for long. Care guide included. ❤️
-- "Price thoda zyada hai": Respect budget, ask which comfortable range (e.g. ₹500–₹800) they prefer.
-- "Soch ke batati hoon": Aaram se decide kijiye. Ask if any doubt regarding design or price.
-- "Online trust / COD?": 100% Cash on Delivery available all over India. Pay after receiving parcel, plus 7-day easy exchange!
-- "Order kaise karein?": Ask for: Name, Mobile Number, Full Address, City/State/Pincode to place COD order.
-
-Keep replies to 2 short sentences. End with a friendly question or clear next step."""
+Keep replies to 2 short sentences in Roman Hinglish. End with a friendly question or clear next step."""
 
 
 def is_forbidden_query(query: str) -> bool:
@@ -235,14 +229,38 @@ def generate_qwen_reply(
             fast_reply = "That's great! ✨ What kind of designs usually catch your eye — something simple and elegant, or something bold and eye-catching?"
         return {"status": "success", "reply": fast_reply, "model": "qwen2.5:1.5b"}
 
-    # 0b. Instant Fast-Path for Rejection / "Something else" / "Kuch aur" (0.01s latency)
-    if re.search(r"\b(?:nope|not\s*this|something\s*else|somehting\s*else|kuch\s*aur|different|don'?t\s*like|aur\s*dikhao|ye\s*nahi)\b", q_clean):
-        is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:kuch|aur|dikhao|ye|nahi)", q_clean))
-        if is_hindi:
-            fast_reply = "Koi baat nahi! 😊 Abhi aapki choice ka perfect piece nahi mila. Aap kis category mein dekhna chahenge — rings, bracelets, ya earrings?"
-        else:
-            fast_reply = "No worries at all! 😊 Let's find something you truly love. Would you prefer exploring rings, bracelets, or earrings instead?"
-        return {"status": "success", "reply": fast_reply, "model": "qwen2.5:1.5b"}
+    # 0c. Objections & Natural Playbook Fast-Paths (Accurate, Instant & Hinglish)
+    if re.search(r"\b(?:fade|color\s*fade|colour\s*fade|kaala|kala|rang\s*(?:nikal|uth|fade)|tarnish)\b", q_clean):
+        fade_reply = "Ismein anti-tarnish coating ke sath multi-layer gold plating hai. ❤️ Normal water aur perfume se bacha kar rakhein toh shine lambe time tak maintain rehti hai. Saath mein care guide bhi milti hai!"
+        return {"status": "success", "reply": fade_reply, "model": "playbook"}
+
+    if re.search(r"\b(?:trust|bharosa|fraud|scam|online\s*order|fake)\b", q_clean):
+        trust_reply = "Aapka doubt bilkul sahi hai! 😊 JWL Billion par 100% Cash on Delivery (COD) available hai — parcel haath mein milne ke baad hi pay karna hai, plus 7-day easy exchange bhi hai."
+        return {"status": "success", "reply": trust_reply, "model": "playbook"}
+
+    if re.search(r"\b(?:cod|cash\s*on\s*delivery)\b", q_clean):
+        cod_reply = "Haan ji, 100% Cash on Delivery (COD) uplabdh hai pure India mein! Parcel milne par hi cash dena hai. 😊 Aapko kaun sa design pasand aaya?"
+        return {"status": "success", "reply": cod_reply, "model": "playbook"}
+
+    if re.search(r"\b(?:expensive|mehnga|mahnga|thoda\s*kam|discount|offer|last\s*price|kam\s*karo)\b", q_clean):
+        disc_reply = "Haan ji, samajh sakti hoon! 😊 Hamare paas ₹300 se lekar ₹2,000 tak har range mein sundar designs hain. Aap kis budget range (jaise ₹500–₹800) mein dekhna chahenge?"
+        return {"status": "success", "reply": disc_reply, "model": "playbook"}
+
+    if re.search(r"\b(?:soch\s*ke|baad\s*mein|dekh\s*kar\s*batat|later)\b", q_clean):
+        soch_reply = "Haan ji, bilkul! Aap araam se decide kijiye. 😊 Bas ek baat batayein, aapko design pasand aaya ya price ko lekar koi doubt hai?"
+        return {"status": "success", "reply": soch_reply, "model": "playbook"}
+
+    if re.search(r"\b(?:daily\s*wear|office|regular|daily)\b", q_clean):
+        daily_reply = "Samajh gayi! Daily & office wear ke liye simple, lightweight aur classy pieces sabse best rehte hain. Main aapko kuch comfortable options share karti hoon. 😊"
+        return {"status": "success", "reply": daily_reply, "model": "playbook"}
+
+    if re.search(r"\b(?:party|wedding|shaadi|function|heavy|occasion)\b", q_clean):
+        party_reply = "Oh nice! Special occasions ke liye statement aur elegant designs kaafi suit karte hain. Aapko matching necklace set dekhna hai ya bracelet/earrings?"
+        return {"status": "success", "reply": party_reply, "model": "playbook"}
+
+    if re.search(r"\b(?:gift|gifting|kisi\s*ko\s*dena)\b", q_clean):
+        gift_reply = "That's lovely! 😊 Kiske liye gift dekh rahe hain — sister, wife, mother ya kisi friend ke liye? Main unke taste ke according best options suggest kar dungi."
+        return {"status": "success", "reply": gift_reply, "model": "playbook"}
 
     # 1. Refuse forbidden/off-topic requests
     if is_forbidden_query(customer_query):
