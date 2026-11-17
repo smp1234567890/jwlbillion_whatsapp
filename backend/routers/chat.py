@@ -94,7 +94,8 @@ def list_conversations(
         lm.text as last_message_text,
         lm.created_at as last_message_time,
         lm.sender_type as last_sender,
-        c.custom_attributes->'last_order' as last_order
+        c.custom_attributes->'last_order' as last_order,
+        c.custom_attributes as custom_attributes
     FROM (
         SELECT DISTINCT ON (customer_phone) 
             customer_phone, text, sender_type, created_at, id, channel
@@ -140,6 +141,12 @@ def list_conversations(
     for r in rows:
         phone = r[0]
         last_order = r[8]
+        custom_attrs = r[9] or {}
+        if isinstance(custom_attrs, str):
+            try:
+                custom_attrs = json.loads(custom_attrs)
+            except Exception:
+                custom_attrs = {}
         if isinstance(last_order, str):
             try:
                 last_order = json.loads(last_order)
