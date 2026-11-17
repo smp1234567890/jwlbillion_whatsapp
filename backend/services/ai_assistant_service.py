@@ -218,7 +218,16 @@ def generate_qwen_reply(
             fast_reply = "Haan ji, bilkul! Aaram se dekhiye. 😊 Waise aapko usually kis type ke designs pasand aate hain — simple aur elegant ya thode stylish aur trendy?"
         else:
             fast_reply = "That's great! ✨ What kind of designs usually catch your eye — something simple and elegant, or something bold and eye-catching?"
-        return {"status": "success", "reply": fast_reply, "model": MODEL_NAME}
+        return {"status": "success", "reply": fast_reply, "model": "qwen2.5:1.5b"}
+
+    # 0b. Instant Fast-Path for Rejection / "Something else" / "Kuch aur" (0.01s latency)
+    if re.search(r"\b(?:nope|not\s*this|something\s*else|somehting\s*else|kuch\s*aur|different|don'?t\s*like|aur\s*dikhao|ye\s*nahi)\b", q_clean):
+        is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:kuch|aur|dikhao|ye|nahi)", q_clean))
+        if is_hindi:
+            fast_reply = "Koi baat nahi! 😊 Abhi aapki choice ka perfect piece nahi mila. Aap kis category mein dekhna chahenge — rings, bracelets, ya earrings?"
+        else:
+            fast_reply = "No worries at all! 😊 Let's find something you truly love. Would you prefer exploring rings, bracelets, or earrings instead?"
+        return {"status": "success", "reply": fast_reply, "model": "qwen2.5:1.5b"}
 
     # 1. Refuse forbidden/off-topic requests
     if is_forbidden_query(customer_query):
