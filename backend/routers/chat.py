@@ -450,13 +450,13 @@ def send_agent_reply(
     and daily spending guardrails.
     """
     raw_phone = payload.customer_phone
-    is_facebook = raw_phone.startswith("fb_")
+    is_social = raw_phone.startswith("fb_") or raw_phone.startswith("ig_")
 
-    if is_facebook:
+    if is_social:
         clean_phone = raw_phone
-        fb_recipient_id = raw_phone.replace("fb_", "")
+        recipient_id = raw_phone.replace("fb_", "").replace("ig_", "")
         from services.facebook_service import send_facebook_text_message
-        res = send_facebook_text_message(fb_recipient_id, payload.text)
+        res = send_facebook_text_message(recipient_id, payload.text)
         msg_id = res.get("message_id")
         status_str = "SENT" if res.get("status") == "success" else "FAILED"
     else:

@@ -1102,15 +1102,22 @@ async def receive_inbound_whatsapp_message(
                 continue
 
             if sender_id and (msg_text or inbound_media_url):
-                # Use a designated Facebook Messenger phone representation
-                fb_customer_phone = f"fb_{sender_id}"
-                existing_fb_chat = db.query(models.ChatMessage).filter(
+                # Distinguish Instagram Direct Messages from Facebook Messenger
+                is_instagram_event = (
+                    entry.get("id") == "17841438071554569" or
+                    str(entry.get("id", "")).startswith("1784") or
+                    (msg_mid and ("new_ig_dm" in msg_mid or "ig_dm" in msg_mid or msg_mid.startswith("aWdf") or msg_mid.startswith("bmV3X2ln")))
+                )
+                customer_phone = f"ig_{sender_id}" if is_instagram_event else f"fb_{sender_id}"
+                channel_name = "Instagram" if is_instagram_event else "Facebook"
+
+                existing_chat = db.query(models.ChatMessage).filter(
                     models.ChatMessage.meta_message_id == msg_mid
                 ).first() if msg_mid else None
 
-                if not existing_fb_chat:
-                    new_fb_chat = models.ChatMessage(
-                        customer_phone=fb_customer_phone,
+                if not existing_chat:
+                    new_chat = models.ChatMessage(
+                        customer_phone=customer_phone,
                         sender_type="CUSTOMER",
                         message_type=msg_type,
                         text=msg_text,
@@ -1119,17 +1126,35 @@ async def receive_inbound_whatsapp_message(
                         status="RECEIVED",
                         is_read=False
                     )
-                    db.add(new_fb_chat)
+                    db.add(new_chat)
 
                     # Ensure contact exists
-                    existing_contact = db.query(models.Contact).filter(models.Contact.phone == fb_customer_phone).first()
+                    existing_contact = db.query(models.Contact).filter(models.Contact.phone == customer_phone).first()
                     if not existing_contact:
+                        contact_name = f"{channel_name} User ({sender_id[-4:]})"
+                        try:
+                            # Attempt to fetch Instagram profile details if Instagram DM
+                            if is_instagram_event:
+                                import requests
+                                token = config.FACEBOOK_PAGE_ACCESS_TOKEN or config.WHATSAPP_API_TOKEN
+                                if token:
+                                    ig_resp = requests.get(
+                                        f"https://graph.facebook.com/v21.0/{sender_id}",
+                                        params={"fields": "name,username,profile_pic", "access_token": token},
+                                        timeout=4
+                                    )
+                                    if ig_resp.status_code == 200:
+                                        ig_info = ig_resp.json()
+                                        contact_name = ig_info.get("name") or ig_info.get("username") or contact_name
+                        except Exception:
+                            pass
+
                         db.add(models.Contact(
-                            phone=fb_customer_phone,
-                            name=f"Facebook User ({sender_id[-4:]})",
+                            phone=customer_phone,
+                            name=contact_name,
                             total_orders=0,
-                            tags="Facebook Messenger",
-                            city="Facebook"
+                            tags=f"{channel_name} Direct",
+                            city=channel_name
                         ))
 
                     try:
@@ -1138,8 +1163,8 @@ async def receive_inbound_whatsapp_message(
                         try:
                             from services.chat_broadcaster import chat_broadcaster
                             chat_broadcaster.publish_sync("new_message", {
-                                "id": new_fb_chat.id,
-                                "customer_phone": fb_customer_phone,
+                                "id": new_chat.id,
+                                "customer_phone": customer_phone,
                                 "sender_type": "CUSTOMER",
                                 "message_type": msg_type,
                                 "text": msg_text,

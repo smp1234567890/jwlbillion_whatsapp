@@ -2525,7 +2525,7 @@ export default function App() {
               { id: "fb_insights", label: "Page Insights & Comments", icon: BarChart3 },
               { id: "fb_settings", label: "Page Settings", icon: Settings },
             ] : activePlatform === "instagram" ? [
-              { id: "ig_dms", label: "Direct Messages (DMs)", icon: MessageSquare },
+              { id: "ig_dms", label: "Direct Messages (DMs)", icon: MessageSquare, badge: chatConversations.filter(c => (c.customer_phone || "").startsWith("ig_")).reduce((acc, c) => acc + (c.unread_count || 0), 0) },
               { id: "ig_posts", label: "Posts & Reels", icon: ShoppingBag },
               { id: "ig_mentions", label: "Stories & Mentions", icon: Sparkles },
               { id: "ig_settings", label: "Instagram Settings", icon: Settings },
@@ -2544,7 +2544,7 @@ export default function App() {
                 id: "chat_group",
                 label: "Live Chat / Inbox",
                 icon: MessageSquare,
-                badge: chatConversations.reduce((acc, c) => acc + (c.unread_count || 0), 0),
+                badge: chatConversations.filter(c => !(c.customer_phone || "").startsWith("fb_") && !(c.customer_phone || "").startsWith("ig_")).reduce((acc, c) => acc + (c.unread_count || 0), 0),
                 isDropdown: true,
                 children: [
                   { id: "chat", label: "Chats", icon: MessageSquare },
@@ -2901,6 +2901,39 @@ export default function App() {
                 hasMoreConversations={hasMoreConversations}
                 loadingMoreConversations={loadingMoreConversations}
               />
+            ) : activeTab === "ig_dms" ? (
+              <LiveChatPage
+                chatConversations={chatConversations.filter(c => (c.customer_phone || "").startsWith("ig_"))}
+                chatMessages={chatMessages}
+                selectedChatPhone={selectedChatPhone}
+                chatLoading={chatLoading}
+                chatSending={chatSending}
+                chatReplyText={chatReplyText}
+                setChatReplyText={setChatReplyText}
+                chatFilterUnreadOnly={chatFilterUnreadOnly}
+                setChatFilterUnreadOnly={setChatFilterUnreadOnly}
+                chatListCollapsed={chatListCollapsed}
+                setChatListCollapsed={setChatListCollapsed}
+                chatSoundEnabled={chatSoundEnabled}
+                setChatSoundEnabled={setChatSoundEnabled}
+                playIncomingMessageSound={playIncomingMessageSound}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                contacts={contacts}
+                handleSelectConversation={handleSelectConversation}
+                fetchChatMessages={fetchChatMessages}
+                handleSendChatMessage={handleSendChatMessage}
+                handleSendChatMedia={handleSendChatMedia}
+                handleReactToMessage={handleReactToMessage}
+                handleDeleteConversation={handleDeleteConversation}
+                handleBlockContact={handleBlockContact}
+                optOuts={optOuts}
+                isNativeApp={isNativePlatform}
+                onLogout={handleLogout}
+                onLoadMoreConversations={handleLoadMoreConversations}
+                hasMoreConversations={hasMoreConversations}
+                loadingMoreConversations={loadingMoreConversations}
+              />
             ) : (
               <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs">
                 <div className="w-16 h-16 rounded-2xl bg-[#F5A623]/10 text-[#F5A623] flex items-center justify-center mx-auto mb-4 font-black text-2xl">
@@ -3109,7 +3142,7 @@ export default function App() {
 
           {activeTab === "chat" && (
             <LiveChatPage
-              chatConversations={chatConversations}
+              chatConversations={chatConversations.filter(c => !(c.customer_phone || "").startsWith("fb_") && !(c.customer_phone || "").startsWith("ig_"))}
               chatMessages={chatMessages}
               selectedChatPhone={selectedChatPhone}
               chatLoading={chatLoading}

@@ -45,6 +45,18 @@ import api, { getApiBaseUrl } from "../api";
 import { getStoredQuickReplies } from "../utils/quickRepliesStorage";
 import ChatInputBox from "../components/ChatInputBox";
 
+function renderFormattedText(text) {
+  if (!text) return null;
+  // Split on *bold* pattern
+  const parts = text.split(/(\*[^*\n]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return <strong key={i} className="font-semibold">{part.slice(1, -1)}</strong>;
+    }
+    return part;
+  });
+}
+
 export default function LiveChatPage({
   chatConversations = [],
   chatMessages = [],
@@ -1129,7 +1141,7 @@ export default function LiveChatPage({
                             {/* Text or Caption (omitted if already rendered as contact card or sticker) */}
                             {msg.text && msg.message_type !== "contacts" && !(msg.message_type === "sticker" && !msg.media_url) && (
                               <p className="whitespace-pre-wrap leading-relaxed text-xs md:text-sm">
-                                {msg.text}
+                                {renderFormattedText(msg.text)}
                               </p>
                             )}
 

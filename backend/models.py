@@ -116,7 +116,7 @@ class MessageLog(Base):
     language = Column(String(10), default="en")
     status = Column(String(50), default="QUEUED", index=True)  # QUEUED, SENT, DELIVERED, READ, FAILED
     sender_user = Column(String(50), nullable=True, default="System")  # User or API client who initiated message
-    meta_message_id = Column(String(100), nullable=True, index=True)
+    meta_message_id = Column(String(255), nullable=True, index=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -252,7 +252,7 @@ class ChatMessage(Base):
     text = Column(Text, nullable=True)
     media_url = Column(String(1000), nullable=True)
     filename = Column(String(255), nullable=True)
-    meta_message_id = Column(String(100), nullable=True, unique=True, index=True)
+    meta_message_id = Column(String(255), nullable=True, unique=True, index=True)
     reaction = Column(String(20), nullable=True)  # E.g. "👍", "👎", or empty
     carousel_cards = Column(JSON, nullable=True)  # List of cards for carousel templates
     status = Column(String(30), default="DELIVERED")      # RECEIVED, SENT, DELIVERED, READ, FAILED
@@ -415,7 +415,7 @@ class OutboundMessage(Base):
 
     # Dispatch outcome
     status = Column(String(20), nullable=False, default="PENDING")  # PENDING | SENT | FAILED | SKIPPED
-    meta_message_id = Column(String(100), nullable=True, index=True)
+    meta_message_id = Column(String(255), nullable=True, index=True)
     error_message = Column(Text, nullable=True)
     correlation_id = Column(String(64), nullable=True, index=True)
 
