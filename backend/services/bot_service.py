@@ -512,6 +512,23 @@ def _match_and_send_product_designs(
         gender_cats = [c for c in matched_categories if c["id"] == "mens_collection"]
         type_cats = [c for c in matched_categories if c["id"] != "mens_collection"]
 
+        # Human Consultative Behavior: If user asks for a broad category (like "rings", "bracelets", "chains")
+        # without specifying gender or material/style, let Qwen ask a natural clarifying question instead of blasting random photos
+        has_explicit_gender = bool(gender_cats) or bool(re.search(
+            r"\b(?:men|mens|male|mard|boys?|gents?|women|womens|female|aurat|girls?|ladies|mahila|wife|girlfriend|gf|husband|bhai|sister|behen|maa|mom)\b",
+            text_clean,
+            re.IGNORECASE
+        ))
+        has_explicit_style = bool(re.search(
+            r"\b(?:gold|silver|diamond|ad|cz|pearl|mot[ie]|stone|crystal|kundan|polki|oxidised|rose\s*gold|solitaire|openable)\b",
+            text_clean,
+            re.IGNORECASE
+        ))
+
+        if type_cats and not has_explicit_gender and not has_explicit_style:
+            # Delegate to Qwen to ask a warm, consultative qualifying question (e.g. "Men ya Women?")
+            return None
+
         if gender_cats and type_cats:
             gender_matcher = gender_cats[0]["matcher"]
             # Prioritize intersection: products matching BOTH the category and gender
