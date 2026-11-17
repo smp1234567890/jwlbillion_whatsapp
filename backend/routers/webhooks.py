@@ -1646,7 +1646,8 @@ async def receive_inbound_whatsapp_message(
                     logger.info(f"Duplicate ChatMessage skipped on commit: {meta_id}")
 
                 # Conversational AI / Bot Auto-Reply (e.g. Order Tracking, Greetings, Interactive Menus)
-                if not is_opt_out and (raw_body or interactive_id):
+                # Only run generic bot auto-replies for general marketing interactions, not support inquiries
+                if not is_opt_out and (raw_body or interactive_id) and msg_channel != "support":
                     try:
                         cust_name = existing_contact.name if existing_contact else profile_name
                         handle_inbound_auto_reply(
@@ -1654,6 +1655,7 @@ async def receive_inbound_whatsapp_message(
                             message_text=raw_body,
                             customer_name=cust_name,
                             interactive_id=interactive_id,
+                            channel=msg_channel,
                             db=db
                         )
                     except Exception as bot_err:

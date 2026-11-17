@@ -58,13 +58,16 @@ def list_conversations(
 
     support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
 
+    inner_where = ""
     if support_only:
-        # Show conversations that belong to the dedicated customer support channel
-        # or where customer_phone is the support phone itself
+        # Filter inner messages so that customer thread returns their latest support message,
+        # or threads that had interactions on the support channel
+        inner_where = "WHERE (channel = 'support' OR customer_phone = :support_phone)"
         where_clauses.append("(lm.channel = 'support' OR lm.customer_phone = :support_phone)")
         params["support_phone"] = support_phone_clean
     else:
         # Regular marketing live chat inbox excludes customer support and social channels (fb, ig)
+        inner_where = "WHERE (channel IS NULL OR channel != 'support')"
         where_clauses.append("(lm.channel IS NULL OR lm.channel != 'support')")
         where_clauses.append("lm.customer_phone NOT LIKE 'fb_%'")
         where_clauses.append("lm.customer_phone NOT LIKE 'ig_%'")
@@ -96,6 +99,7 @@ def list_conversations(
         SELECT DISTINCT ON (customer_phone) 
             customer_phone, text, sender_type, created_at, id, channel
         FROM chat_messages
+        {inner_where}
         ORDER BY customer_phone, created_at DESC, id DESC
     ) lm
     LEFT JOIN contacts c ON c.phone = lm.customer_phone

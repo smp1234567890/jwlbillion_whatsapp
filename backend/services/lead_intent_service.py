@@ -19,7 +19,7 @@ HIGH_INTENT_PATTERNS = [
 ]
 
 INTEREST_PATTERNS = [
-    r"\b(info|information|details?|clarify|question|query)\b",
+    r"\b(information|details?|clarify|question|query)\b",
     r"\b(where|location|address|office|store|shop|branch)\b",
     r"\b(size|color|colour|variety|types?|model|version)\b",
     r"\b(help|support|assist|how to|can you|tell me)\b",

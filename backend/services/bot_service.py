@@ -665,6 +665,9 @@ def handle_inbound_auto_reply(
     message_text: str,
     customer_name: Optional[str] = None,
     interactive_id: Optional[str] = None,
+    channel: Optional[str] = "general",
+    phone_number_id: Optional[str] = None,
+    api_token: Optional[str] = None,
     db: Optional[Session] = None
 ) -> Optional[dict]:
     """
@@ -1075,7 +1078,8 @@ def _save_bot_message(
     text: str,
     msg_id: Optional[str],
     media_url: Optional[str] = None,
-    message_type: str = "text"
+    message_type: str = "text",
+    channel: str = "general"
 ):
     if not db:
         return
@@ -1087,6 +1091,7 @@ def _save_bot_message(
             text=text,
             media_url=media_url,
             meta_message_id=msg_id,
+            channel=channel,
             status="SENT" if msg_id and not msg_id.startswith("sim_") else "DELIVERED",
             is_read=True
         )
