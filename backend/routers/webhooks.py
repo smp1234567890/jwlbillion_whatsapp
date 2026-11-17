@@ -11,7 +11,7 @@ import logging
 from typing import Optional, Dict, Any
 import uuid
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status, BackgroundTasks
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -1012,9 +1012,38 @@ def verify_whatsapp_webhook(
     raise HTTPException(status_code=403, detail="Verification token mismatch")
 
 
+def _run_bot_reply_in_background(
+    sender_phone: str,
+    message_text: str,
+    customer_name: Optional[str] = None,
+    interactive_id: Optional[str] = None,
+    channel: str = "general"
+):
+    """
+    Executes bot/Qwen AI inference in a background thread so the HTTP webhook responds
+    instantly (200 OK within 50ms) to Meta. This prevents Meta timeout retries and CPU deadlocks.
+    """
+    from database import SessionLocal
+    bg_db = SessionLocal()
+    try:
+        handle_inbound_auto_reply(
+            sender_phone=sender_phone,
+            message_text=message_text,
+            customer_name=customer_name,
+            interactive_id=interactive_id,
+            channel=channel,
+            db=bg_db
+        )
+    except Exception as bg_err:
+        logger.warning(f"[Bot Background Task] Error replying to {sender_phone}: {bg_err}")
+    finally:
+        bg_db.close()
+
+
 @router.post("/whatsapp")
 async def receive_inbound_whatsapp_message(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
@@ -1646,20 +1675,18 @@ async def receive_inbound_whatsapp_message(
                     logger.info(f"Duplicate ChatMessage skipped on commit: {meta_id}")
 
                 # Conversational AI / Bot Auto-Reply (e.g. Order Tracking, Greetings, Interactive Menus)
-                # Only run generic bot auto-replies for general marketing interactions, not support inquiries
+                # Dispatched into BackgroundTasks so Meta webhook returns instantly (within 50ms)
+                # and CPU inference can take 10-15s safely without timing out or crashing HTTP threads.
                 if not is_opt_out and (raw_body or interactive_id) and msg_channel != "support":
-                    try:
-                        cust_name = existing_contact.name if existing_contact else profile_name
-                        handle_inbound_auto_reply(
-                            sender_phone=sender_phone,
-                            message_text=raw_body,
-                            customer_name=cust_name,
-                            interactive_id=interactive_id,
-                            channel=msg_channel,
-                            db=db
-                        )
-                    except Exception as bot_err:
-                        logger.warning(f"[Bot Auto-Reply] Execution skipped/error: {bot_err}")
+                    cust_name = existing_contact.name if existing_contact else profile_name
+                    background_tasks.add_task(
+                        _run_bot_reply_in_background,
+                        sender_phone=sender_phone,
+                        message_text=raw_body,
+                        customer_name=cust_name,
+                        interactive_id=interactive_id,
+                        channel=msg_channel
+                    )
 
     if any_opt_out:
         return {"status": "opted_out", "messages_processed": processed_messages_count, "statuses_processed": processed_statuses_count}
