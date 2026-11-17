@@ -145,7 +145,8 @@ def generate_qwen_reply(
         "options": {
             "temperature": 0.3,  # Low temperature for factual precision
             "top_p": 0.9,
-            "max_tokens": 120
+            "num_predict": 100,  # Concise replies within ~6-10s
+            "num_thread": 2
         }
     }
 
@@ -155,7 +156,7 @@ def generate_qwen_reply(
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=35) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             answer = data.get("response", "").strip()
             return {
