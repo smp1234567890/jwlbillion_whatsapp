@@ -567,7 +567,7 @@ def _match_and_send_product_designs(
                     msg += f"Link: {p['product_url']}\n"
                 msg += "\n"
             msg += f"Saare designs dekhne ke liye link par click karein:\n{primary_col_url}\n\n"
-            msg += "Kisi aur design ki photo ya video call dekhna ho toh batayein!"
+            msg += "Kisi aur design ki photo dekhni ho ya koi sawal ho toh batayein!"
         else:
             msg = f"*JWL Billion {cat_names} Designs*\n\n"
             msg += "Here are the designs you requested:\n\n"
@@ -579,7 +579,7 @@ def _match_and_send_product_designs(
                     msg += f"Link: {p['product_url']}\n"
                 msg += "\n"
             msg += f"Browse all designs in this collection:\n{primary_col_url}\n\n"
-            msg += "Need video call viewing or custom sizing? Just reply here!"
+            msg += "Need help with sizing or any product questions? Just reply here!"
 
         res = send_whatsapp_free_text(sender_phone, msg, db=db)
         _save_bot_message(db, sender_phone, msg, res.get("message_id"))
