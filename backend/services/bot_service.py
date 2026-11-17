@@ -1163,25 +1163,44 @@ def handle_inbound_auto_reply(
         return res
 
     # -------------------------------------------------------------
-    # 5. Check for Greeting, Info Request, or General Help -> Show Interactive Menu
+    # 5. Check for Greeting, Info Request, or General Help
+    # Option 1: Warm human conversational welcome hook instead of robotic IVR list menu.
+    # Interactive menu is reserved strictly for explicit requests ("menu", "options", "support menu").
     # -------------------------------------------------------------
+    is_explicit_menu_request = any(phrase in text_clean for phrase in ["menu", "show menu", "main menu", "options", "list options"])
+    if is_explicit_menu_request:
+        menu_payload = build_main_menu_list(customer_name)
+        res = send_whatsapp_interactive(sender_phone, menu_payload, db=db)
+        _save_bot_message(db, sender_phone, "Sent interactive main menu", res.get("message_id"))
+        return res
+
     words = [w.strip() for w in re.split(r"[^\w#]+", text_clean) if w.strip()]
     normalized_words = [re.sub(r'(.)\1{1,}', r'\1', w) for w in words]
-    is_info_request = any(phrase in text_clean for phrase in [
-        "more info", "more information", "can i get more info", "info on this", "details", "jankari"
-    ])
     is_greeting = (
         any(w in GREETING_WORDS for w in words)
         or any(nw in GREETING_WORDS for nw in normalized_words)
         or any(phrase in text_clean for phrase in GREETING_PHRASES)
-        or text_clean in ["help", "need help", "support", "hi", "hello"]
-        or is_info_request
+        or text_clean in ["hi", "hello", "hey", "namaste", "start"]
     )
 
-    if (is_greeting and len(words) <= 12) or is_info_request:
-        menu_payload = build_main_menu_list(customer_name)
-        res = send_whatsapp_interactive(sender_phone, menu_payload, db=db)
-        _save_bot_message(db, sender_phone, "Sent interactive main menu", res.get("message_id"))
+    # If greeting with no specific product/order mentioned, send conversational human hook
+    if is_greeting and len(words) <= 5:
+        # Check if they are a returning customer or 1st time
+        is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:namaste|kaisa|kaise|haal|kem cho)", text_clean, re.I))
+        if is_hindi:
+            welcome_text = (
+                "Namaste! 🙏 Welcome to *JWL Billion*.\n\n"
+                "Aapka connect karne ke liye bohot shukriya! ✨\n\n"
+                "Aap kisi specific jewelry design (jaise rings, chains, bracelets) ki talaash mein hain, ya hamari nayi collection explore karna chahenge? 😊"
+            )
+        else:
+            welcome_text = (
+                "Hey! 👋 Welcome to *JWL Billion*.\n\n"
+                "Glad you found us! I'd love to help you find exactly what you're looking for. ✨\n\n"
+                "Just curious, are you looking for something specific, or would you like to explore our collection? 😊"
+            )
+        res = send_whatsapp_free_text(sender_phone, welcome_text, db=db)
+        _save_bot_message(db, sender_phone, welcome_text, res.get("message_id"))
         return res
 
     # -------------------------------------------------------------
