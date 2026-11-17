@@ -723,6 +723,58 @@ def handle_inbound_auto_reply(
     text_clean = (message_text or "").strip().lower()
     sel_id = (interactive_id or "").strip()
 
+    # Conversational Context Recovery: If customer sends a short qualifier (e.g. 'mens', 'women', 'gold', 'silver')
+    # in response to the bot's qualifying question, enrich it with the prior product category (e.g. 'ring', 'bracelet')
+    QUALIFIER_PATTERNS = [
+        r"^\s*(?:men|mens|male|mard|boys?|gents?)\s*$",
+        r"^\s*(?:women|womens|female|aurat|girls?|ladies|mahila)\s*$",
+        r"^\s*(?:gold|silver|diamond|rose\s*gold|ad|cz)\s*$",
+        r"^\s*(?:for\s+men|for\s+women|for\s+ladies|for\s+gents|for\s+him|for\s+her)\s*$",
+        r"^\s*(?:men\s*k[ae]|women\s*k[ae]|ladies\s*k[ae]|gents\s*k[ae])\s*$"
+    ]
+    PRODUCT_TERMS = [
+        r"\b(?:rings?|anguthi|angoothi)\b",
+        r"\b(?:bracelets?|bracelete?|breslets?|breslete?|braclets?|wristlets?)\b",
+        r"\b(?:chains?|chane)\b",
+        r"\b(?:kadas?|kade|kara)\b",
+        r"\b(?:necklaces?|haars?|choker|mangalsutra)\b",
+        r"\b(?:earrings?|jhumk[ai]|balis?)\b",
+        r"\b(?:anklets?|payal)\b",
+        r"\b(?:pyrite|crystal)\b"
+    ]
+
+    is_qualifier = any(bool(re.match(p, text_clean, re.IGNORECASE)) for p in QUALIFIER_PATTERNS)
+    if is_qualifier and db and sender_phone:
+        try:
+            from models import ChatMessage
+            clean_p = sender_phone.replace("+", "")
+            recent_msgs = (
+                db.query(ChatMessage)
+                .filter(ChatMessage.customer_phone.in_([sender_phone, clean_p]))
+                .order_by(ChatMessage.created_at.desc())
+                .limit(6)
+                .all()
+            )
+            # Find the most recently inquired product from earlier customer messages
+            for prev_m in recent_msgs:
+                if prev_m.sender_type == "CUSTOMER" and prev_m.text:
+                    prev_text = prev_m.text.strip().lower()
+                    if prev_text == text_clean:
+                        continue
+                    found_term = None
+                    for pat in PRODUCT_TERMS:
+                        m_term = re.search(pat, prev_text, re.IGNORECASE)
+                        if m_term:
+                            found_term = m_term.group(0).lower()
+                            break
+                    if found_term:
+                        text_clean = f"{text_clean} {found_term}".strip()
+                        message_text = f"{message_text} {found_term}".strip()
+                        logger.info(f"[Bot Context Memory] Enriched short query with prior context: '{text_clean}'")
+                        break
+        except Exception as ctx_err:
+            logger.warning(f"[Bot Context Memory] Failed to restore context: {ctx_err}")
+
     # -------------------------------------------------------------
     # 0. Check for Inbound Customer Image/Photo Message
     # If the customer sends a photo (e.g. of a ring, earring, or screenshot),
