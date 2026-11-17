@@ -221,7 +221,7 @@ def get_lead_interest_report(
     from sqlalchemy import text
     from services.lead_intent_service import analyze_conversation_interest
 
-    # 1. Fetch all customer threads with messages
+    # 1. Fetch only customer threads who replied/started conversations (inbound message exists since Nov 5, 2026)
     query_str = """
     SELECT 
         lm.customer_phone,
@@ -238,6 +238,11 @@ def get_lead_interest_report(
         SELECT DISTINCT ON (customer_phone) 
             customer_phone, text, sender_type, created_at, id
         FROM chat_messages
+        WHERE customer_phone IN (
+            SELECT DISTINCT customer_phone 
+            FROM chat_messages 
+            WHERE sender_type = 'CUSTOMER' AND created_at >= '2026-11-05'
+        )
         ORDER BY customer_phone, created_at DESC, id DESC
     ) lm
     LEFT JOIN contacts c ON c.phone = lm.customer_phone
