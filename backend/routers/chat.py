@@ -1,5 +1,6 @@
 import os
 import uuid
+import hashlib
 from datetime import datetime, timedelta
 import logging
 from typing import List, Optional
