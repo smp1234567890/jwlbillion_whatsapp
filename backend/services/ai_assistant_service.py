@@ -227,10 +227,6 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         # Limit to 1 primary top match in prompt context to prevent LLM listing multiple products in broken sentences
         top_matches = [m[1] for m in matches[:1]]
 
-        # Fallback if nothing matched the specific filter: do not force product #0 if user hasn't specified category
-        if not top_matches and active_categories:
-            top_matches = products[:1]
-
         lines = ["Available Live Store Products:"]
         for p in top_matches:
             price_val = p.get("price") or "Price on inquiry"
@@ -240,6 +236,53 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
     except Exception as e:
         logger.warning(f"[AI Service] Error loading product context: {e}")
         return "", []
+
+
+def _call_gemini_api(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """
+    Calls Google Gemini Flash API for high-accuracy, fluent Roman Hinglish generation.
+    Returns the generated response string, or None if the request fails or key is missing.
+    """
+    api_key = getattr(config, "GEMINI_API_KEY", None) or ""
+    if not api_key:
+        return None
+
+    model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": system_prompt}]
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": user_prompt}]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.3,
+            "maxOutputTokens": 300,
+            "thinkingConfig": {"thinkingBudget": 0}
+        }
+    }
+
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            candidates = data.get("candidates", [])
+            if candidates:
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if parts:
+                    return parts[0].get("text", "").strip()
+    except Exception as e:
+        logger.warning(f"[AI Service] Gemini Flash API call failed, falling back to local model: {e}")
+    return None
 
 
 def generate_qwen_reply(
@@ -363,82 +406,105 @@ def generate_qwen_reply(
 
     full_prompt = "\n\n".join(prompt_parts)
 
-    payload = {
-        "model": "qwen2.5:1.5b",
-        "system": SALES_SYSTEM_PROMPT,
-        "prompt": full_prompt,
-        "stream": False,
-        "options": {
-            "temperature": 0.3,
-            "top_p": 0.85,
-            "num_predict": 70,
-            "num_thread": 2
+    answer = None
+    used_model = MODEL_NAME
+
+    # 4. Try Google Gemini Flash API first if configured
+    gemini_resp = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt)
+    if gemini_resp:
+        answer = gemini_resp
+        used_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
+
+    # 5. Fallback to local Ollama if Gemini is unavailable or not configured
+    if not answer:
+        payload = {
+            "model": "qwen2.5:1.5b",
+            "system": SALES_SYSTEM_PROMPT,
+            "prompt": full_prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.3,
+                "top_p": 0.85,
+                "num_predict": 70,
+                "num_thread": 2
+            }
         }
-    }
+
+        try:
+            req = urllib.request.Request(
+                OLLAMA_API_URL,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                answer = data.get("response", "").strip()
+                used_model = "qwen2.5:1.5b"
+        except Exception as e:
+            logger.error(f"[AI Service] Local Ollama call failed: {e}")
+
+    if not answer:
+        return {
+            "status": "error",
+            "error": "All AI inference engines failed",
+            "reply": None,
+            "model": used_model
+        }
 
     try:
-        req = urllib.request.Request(
-            OLLAMA_API_URL,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            answer = data.get("response", "").strip()
+        # Clean any leftover meta tags or artifacts if present
+        answer = re.sub(r"^(Maya|Consultant|JWL Stylist):\s*", "", answer, flags=re.I).strip()
+        
+        # Clean markdown link syntax: WhatsApp does not support markdown links like [here](https://...)
+        # Convert [text](url) -> url so WhatsApp displays a clean, clickable preview link
+        answer = re.sub(r'\[([^\]]+)\]\((https?://[^\s\)]+)\)', r'\2', answer)
+        # Also clean broken markdown patterns like [Product Link](https://...) or [text]\s*\((https?://...)\)
+        answer = re.sub(r'\[[^\]]*\]\s*\(?(https?://[^\s\)]+)\)?', r'\1', answer)
 
-            # Clean any leftover meta tags or artifacts if present
-            answer = re.sub(r"^(Maya|Consultant|JWL Stylist):\s*", "", answer, flags=re.I).strip()
-            
-            # Clean markdown link syntax: WhatsApp does not support markdown links like [here](https://...)
-            # Convert [text](url) -> url so WhatsApp displays a clean, clickable preview link
-            answer = re.sub(r'\[([^\]]+)\]\((https?://[^\s\)]+)\)', r'\2', answer)
-            # Also clean broken markdown patterns like [Product Link](https://...) or [text]\s*\((https?://...)\)
-            answer = re.sub(r'\[[^\]]*\]\s*\(?(https?://[^\s\)]+)\)?', r'\1', answer)
+        # If LLM outputted literal placeholder like [Link], [here], [view] instead of the actual URL
+        if top_matches and re.search(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', answer, re.I):
+            primary_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
+            answer = re.sub(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', primary_url, answer, flags=re.I)
 
-            # If Qwen outputted literal placeholder like [Link], [here], [view] instead of the actual URL
-            if top_matches and re.search(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', answer, re.I):
-                primary_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
-                answer = re.sub(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', primary_url, answer, flags=re.I)
+        # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
+        answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()
 
-            # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
-            answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()
+        # Clean broken Hindi grammar patterns generated by small LLMs
+        answer = re.sub(r'\b(?:apna\s*aap|apne\s*aap),?\s*', '', answer, flags=re.I)
+        answer = re.sub(r'\bhai\s+ya\s+₹', 'iska price ₹', answer, flags=re.I)
+        answer = re.sub(r'\blikha\s+chahiye\b', 'dekhna chahenge', answer, flags=re.I)
+        answer = re.sub(r'\blikha\b', 'dekhna', answer, flags=re.I)
+        answer = re.sub(r'\bkarenga\b', 'karenge', answer, flags=re.I)
+        answer = re.sub(r'\bdekhna\s+pasand\s+kareng[ae]\b', 'dekhna chahenge', answer, flags=re.I)
+        answer = re.sub(r'\bpasand\s+karenga\b', 'pasand karenge', answer, flags=re.I)
+        answer = re.sub(r'\bchahe\?', 'chahenge?', answer, flags=re.I)
+        # Remove repeated customer phrases like "bhej dijiye" erroneously appended to product titles
+        answer = re.sub(r'\b(?:bhej\s*dijiye|bhej\s*do|dikha\s*dijiye|dikha\s*do)\.?', '', answer, flags=re.I).strip()
+        answer = re.sub(r'\s{2,}', ' ', answer)
 
-            # Clean broken Hindi grammar patterns generated by small LLMs
-            answer = re.sub(r'\b(?:apna\s*aap|apne\s*aap),?\s*', '', answer, flags=re.I)
-            answer = re.sub(r'\bhai\s+ya\s+₹', 'iska price ₹', answer, flags=re.I)
-            answer = re.sub(r'\blikha\s+chahiye\b', 'dekhna chahenge', answer, flags=re.I)
-            answer = re.sub(r'\blikha\b', 'dekhna', answer, flags=re.I)
-            answer = re.sub(r'\bkarenga\b', 'karenge', answer, flags=re.I)
-            answer = re.sub(r'\bdekhna\s+pasand\s+kareng[ae]\b', 'dekhna chahenge', answer, flags=re.I)
-            answer = re.sub(r'\bpasand\s+karenga\b', 'pasand karenge', answer, flags=re.I)
-            answer = re.sub(r'\bchahe\?', 'chahenge?', answer, flags=re.I)
-            # Remove repeated customer phrases like "bhej dijiye" erroneously appended to product titles
-            answer = re.sub(r'\b(?:bhej\s*dijiye|bhej\s*do|dikha\s*dijiye|dikha\s*do)\.?', '', answer, flags=re.I).strip()
-            answer = re.sub(r'\s{2,}', ' ', answer)
+        # Determine whether to accompany this reply with a product image
+        # Send clean photo when user asks to see designs or when AI recommends a specific product
+        send_image_url = None
+        if top_matches:
+            first_match = top_matches[0]
+            img_candidate = _clean_product_photo(first_match)
+            # Check for explicit design/view intent in query or product mention in answer
+            wants_to_see = bool(re.search(r'\b(?:dijan|designs?|dikha\w*|bhej\w*|dekh\w*|photos?|pics?|images?|simple|trendy|special|heavy|necklaces?|chains?|pendants?|rings?|bracelets?|kadas?|earrings?)\b', q_clean, re.I))
+            if img_candidate and (wants_to_see or first_match.get("title", "").lower() in answer.lower() or "https://" in answer):
+                send_image_url = img_candidate
 
-            # Determine whether to accompany this reply with a product image
-            # Send clean photo when user asks to see designs or when AI recommends a specific product
-            send_image_url = None
-            if top_matches:
-                first_match = top_matches[0]
-                img_candidate = _clean_product_photo(first_match)
-                # Check for explicit design/view intent in query or product mention in answer
-                wants_to_see = bool(re.search(r'\b(?:dijan|designs?|dikha\w*|bhej\w*|dekh\w*|photos?|pics?|images?|simple|trendy|special|heavy|necklaces?|chains?|pendants?|rings?|bracelets?|kadas?|earrings?)\b', q_clean, re.I))
-                if img_candidate and (wants_to_see or first_match.get("title", "").lower() in answer.lower() or "https://" in answer):
-                    send_image_url = img_candidate
-
-            return {
-                "status": "success",
-                "reply": answer,
-                "image_url": send_image_url,
-                "product": top_matches[0] if top_matches else None,
-                "model": "qwen2.5:1.5b"
-            }
+        return {
+            "status": "success",
+            "reply": answer,
+            "image_url": send_image_url,
+            "product": top_matches[0] if top_matches else None,
+            "model": used_model
+        }
     except Exception as e:
-        logger.error(f"[AI Service] Qwen inference call failed: {e}")
+        logger.error(f"[AI Service] Post-processing reply failed: {e}")
         return {
             "status": "error",
             "error": str(e),
             "reply": None,
-            "model": MODEL_NAME
+            "model": used_model
         }
