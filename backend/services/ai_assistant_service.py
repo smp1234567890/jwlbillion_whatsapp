@@ -451,15 +451,25 @@ def generate_qwen_reply(
         answer = re.sub(r'\s{2,}', ' ', answer)
 
         # Determine whether to accompany this reply with a product image
-        # Send clean photo when user asks to see designs or when AI recommends a specific product
+        # Whenever AI recommends or references a specific product with its link or price, ALWAYS attach its product image
         send_image_url = None
         if top_matches:
             first_match = top_matches[0]
             img_candidate = _clean_product_photo(first_match)
-            # Check for explicit design/view intent in query or product mention in answer
-            wants_to_see = bool(re.search(r'\b(?:dijan|designs?|dikha\w*|bhej\w*|dekh\w*|photos?|pics?|images?|simple|trendy|special|heavy|necklaces?|chains?|pendants?|rings?|bracelets?|kadas?|earrings?)\b', q_clean, re.I))
-            if img_candidate and (wants_to_see or first_match.get("title", "").lower() in answer.lower() or "https://" in answer):
-                send_image_url = img_candidate
+            if img_candidate:
+                # Always send photo if customer asked to see something, or if AI included a link or price or product title
+                has_product_ref = (
+                    "https://" in answer or
+                    "₹" in answer or
+                    first_match.get("title", "").lower() in answer.lower()
+                )
+                wants_to_see = bool(re.search(
+                    r'\b(?:dijan|designs?|dikha\w*|bhej\w*|dekh\w*|photos?|pics?|images?|simple|trendy|special|heavy|aur|kuch|aur\s*kuch|kuch\s*aur|next|another|options?|necklaces?|chains?|pendants?|rings?|bracelets?|kadas?|earrings?)\b',
+                    q_clean,
+                    re.I
+                ))
+                if has_product_ref or wants_to_see:
+                    send_image_url = img_candidate
 
         return {
             "status": "success",
