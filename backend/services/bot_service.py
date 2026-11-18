@@ -1226,6 +1226,40 @@ def handle_inbound_auto_reply(
         ai_result = generate_qwen_reply(message_text, sender_phone, db=db)
         if ai_result and ai_result.get("reply"):
             qwen_text = ai_result["reply"]
+            image_to_send = ai_result.get("image_url")
+            matched_prod = ai_result.get("product")
+
+            # Check if this customer already received this exact image recently to prevent repeating photos
+            if image_to_send and db and sender_phone:
+                try:
+                    from models import ChatMessage
+                    clean_p = sender_phone.replace("+", "")
+                    already_sent_photo = db.query(ChatMessage).filter(
+                        ChatMessage.customer_phone.in_([sender_phone, clean_p]),
+                        ChatMessage.sender_type != "CUSTOMER",
+                        ChatMessage.media_url == image_to_send
+                    ).first() is not None
+                    if already_sent_photo:
+                        image_to_send = None
+                except Exception:
+                    pass
+
+            if image_to_send and matched_prod:
+                cap = (
+                    f"*{matched_prod.get('title')}*\n"
+                    f"Price: ₹{float(matched_prod.get('price') or 0):,.0f}\n"
+                    f"Link: {matched_prod.get('product_url') or 'https://jwlbillion.com'}"
+                )
+                media_res = send_whatsapp_media(sender_phone, "image", media_url=image_to_send, caption=cap, db=db)
+                _save_bot_message(
+                    db,
+                    sender_phone,
+                    f"*{matched_prod.get('title')}*\nPrice: ₹{float(matched_prod.get('price') or 0):,.0f}",
+                    media_res.get("message_id"),
+                    media_url=image_to_send,
+                    message_type="image"
+                )
+
             res = send_whatsapp_free_text(sender_phone, qwen_text, db=db)
             _save_bot_message(db, sender_phone, qwen_text, res.get("message_id"))
             return res
