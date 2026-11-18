@@ -1120,94 +1120,10 @@ def handle_inbound_auto_reply(
             return res
 
     # -------------------------------------------------------------
-    # 4. Check for Product Designs / Category Discovery Intent
-    # (Rings, Cocktail Rings, Bracelets, Bangles, Earrings, Necklaces, etc.)
-    # -------------------------------------------------------------
-    design_match_res = _match_and_send_product_designs(sender_phone, text_clean, db=db)
-    if design_match_res:
-        return design_match_res
-
-    # -------------------------------------------------------------
-    # 4b. Check for COD / Cash on Delivery inquiries (e.g. "cod ha", "cod available?")
-    # -------------------------------------------------------------
-    is_cod_query = any(re.search(pat, text_clean, re.IGNORECASE) for pat in COD_QUERY_PATTERNS)
-    if is_cod_query:
-        is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:ha|hai|he|hoga|milega|kya|batao)", text_clean, re.IGNORECASE))
-        if is_hindi:
-            cod_reply = (
-                "Haan ji, JWL Billion par *Cash on Delivery (COD)* uplabdh hai! \n\n"
-                "Aap bina kisi advance payment ke order place kar sakte hain. "
-                "Saath hi hum *7 Days Easy Return & Exchange* policy dete hain.\n\n"
-                "Aapko kaun sa design pasand aaya hai? Batayein, hum direct order link bhej denge: https://jwlbillion.com/"
-            )
-        else:
-            cod_reply = (
-                "Yes, *Cash on Delivery (COD)* is available across India at JWL Billion! \n\n"
-                "You can pay conveniently upon delivery. We also offer *7 Days Easy Returns & Exchanges*.\n\n"
-                "Which jewelry design would you like to order? Browse our full catalogue here: https://jwlbillion.com/"
-            )
-        res = send_whatsapp_free_text(sender_phone, cod_reply, db=db)
-        _save_bot_message(db, sender_phone, cod_reply, res.get("message_id"))
-        return res
-
-    # -------------------------------------------------------------
-    # 5. Check for Greeting, Info Request, or General Help
-    # Option 1: Warm human conversational welcome hook instead of robotic IVR list menu.
-    # Interactive menu is reserved strictly for explicit requests ("menu", "options", "support menu").
-    # -------------------------------------------------------------
-    is_explicit_menu_request = any(phrase in text_clean for phrase in ["menu", "show menu", "main menu", "options", "list options"])
-    if is_explicit_menu_request:
-        menu_payload = build_main_menu_list(customer_name)
-        res = send_whatsapp_interactive(sender_phone, menu_payload, db=db)
-        _save_bot_message(db, sender_phone, "Sent interactive main menu", res.get("message_id"))
-        return res
-
-    words = [w.strip() for w in re.split(r"[^\w#]+", text_clean) if w.strip()]
-    normalized_words = [re.sub(r'(.)\1{1,}', r'\1', w) for w in words]
-    is_greeting = (
-        any(w in GREETING_WORDS for w in words)
-        or any(nw in GREETING_WORDS for nw in normalized_words)
-        or any(phrase in text_clean for phrase in GREETING_PHRASES)
-        or text_clean in ["hi", "hello", "hey", "namaste", "namasta", "start"]
-    )
-
-    # If greeting with no specific product/order mentioned, send conversational human hook
-    if is_greeting and len(words) <= 5:
-        # Check if customer asked "Kaise ho" / "Kya haal hai"
-        if re.search(r"\b(?:kaise\s*ho|kaisa\s*hai|kaisi\s*ho|kya\s*haal|haal\s*chaal|kem\s*cho)\b", text_clean, re.I):
-            welcome_text = "Main badhiya hoon, aap bataiye aap kaise hain! 😊 JWL Billion mein aapka swagat hai. Aaj aapke liye kya collection dekhna chahenge?"
-        else:
-            # Check if this customer already chatted before vs first greeting
-            has_prior_chat = False
-            if db and sender_phone:
-                try:
-                    from models import ChatMessage
-                    clean_p = sender_phone.replace("+", "")
-                    prior_count = db.query(ChatMessage).filter(
-                        ChatMessage.customer_phone.in_([sender_phone, clean_p]),
-                        ChatMessage.sender_type != "CUSTOMER"
-                    ).count()
-                    has_prior_chat = prior_count > 0
-                except Exception:
-                    pass
-
-            if has_prior_chat:
-                welcome_text = "Hello ji! 😊 Welcome back to JWL Billion. Batayein aaj aapke liye kya sundar jewellery dikhaun?"
-            else:
-                welcome_text = (
-                    "Hey! Welcome to JWL Billion 😊\n\n"
-                    "Thanks for checking out our collection!\n\n"
-                    "Aap kuch specific jewellery dekh rahe hain ya bas collection explore kar rahe hain?"
-                )
-
-        res = send_whatsapp_free_text(sender_phone, welcome_text, db=db)
-        _save_bot_message(db, sender_phone, welcome_text, res.get("message_id"))
-        return res
-
-    # -------------------------------------------------------------
-    # 6. Qwen 2.5:3B Sandboxed Assistant (Free-form Customer Inquiries)
-    # Strictly answers platform, order, and jewelry questions with photo/links.
-    # Refuses coding, essays, and off-topic questions.
+    # 4. Route Customer Messages to AI Assistant
+    # All product inquiries, category requests, greetings, and conversational questions
+    # are handled directly by Qwen AI with full Shopify catalog awareness, image sending,
+    # and context-specific natural sales closing.
     # -------------------------------------------------------------
     try:
         from services.ai_assistant_service import generate_qwen_reply
@@ -1253,6 +1169,11 @@ def handle_inbound_auto_reply(
             return res
     except Exception as qwen_err:
         logger.warning(f"[Bot Qwen Auto-Reply] Fallback triggered: {qwen_err}")
+
+    # Fallback to category catalog matcher if AI produces no reply
+    design_match_res = _match_and_send_product_designs(sender_phone, text_clean, db=db)
+    if design_match_res:
+        return design_match_res
 
     return None
 
