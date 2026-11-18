@@ -220,7 +220,12 @@ def generate_qwen_reply(
         )
         return {"status": "success", "reply": welcome_hinglish, "model": "qwen2.5:1.5b"}
 
-    # 0b. Instant Fast-Path for Common Exploring / Greeting Hooks (0.01s latency)
+    # 0b. Instant Fast-Path for How are you / Kaise ho
+    if re.search(r"\b(?:kaise\s*ho|kaisa\s*hai|kaisi\s*ho|kya\s*haal|kem\s*cho|how\s*are\s*you)\b", q_clean):
+        kaise_reply = "Main badhiya hoon, aap bataiye aap kaise hain! 😊 JWL Billion mein aapka swagat hai. Aaj aapke liye kya collection dekhna chahenge?"
+        return {"status": "success", "reply": kaise_reply, "model": "playbook"}
+
+    # 0c. Instant Fast-Path for Common Exploring / Greeting Hooks (0.01s latency)
     if re.search(r"^(?:lets?\s*explore|just\s*(?:exploring|looking|browsing)|bas\s*dekh\s*(?:rahi|raha)\s*hoon)$", q_clean):
         is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:bas|dekh|rahi|raha|hoon)", q_clean))
         if is_hindi:

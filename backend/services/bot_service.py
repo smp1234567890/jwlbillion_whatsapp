@@ -1185,12 +1185,33 @@ def handle_inbound_auto_reply(
 
     # If greeting with no specific product/order mentioned, send conversational human hook
     if is_greeting and len(words) <= 5:
-        # Default to warm Hindi/Hinglish welcome for all Indian jewellery customers
-        welcome_text = (
-            "Hey! Welcome to JWL Billion 😊\n\n"
-            "Thanks for checking out our collection!\n\n"
-            "Aap kuch specific jewellery dekh rahe hain ya bas collection explore kar rahe hain?"
-        )
+        # Check if customer asked "Kaise ho" / "Kya haal hai"
+        if re.search(r"\b(?:kaise\s*ho|kaisa\s*hai|kaisi\s*ho|kya\s*haal|haal\s*chaal|kem\s*cho)\b", text_clean, re.I):
+            welcome_text = "Main badhiya hoon, aap bataiye aap kaise hain! 😊 JWL Billion mein aapka swagat hai. Aaj aapke liye kya collection dekhna chahenge?"
+        else:
+            # Check if this customer already chatted before vs first greeting
+            has_prior_chat = False
+            if db and sender_phone:
+                try:
+                    from models import ChatMessage
+                    clean_p = sender_phone.replace("+", "")
+                    prior_count = db.query(ChatMessage).filter(
+                        ChatMessage.customer_phone.in_([sender_phone, clean_p]),
+                        ChatMessage.sender_type != "CUSTOMER"
+                    ).count()
+                    has_prior_chat = prior_count > 0
+                except Exception:
+                    pass
+
+            if has_prior_chat:
+                welcome_text = "Hello ji! 😊 Welcome back to JWL Billion. Batayein aaj aapke liye kya sundar jewellery dikhaun?"
+            else:
+                welcome_text = (
+                    "Hey! Welcome to JWL Billion 😊\n\n"
+                    "Thanks for checking out our collection!\n\n"
+                    "Aap kuch specific jewellery dekh rahe hain ya bas collection explore kar rahe hain?"
+                )
+
         res = send_whatsapp_free_text(sender_phone, welcome_text, db=db)
         _save_bot_message(db, sender_phone, welcome_text, res.get("message_id"))
         return res
