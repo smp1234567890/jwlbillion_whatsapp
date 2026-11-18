@@ -65,19 +65,30 @@ def compute_analytics_overview(time_range: str, db: Session) -> Dict[str, Any]:
     )
     total_read = min(total_read, total_delivered)
 
-    # Interactive button clicks / CTA taps & Smart Link Clicks
+    # Interactive button clicks / CTA taps & Smart Link Clicks segmented by channel
     link_clicks_q = db.query(models.LinkClick)
     if start_date:
         link_clicks_q = link_clicks_q.filter(models.LinkClick.clicked_at >= start_date)
     link_clicks = link_clicks_q.all()
-    tracked_link_clicks = len(link_clicks)
-    unique_clicked_phones = set(lc.recipient_phone for lc in link_clicks if lc.recipient_phone)
+
+    # Breakdown by channel
+    broadcast_link_clicks = [lc for lc in link_clicks if lc.source == "broadcast" or lc.campaign_id is not None]
+    chat_link_clicks = [lc for lc in link_clicks if lc.source == "chat"]
+    cart_link_clicks = [lc for lc in link_clicks if lc.source == "cart_recovery"]
 
     button_clicks = sum(
         1 for c in inbound_replies
         if c.message_type in ("button", "interactive")
         or (c.text and any(k in c.text.lower() for k in ["[button", "clicked", "yes", "order", "view"]))
     )
+
+    # Broadcast clicks: campaign links + marketing button clicks
+    total_broadcast_clicks = len(broadcast_link_clicks) + button_clicks
+    unique_broadcast_clicks = len(set(lc.recipient_phone for lc in broadcast_link_clicks if lc.recipient_phone))
+
+    # Total aggregate clicks
+    tracked_link_clicks = len(link_clicks)
+    unique_clicked_phones = set(lc.recipient_phone for lc in link_clicks if lc.recipient_phone)
     total_clicks = tracked_link_clicks + button_clicks
     unique_clicks = len(unique_clicked_phones) if tracked_link_clicks > 0 else total_clicks
 
@@ -230,6 +241,12 @@ def compute_analytics_overview(time_range: str, db: Session) -> Dict[str, Any]:
             "total_replied": total_replied,
             "total_clicks": total_clicks,
             "unique_clicks": unique_clicks,
+            "broadcast_clicks": total_broadcast_clicks,
+            "broadcast_unique_clicks": unique_broadcast_clicks,
+            "chat_clicks": len(chat_link_clicks),
+            "chat_unique_clicks": len(set(lc.recipient_phone for lc in chat_link_clicks if lc.recipient_phone)),
+            "cart_clicks": len(cart_link_clicks),
+            "cart_unique_clicks": len(set(lc.recipient_phone for lc in cart_link_clicks if lc.recipient_phone)),
             "total_failed": total_failed,
             "recovered_carts": len(recovered_carts) + attributed_orders_count,
             "revenue_recovered": round(revenue_recovered, 2)

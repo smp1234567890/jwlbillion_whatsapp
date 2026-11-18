@@ -1232,6 +1232,35 @@ def get_chat_inbox_analytics(
     interactive_rate = round((interactive_count / total_inbound_people * 100), 1) if total_inbound_people > 0 else 0.0
     avg_response_time_minutes = round((total_response_time_seconds / measured_replies / 60.0), 1) if measured_replies > 0 else 0.0
 
+    # Calculate Chat Link Clicks within [start_dt, end_dt]
+    chat_clicks_q = db.query(models.LinkClick).filter(
+        models.LinkClick.source == "chat",
+        models.LinkClick.clicked_at >= start_dt,
+        models.LinkClick.clicked_at <= end_dt
+    )
+    chat_clicks_records = chat_clicks_q.all()
+    chat_total_clicks = len(chat_clicks_records)
+    chat_unique_clickers = len(set(c.recipient_phone for c in chat_clicks_records if c.recipient_phone))
+
+    # Map click counts and latest clicked target per customer phone
+    clicks_by_phone = {}
+    for clk in chat_clicks_records:
+        if clk.recipient_phone:
+            p = clk.recipient_phone
+            clean_p = p.replace("+", "")
+            for key in (p, clean_p, f"+{clean_p}"):
+                if key not in clicks_by_phone:
+                    clicks_by_phone[key] = {"count": 0, "last_url": clk.target_url, "last_clicked": clk.clicked_at.isoformat()}
+                clicks_by_phone[key]["count"] += 1
+
+    # Attach clicked status to customer items
+    for item in items:
+        p = item.get("customer_phone", "")
+        clk_info = clicks_by_phone.get(p) or clicks_by_phone.get(p.replace("+", "")) or {"count": 0, "last_url": None, "last_clicked": None}
+        item["link_clicks_count"] = clk_info["count"]
+        item["last_clicked_url"] = clk_info["last_url"]
+        item["last_clicked_time"] = clk_info["last_clicked"]
+
     return {
         "time_range": {
             "start": start_dt.isoformat(),
@@ -1244,7 +1273,9 @@ def get_chat_inbox_analytics(
             "replied_count": replied_count,
             "unreplied_count": unreplied_count,
             "response_rate": response_rate,
-            "avg_response_time_minutes": avg_response_time_minutes
+            "avg_response_time_minutes": avg_response_time_minutes,
+            "chat_total_clicks": chat_total_clicks,
+            "chat_unique_clickers": chat_unique_clickers
         },
         "contacts": items
     }

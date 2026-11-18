@@ -1148,11 +1148,16 @@ def handle_inbound_auto_reply(
                 except Exception:
                     pass
 
+            from services.link_tracking_service import rewrite_text_links, build_tracked_url
+            qwen_text = rewrite_text_links(qwen_text, sender_phone, source="ai_chat")
+
             if image_to_send and matched_prod:
+                raw_prod_url = matched_prod.get('product_url') or 'https://jwlbillion.com'
+                tracked_prod_url = build_tracked_url(raw_prod_url, sender_phone, source="ai_chat")
                 cap = (
                     f"*{matched_prod.get('title')}*\n"
                     f"Price: ₹{float(matched_prod.get('price') or 0):,.0f}\n"
-                    f"Link: {matched_prod.get('product_url') or 'https://jwlbillion.com'}"
+                    f"Link: {tracked_prod_url}"
                 )
                 media_res = send_whatsapp_media(sender_phone, "image", media_url=image_to_send, caption=cap, db=db)
                 _save_bot_message(

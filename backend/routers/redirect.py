@@ -42,16 +42,31 @@ def track_and_redirect(
         campaign_id = existing_click.campaign_id
         recipient_phone = existing_click.recipient_phone
     else:
-        # Structured code parsing: c{campaign_id}_{phone_without_plus}
-        # e.g. "c3_918780001820" or "cart_918780001820"
-        parts = tracking_code.split("_")
+        # Structured code parsing:
+        # 1. Base64 URL: u_{phone}_{b64_url} (arbitrary product link in AI/live chat)
+        # 2. Campaign link: c{campaign_id}_{phone}
+        # 3. Cart link: cart_{phone}
+        parts = tracking_code.split("_", 2)
         if len(parts) >= 2:
             prefix = parts[0]
             phone_part = parts[1]
-            if phone_part:
+            if phone_part and phone_part != "guest":
                 recipient_phone = f"+{phone_part}" if not phone_part.startswith("+") else phone_part
-            
-            if prefix.startswith("c") and prefix[1:].isdigit():
+
+            if prefix == "u" and len(parts) == 3:
+                # Arbitrary encoded URL
+                try:
+                    import base64
+                    b64_str = parts[2]
+                    padding = 4 - (len(b64_str) % 4)
+                    if padding != 4:
+                        b64_str += "=" * padding
+                    decoded = base64.urlsafe_b64decode(b64_str.encode("utf-8")).decode("utf-8")
+                    if decoded.startswith("http://") or decoded.startswith("https://"):
+                        target_url = decoded
+                except Exception as dec_err:
+                    logger.warning(f"Failed to decode tracking b64: {dec_err}")
+            elif prefix.startswith("c") and prefix[1:].isdigit():
                 campaign_id = int(prefix[1:])
                 # Lookup campaign template or default product
                 camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
@@ -59,6 +74,9 @@ def track_and_redirect(
                     target_url = "https://jwlbillion.com/products/pyrite-anklet-for-womens"
             elif prefix.startswith("cart"):
                 target_url = "https://jwlbillion.com/cart"
+
+    # Determine distinct click source: "chat", "broadcast", or "cart_recovery"
+    click_source = "broadcast" if campaign_id else ("cart_recovery" if tracking_code.startswith("cart_") else "chat")
 
     # 2. Record click event
     try:
@@ -69,7 +87,7 @@ def track_and_redirect(
             tracking_code=tracking_code,
             recipient_phone=recipient_phone,
             campaign_id=campaign_id,
-            source="campaign" if campaign_id else "automation",
+            source=click_source,
             target_url=target_url,
             user_agent=user_agent,
             ip_address=client_ip,

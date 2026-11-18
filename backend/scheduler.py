@@ -222,6 +222,12 @@ def process_abandoned_cart_job(cart_event_id: int):
 
             param_dict[f"param_{idx}"] = val_str
 
+            # Rewrite any store URLs in template parameters with personal click tracking redirects
+            from services.link_tracking_service import rewrite_text_links
+            for p_k, p_v in param_dict.items():
+                if isinstance(p_v, str) and "jwlbillion.com" in p_v:
+                    param_dict[p_k] = rewrite_text_links(p_v, cart.customer_phone, source="cart_recovery")
+
         # Send recovery template
         recovery_coupon = (cart_rule.coupon_code if cart_rule and cart_rule.coupon_code else config.DEFAULT_COUPON_CODE)
         auth_user = cart.authenticated_user or "Abandoned Cart Recovery"
@@ -575,6 +581,17 @@ def execute_campaign_broadcast(campaign_id: int, recipient_phones: list = None):
                                 "longitude": sv.get("longitude"),
                                 "name": sv.get("location_name")
                             }
+
+                # Rewrite any store URLs in campaign parameters with personal click tracking redirects
+                from services.link_tracking_service import rewrite_text_links
+                if isinstance(params, dict):
+                    tracked_params = {}
+                    for p_k, p_v in params.items():
+                        if isinstance(p_v, str) and "jwlbillion.com" in p_v:
+                            tracked_params[p_k] = rewrite_text_links(p_v, phone_num, source="campaign", campaign_id=campaign.id)
+                        else:
+                            tracked_params[p_k] = p_v
+                    params = tracked_params
 
                 res = send_whatsapp_template(
                     recipient_phone=phone_num,
@@ -974,6 +991,17 @@ def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
                             val_str = config.BRAND_NAME
 
                     param_dict[f"param_{idx}"] = val_str
+
+                # Rewrite any store URLs in campaign parameters with personal click tracking redirects
+                from services.link_tracking_service import rewrite_text_links
+                if isinstance(params, dict):
+                    tracked_params = {}
+                    for p_k, p_v in params.items():
+                        if isinstance(p_v, str) and "jwlbillion.com" in p_v:
+                            tracked_params[p_k] = rewrite_text_links(p_v, phone_num, source="campaign", campaign_id=campaign.id)
+                        else:
+                            tracked_params[p_k] = p_v
+                    params = tracked_params
 
                 res = send_whatsapp_template(
                     recipient_phone=phone,
@@ -1450,6 +1478,17 @@ def process_workflow_session_step(session_id: int, db=None, mock_send: bool = Fa
             else:
                 flow_title = flow.name if flow and flow.name else "Workflow"
                 origin_user = (session.state_data or {}).get("sender_user") or f"Journey: {flow_title}"
+                # Rewrite any store URLs in campaign parameters with personal click tracking redirects
+                from services.link_tracking_service import rewrite_text_links
+                if isinstance(params, dict):
+                    tracked_params = {}
+                    for p_k, p_v in params.items():
+                        if isinstance(p_v, str) and "jwlbillion.com" in p_v:
+                            tracked_params[p_k] = rewrite_text_links(p_v, phone_num, source="campaign", campaign_id=campaign.id)
+                        else:
+                            tracked_params[p_k] = p_v
+                    params = tracked_params
+
                 res = send_whatsapp_template(
                     recipient_phone=session.customer_phone,
                     template_name=template_name,

@@ -247,7 +247,7 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
       )}
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Total Inbound People */}
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -257,6 +257,20 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
             <div className="text-3xl font-bold text-gray-900">{summary.total_inbound_people}</div>
             <p className="text-xs text-gray-500 mt-1">Unique people who sent a message</p>
           </div>
+        </div>
+
+        {/* Chat Links Clicked */}
+        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+            Chat Links Clicked
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <div className="text-3xl font-bold text-blue-600">{summary.chat_total_clicks || 0}</div>
+            <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+              {summary.chat_unique_clickers || 0} unique
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Product links tapped inside chat</p>
         </div>
 
         {/* Got Interactive Template */}
@@ -300,7 +314,7 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
               Avg speed: {summary.avg_response_time_minutes}m
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-1">Inbound messages without reply yet</p>
+          <p className="text-xs text-gray-500 mt-1">Inbound messages needing a response</p>
         </div>
       </div>
 
@@ -363,6 +377,7 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
                 <th className="py-3 px-4">Customer Message</th>
                 <th className="py-3 px-4">Interactive Menu</th>
                 <th className="py-3 px-4">Our Reply</th>
+                <th className="py-3 px-4">Link Clicks</th>
                 <th className="py-3 px-4">Auto Response</th>
                 <th className="py-3 px-4">Manual Response</th>
                 <th className="py-3 px-4">Customer Took</th>
@@ -372,7 +387,7 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-400">
+                  <td colSpan={10} className="py-12 text-center text-gray-400">
                     <div className="inline-flex items-center gap-2">
                       <RefreshCw className="w-4 h-4 animate-spin text-amber-500" />
                       Loading chat analytics data...
@@ -381,7 +396,7 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
                 </tr>
               ) : contactsList.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-500">
+                  <td colSpan={10} className="py-12 text-center text-gray-500">
                     No inbound customer messages found in this selected time range.
                   </td>
                 </tr>
@@ -439,6 +454,18 @@ export default function ChatAnalyticsPage({ token, onOpenChat }) {
                           <Clock className="w-3.5 h-3.5 text-amber-600" />
                           <span>Pending</span>
                         </div>
+                      )}
+                    </td>
+
+                    {/* Link Clicks */}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      {item.link_clicks_count > 0 ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200">
+                          <ExternalLink className="w-3 h-3 text-blue-600" />
+                          <span>{item.link_clicks_count} click{item.link_clicks_count > 1 ? "s" : ""}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 font-normal">-</span>
                       )}
                     </td>
 

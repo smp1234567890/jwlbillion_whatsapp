@@ -152,9 +152,12 @@ SHOPIFY_CLIENT_ID = os.getenv("SHOPIFY_CLIENT_ID", "").strip()
 SHOPIFY_CLIENT_SECRET = os.getenv("SHOPIFY_CLIENT_SECRET", "").strip()
 SHOPIFY_ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN", "").strip()
 
-# ── AI Engine Configuration (Gemini 2.5 Flash with Ollama Fallback) ──
+# ── AI Engine Configuration (Gemini 2.5 Flash Primary, Groq Secondary Fallback) ──
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b").strip()
+
 
 
 APP_ENCRYPTION_KEY = os.getenv("APP_ENCRYPTION_KEY")

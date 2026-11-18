@@ -281,7 +281,49 @@ def _call_gemini_api(system_prompt: str, user_prompt: str) -> Optional[str]:
                 if parts:
                     return parts[0].get("text", "").strip()
     except Exception as e:
-        logger.warning(f"[AI Service] Gemini Flash API call failed, falling back to local model: {e}")
+        logger.warning(f"[AI Service] Gemini Flash API call failed: {e}")
+    return None
+
+
+def _call_groq_api(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """
+    Calls Groq Cloud API as high-speed fallback with fluent Hinglish capabilities.
+    Returns the generated response string, or None if the request fails or key is missing.
+    """
+    api_key = getattr(config, "GROQ_API_KEY", None) or ""
+    if not api_key:
+        return None
+
+    model = getattr(config, "GROQ_MODEL", "qwen/qwen3.8-27b")
+    url = "https://api.groq.com/openai/v1/chat/completions"
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "max_tokens": 200,
+        "temperature": 0.3
+    }
+
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "User-Agent": "Mozilla/5.0"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            choices = data.get("choices", [])
+            if choices:
+                return choices[0].get("message", {}).get("content", "").strip()
+    except Exception as e:
+        logger.warning(f"[AI Service] Groq API call failed: {e}")
     return None
 
 
@@ -406,18 +448,27 @@ def generate_qwen_reply(
 
     full_prompt = "\n\n".join(prompt_parts)
 
-    # 4. Generate reply via Google Gemini Flash API
+    # 4. Generate reply via Google Gemini Flash API (Primary)
+    answer = None
+    used_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
     gemini_resp = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt)
-    if not gemini_resp:
+    if gemini_resp:
+        answer = gemini_resp
+    else:
+        # 5. Seamlessly fallback to Groq API if Gemini is rate-limited or fails
+        logger.info("[AI Service] Gemini unavailable or rate-limited; trying Groq fallback...")
+        groq_resp = _call_groq_api(SALES_SYSTEM_PROMPT, full_prompt)
+        if groq_resp:
+            answer = groq_resp
+            used_model = getattr(config, "GROQ_MODEL", "qwen/qwen3.8-27b")
+
+    if not answer:
         return {
             "status": "error",
-            "error": "Gemini API unavailable or key unconfigured",
+            "error": "All AI inference engines failed",
             "reply": None,
-            "model": "gemini-2.5-flash"
+            "model": used_model
         }
-
-    answer = gemini_resp
-    used_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
 
     try:
         # Clean any leftover meta tags or artifacts if present
