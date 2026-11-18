@@ -25,6 +25,37 @@ import config
 import models
 from services.shopify_service import fetch_shopify_products
 
+
+def _clean_product_photo(product: dict) -> Optional[str]:
+    """
+    Selects a clean, aesthetic product photo.
+    Filters out measurement scales, ruler markings, cm grids, and internal QA shots.
+    """
+    images = product.get("all_images") or product.get("images") or []
+    img_urls = []
+    for im in images:
+        if isinstance(im, dict):
+            u = im.get("src")
+            if u: img_urls.append(u)
+        elif isinstance(im, str):
+            img_urls.append(im)
+    if not img_urls and product.get("image_url"):
+        img_urls = [product["image_url"]]
+    if not img_urls:
+        return None
+
+    clean_photos = []
+    for u in img_urls:
+        fn = u.split("/")[-1].split("?")[0].lower()
+        if any(bad in fn for bad in [
+            "scale", "ruler", "measurement", "cm_",
+            "wa0060", "wa0007", "wa0012", "wa0013", "wa0018"
+        ]):
+            continue
+        clean_photos.append(u)
+
+    return clean_photos[0] if clean_photos else img_urls[0]
+
 logger = logging.getLogger("ai_assistant_service")
 
 OLLAMA_API_URL = "http://172.17.0.1:11434/api/generate"
@@ -196,8 +227,8 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         # Limit to 1 primary top match in prompt context to prevent LLM listing multiple products in broken sentences
         top_matches = [m[1] for m in matches[:1]]
 
-        # Fallback if nothing matched the specific filter
-        if not top_matches:
+        # Fallback if nothing matched the specific filter: do not force product #0 if user hasn't specified category
+        if not top_matches and active_categories:
             top_matches = products[:1]
 
         lines = ["Available Live Store Products:"]
@@ -205,7 +236,7 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             price_val = p.get("price") or "Price on inquiry"
             prod_link = p.get("product_url") or p.get("shop_url") or "https://jwlbillion.com"
             lines.append(f"- {p.get('title')}: ₹{price_val} | Product Link: {prod_link}")
-        return "\n".join(lines), top_matches
+        return "\n".join(lines) if top_matches else "", top_matches
     except Exception as e:
         logger.warning(f"[AI Service] Error loading product context: {e}")
         return "", []
@@ -230,7 +261,20 @@ def generate_qwen_reply(
         )
         return {"status": "success", "reply": welcome_hinglish, "model": "qwen2.5:1.5b"}
 
-    # 0b. Instant Fast-Path for How are you / Kaise ho
+    # 0b. Fast-Path for Generic Photo Requests without category ("Pic bhejiye", "Photos bhejo", "Design dikhao")
+    # Clarify which jewelry piece the customer would like to see instead of dumping random pendants or scale photos
+    is_generic_photo_request = bool(re.search(
+        r"^(?:please\s*)?(?:pics?|photos?|tasveer|dijan|designs?)\s*(?:bhej(?:o|iye|na)?|dikha(?:o|ye)?|send|share)?(?:\s*please)?$",
+        q_clean
+    )) or bool(re.search(
+        r"^(?:kripya\s*)?(?:photo|pic|design)\s*(?:bhejo|bhejiye|dikhao|dikhaye)\??$",
+        q_clean
+    ))
+    if is_generic_photo_request:
+        photo_ask = "Haan ji, bilkul share karti hoon! 😊 Aapko kis type ki jewellery dekhni hai — jaise Earrings, Necklaces/Haar, Bangles, ya Bracelets?"
+        return {"status": "success", "reply": photo_ask, "model": "playbook"}
+
+    # 0c. Instant Fast-Path for How are you / Kaise ho
     if re.search(r"\b(?:kaise\s*ho|kaisa\s*hai|kaisi\s*ho|kya\s*haal|kem\s*cho|how\s*are\s*you)\b", q_clean):
         kaise_reply = "Main badhiya hoon, aap bataiye aap kaise hain! 😊 JWL Billion mein aapka swagat hai. Aaj aapke liye kya collection dekhna chahenge?"
         return {"status": "success", "reply": kaise_reply, "model": "playbook"}
@@ -373,13 +417,13 @@ def generate_qwen_reply(
             answer = re.sub(r'\s{2,}', ' ', answer)
 
             # Determine whether to accompany this reply with a product image
-            # Send photo when user asks to see designs or when AI recommends a specific product
+            # Send clean photo when user asks to see designs or when AI recommends a specific product
             send_image_url = None
             if top_matches:
                 first_match = top_matches[0]
-                img_candidate = first_match.get("image_url") or (first_match.get("all_images", [None])[0] if first_match.get("all_images") else None)
+                img_candidate = _clean_product_photo(first_match)
                 # Check for explicit design/view intent in query or product mention in answer
-                wants_to_see = bool(re.search(r'\b(?:dijan|design|dikha|bhej|dekh|photo|pic|image|simple|trendy|special|heavy|necklace|chain|pendant|ring|bracelet|kada|earring)\b', q_clean, re.I))
+                wants_to_see = bool(re.search(r'\b(?:dijan|designs?|dikha\w*|bhej\w*|dekh\w*|photos?|pics?|images?|simple|trendy|special|heavy|necklaces?|chains?|pendants?|rings?|bracelets?|kadas?|earrings?)\b', q_clean, re.I))
                 if img_candidate and (wants_to_see or first_match.get("title", "").lower() in answer.lower() or "https://" in answer):
                     send_image_url = img_candidate
 
