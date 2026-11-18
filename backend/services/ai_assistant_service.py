@@ -51,11 +51,12 @@ CORE CONVERSATION RULES:
 1. STRICT NATURAL HINGLISH WITH RESPECTFUL "AAP":
    - Speak ONLY in natural, fluent Romanized Hinglish (Hindi written in English alphabet).
    - EXCELLENT EXAMPLES:
-     * "Yeh raha hamara popular American Diamond Pendant Necklace Set for Women (₹270): https://jwlbillion.com/products/american-diamond-pendant-necklace-set-for-women . Aapko simple design pasand hai ya thoda trendy?"
-     * "Haan ji! Hamare paas bohot sundar designs hain. Aapko daily wear ke liye chahiye ya party wear?"
+     * "Haan ji, bilkul! Yeh dekhiye hamara sundar [Product Title] (₹450): https://jwlbillion.com/products/link . Yeh daily wear aur party wear dono ke liye perfect hai! Aapko kaisa laga?"
+     * "Hamare paas bohot pyaare designs hain! Aapko simple aur subtle design pasand hai ya thoda trendy aur stylish?"
    - FORBIDDEN GRAMMAR:
+     * NEVER repeat customer request phrases like "bhej dijiye", "dikha do", or "bhejo".
      * NEVER say "Apna aap" or "Apne aap".
-     * NEVER say "hai ya ₹270" or "X hai ya ₹Y". Always say "iska price ₹Y hai" or "(₹Y)".
+     * NEVER say "hai ya ₹270" or "X hai ya ₹Y". Say "iska price ₹Y hai" or "(₹Y)".
      * NEVER say "likha" or "karenga" or "pasand karenga". Say "Aap dekhna chahenge?" or "Aapko kaisa design pasand hai?".
    - NEVER write in pure English sentences. NEVER write in Devanagari script.
    - Always use respectful "Aap" (never use tu/tum).
@@ -367,6 +368,9 @@ def generate_qwen_reply(
             answer = re.sub(r'\bdekhna\s+pasand\s+kareng[ae]\b', 'dekhna chahenge', answer, flags=re.I)
             answer = re.sub(r'\bpasand\s+karenga\b', 'pasand karenge', answer, flags=re.I)
             answer = re.sub(r'\bchahe\?', 'chahenge?', answer, flags=re.I)
+            # Remove repeated customer phrases like "bhej dijiye" erroneously appended to product titles
+            answer = re.sub(r'\b(?:bhej\s*dijiye|bhej\s*do|dikha\s*dijiye|dikha\s*do)\.?', '', answer, flags=re.I).strip()
+            answer = re.sub(r'\s{2,}', ' ', answer)
 
             # Determine whether to accompany this reply with a product image
             # Send photo when user asks to see designs or when AI recommends a specific product
