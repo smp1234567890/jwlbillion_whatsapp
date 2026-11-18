@@ -113,11 +113,12 @@ def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int
 
 JEWELRY_CATEGORY_CANONICAL = {
     "bracelet": [r"\b(?:bracelets?|bracelete?|breslets?|breslete?|braclets?|wristlets?|kadas?|kade|kara|cuff)\b", r"ब्रेसलेट|कड़ा"],
+    "bangle": [r"\b(?:bangles?|banglez|chudi|choodi|choodiyan|chudiya|kangan|bangals?|bangels?)\b", r"चूड़ी|कंगन"],
     "anklet": [r"\b(?:anklets?|payals?|pajeb|panjeb|pair\s*ke)\b", r"पायल|पाजेब|एंक्लेट"],
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"अंगूठी|रिंग"],
-    "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene)\b", r"चैन|चेन"],
-    "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?)\b", r"हार|नेकलेस|पेंडेंट"],
-    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?)\b", r"झुमका|बाली|इयररिंग"]
+    "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"चैन|चेन"],
+    "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent)\b", r"हार|नेकलेस|पेंडेंट"],
+    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?|ear?nings?|e?rings?|erring|earings?|ering|earng)\b", r"झुमका|बाली|इयररिंग"]
 }
 
 
@@ -164,7 +165,9 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             cat_score = 0
             if active_categories:
                 for cat in active_categories:
-                    if cat == "bracelet" and ("bracelet" in p_text or "bangle" in p_text or "kada" in p_text or p_type in ["bracelet", "bangle", "kada"]):
+                    if cat == "bracelet" and ("bracelet" in p_text or "kada" in p_text or p_type in ["bracelet", "kada"]):
+                        cat_score += 15
+                    elif cat == "bangle" and ("bangle" in p_text or "chudi" in p_text or "kangan" in p_text or p_type in ["bangle"]):
                         cat_score += 15
                     elif cat == "anklet" and ("anklet" in p_text or "payal" in p_text or p_type == "anklet"):
                         cat_score += 15

@@ -375,7 +375,7 @@ def _match_and_send_product_designs(
             "label": "Bangles & Choodi",
             "collection_url": "https://jwlbillion.com/collections/bangle",
             "keywords": [
-                r"\b(?:bangles?|banglez|chudi|choodi|choodiyan|chudiya|kangan)\b",
+                r"\b(?:bangles?|banglez|chudi|choodi|choodiyan|chudiya|kangan|bangals?|bangels?)\b",
                 r"(?:चूड़ी|चूड़ियां|कंगन|बैंगल)"
             ],
             "matcher": lambda p: (
@@ -389,7 +389,7 @@ def _match_and_send_product_designs(
             "label": "Earrings & Jhumkas",
             "collection_url": "https://jwlbillion.com/collections/earrings",
             "keywords": [
-                r"\b(?:earrings?|ear\s*rings?|studs?|jhumkas?|jhumki|balis?|hoops?|dangles?|tops|kaan\s*ke|kaan\s*bali|jhalo|jhalar|jhal)\b",
+                r"\b(?:earrings?|ear\s*rings?|studs?|jhumkas?|jhumki|balis?|hoops?|dangles?|tops|kaan\s*ke|kaan\s*bali|jhalo|jhalar|jhal|ear?nings?|e?rings?|erring|earings?)\b",
                 r"(?:झुमका|झुमके|बाली|बालियां|इयररिंग|कान के|झाले|झालर)"
             ],
             "matcher": lambda p: (
@@ -403,7 +403,7 @@ def _match_and_send_product_designs(
             "label": "Pendant Sets & Necklaces",
             "collection_url": "https://jwlbillion.com/collections/necklace",
             "keywords": [
-                r"\b(?:pendants?|pendant\s*sets?|necklaces?|haars?|chokers?|mangalsutras?|chains?|malas?|kanthi|gale\s*ka|haar)\b",
+                r"\b(?:pendants?|pendant\s*sets?|necklaces?|haars?|chokers?|mangalsutras?|chains?|chainke|chen|chene|chenke|malas?|kanthi|gale\s*ka|haar)\b",
                 r"(?:हार|गले का हार|पेंडेंट|मंगलसूत्र|चेन|माला)"
             ],
             "matcher": lambda p: (
@@ -464,10 +464,32 @@ def _match_and_send_product_designs(
         }
     ]
 
+    # Pre-process & normalize common Hinglish & phonetic typos before keyword matching
+    normalized_query = text_clean
+    TYPO_NORMALIZATION = [
+        # Bangles & Kadas
+        (r'\b(?:banga?ls?|bange?ls?|chud[iy]a?n?|chood[iy]a?n?|kangan)\b', 'bangles'),
+        # Earrings & Jhumkas
+        (r'\b(?:ear?nings?|e?rings?|erring|earings?|ering|earng|jhumk[ai]|balis?)\b', 'earrings'),
+        # Chains & Necklaces
+        (r'\b(?:chains?|chainke|chen|chene|chenke|chainka)\b', 'chain'),
+        (r'\b(?:pendant|pendent|pendet|pandat|pandet)\b', 'pendant'),
+        # Bracelets
+        (r'\b(?:breslet|bracelete?|braclet|wristlet)\b', 'bracelet'),
+        # Rings
+        (r'\b(?:anguthi|anguti|angoothi|chhalla)\b', 'ring'),
+        # Intent terms
+        (r'\b(?:dijan|dizain|dizine|dizayn|dezign)\b', 'design'),
+        (r'\b(?:pp|price|rate|cost|kimat)\b', 'price'),
+        (r'\b(?:bheji?y?e?|bhej\s*do|bhejo|dikha?o?|dekha?o?|dikhaye?)\b', 'dikhao'),
+    ]
+    for pat, rep in TYPO_NORMALIZATION:
+        normalized_query = re.sub(pat, rep, normalized_query, flags=re.IGNORECASE)
+
     matched_categories = []
     for cat in category_definitions:
         for pat in cat["keywords"]:
-            if re.search(pat, text_clean, re.IGNORECASE):
+            if re.search(pat, normalized_query, re.IGNORECASE) or re.search(pat, text_clean, re.IGNORECASE):
                 matched_categories.append(cat)
                 break
 
@@ -477,6 +499,10 @@ def _match_and_send_product_designs(
         r"kya\s*hai|price|rate|cost|details?)\b|"
         r"(?:डिजाइन|डिज़ाइन|फोटो|तस्वीर|दिखाओ|भेजो|चाहिए|देखना है|रेट|कीमत)",
         text_clean,
+        re.IGNORECASE
+    )) or bool(re.search(
+        r"\b(?:design|photo|pic|dikhao|bhejo|chahiye|dekhna)\b",
+        normalized_query,
         re.IGNORECASE
     ))
 
@@ -503,7 +529,7 @@ def _match_and_send_product_designs(
         re.IGNORECASE
     ))
 
-    # Case A: User asked for specific categories (e.g. Cocktail rings, bracelets, etc.)
+    # Case A: User asked for specific categories (e.g. Bangles, Chains, Earrings, etc.)
     if matched_categories:
         items_to_send = []
         lead_product = None
@@ -512,16 +538,18 @@ def _match_and_send_product_designs(
         gender_cats = [c for c in matched_categories if c["id"] == "mens_collection"]
         type_cats = [c for c in matched_categories if c["id"] != "mens_collection"]
 
-        # Human Consultative Behavior: If user asks for a category (like "rings", "bracelets", "necklaces", "chains")
-        # without specifying gender (Men or Women), ALWAYS delegate to Qwen to clarify gender first.
-        # Even if they say "Gold", we still do not know if it is for Men or Women!
+        # Human Consultative Behavior: Only ask for gender on truly unisex-ambiguous categories (like rings, kadas)
+        # For earrings or bangles or necklaces, women is the standard default unless specified
+        UNISEX_GENDER_AMBIGUOUS_TYPES = {"rings", "kadas"}
+        needs_gender_clarification = any(c["id"] in UNISEX_GENDER_AMBIGUOUS_TYPES for c in type_cats)
+
         has_explicit_gender = bool(gender_cats) or bool(re.search(
             r"\b(?:men|mens|male|mard|boys?|gents?|women|womens|female|aurat|girls?|ladies|mahila|wife|girlfriend|gf|husband|bhai|sister|behen|maa|mom)\b",
             text_clean,
             re.IGNORECASE
         ))
 
-        if type_cats and not has_explicit_gender:
+        if needs_gender_clarification and not has_explicit_gender:
             # Delegate to Qwen to ask whether it is for Men or Women
             return None
 
@@ -700,49 +728,9 @@ def _match_and_send_product_designs(
             _save_bot_message(db, sender_phone, msg, res.get("message_id"))
             return res
 
-    # Case C: Generic design or catalog request
-    first_p = all_products[0]
-    best_photo = _select_best_jewelry_photo(first_p)
-    if best_photo:
-        first_cap = (
-            f"*{first_p['title']}*\n"
-            f"Price: ₹{float(first_p.get('price') or 0):,.0f}\n"
-            f"View Design: {first_p.get('product_url') or 'https://jwlbillion.com/'}"
-        )
-        media_res = send_whatsapp_media(sender_phone, "image", media_url=best_photo, caption=first_cap, db=db)
-        _save_bot_message(
-            db,
-            sender_phone,
-            f"*{first_p['title']}*\nPrice: ₹{float(first_p.get('price') or 0):,.0f}",
-            media_res.get("message_id"),
-            media_url=best_photo,
-            message_type="image"
-        )
-
-    if is_hindi_language:
-        msg = "*JWL Billion Handcrafted Jewelry Designs*\n\nYeh rahe hamare trending jewelry designs:\n\n"
-        for i, p in enumerate(all_products[:4], 1):
-            price_val = f"₹{float(p.get('price') or 0):,.0f}"
-            msg += f"*{i}. {p['title']}*\n"
-            msg += f"Price: {price_val}\n"
-            if p.get("product_url"):
-                msg += f"Link: {p['product_url']}\n"
-            msg += "\n"
-        msg += "Hamari poori catalogue yahan dekhein: https://jwlbillion.com/\n\nAapko kis category (Rings, Kadas, Bracelets, Haar) me dekhna hai, batayein!"
-    else:
-        msg = "*JWL Billion Handcrafted Jewelry Designs*\n\nHere are some of our trending designs:\n\n"
-        for i, p in enumerate(all_products[:4], 1):
-            price_val = f"₹{float(p.get('price') or 0):,.0f}"
-            msg += f"*{i}. {p['title']}*\n"
-            msg += f"Price: {price_val}\n"
-            if p.get("product_url"):
-                msg += f"Link: {p['product_url']}\n"
-            msg += "\n"
-        msg += "Explore our complete catalogue online: https://jwlbillion.com/\n\nPlease tell us which jewelry category you would like to view!"
-
-    res = send_whatsapp_free_text(sender_phone, msg, db=db)
-    _save_bot_message(db, sender_phone, msg, res.get("message_id"))
-    return res
+    # Case C: Generic design or catalog request without any category match
+    # Do NOT dump product #0 (pendant). Instead, delegate to Qwen AI so it reads full conversation context and provides an accurate, personalized recommendation!
+    return None
 
 
 def handle_inbound_auto_reply(
