@@ -406,50 +406,18 @@ def generate_qwen_reply(
 
     full_prompt = "\n\n".join(prompt_parts)
 
-    answer = None
-    used_model = MODEL_NAME
-
-    # 4. Try Google Gemini Flash API first if configured
+    # 4. Generate reply via Google Gemini Flash API
     gemini_resp = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt)
-    if gemini_resp:
-        answer = gemini_resp
-        used_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
-
-    # 5. Fallback to local Ollama if Gemini is unavailable or not configured
-    if not answer:
-        payload = {
-            "model": "qwen2.5:1.5b",
-            "system": SALES_SYSTEM_PROMPT,
-            "prompt": full_prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.3,
-                "top_p": 0.85,
-                "num_predict": 70,
-                "num_thread": 2
-            }
-        }
-
-        try:
-            req = urllib.request.Request(
-                OLLAMA_API_URL,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                answer = data.get("response", "").strip()
-                used_model = "qwen2.5:1.5b"
-        except Exception as e:
-            logger.error(f"[AI Service] Local Ollama call failed: {e}")
-
-    if not answer:
+    if not gemini_resp:
         return {
             "status": "error",
-            "error": "All AI inference engines failed",
+            "error": "Gemini API unavailable or key unconfigured",
             "reply": None,
-            "model": used_model
+            "model": "gemini-2.5-flash"
         }
+
+    answer = gemini_resp
+    used_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
 
     try:
         # Clean any leftover meta tags or artifacts if present
