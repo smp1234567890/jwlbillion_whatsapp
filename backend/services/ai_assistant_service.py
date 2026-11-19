@@ -308,17 +308,22 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         return "", []
 
 
-def _call_gemini_api(system_prompt: str, user_prompt: str) -> Optional[str]:
+def _call_gemini_api(system_prompt: str, user_prompt: str, api_key_override: Optional[str] = None) -> Optional[str]:
     """
     Calls Google Gemini Flash API for high-accuracy, fluent Roman Hinglish generation.
+    Supports automatic model fallback if a specific model returns 404 (e.g. legacy model deprecations).
     Returns the generated response string, or None if the request fails or key is missing.
     """
-    api_key = getattr(config, "GEMINI_API_KEY", None) or ""
+    api_key = api_key_override or getattr(config, "GEMINI_API_KEY", None) or ""
     if not api_key:
         return None
 
-    model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    configured_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
+    # Candidate models to try in order (handles project-specific access differences)
+    candidate_models = [configured_model]
+    for alt in ["gemini-3.5-flash-lite", "gemini-2.5-flash"]:
+        if alt not in candidate_models:
+            candidate_models.append(alt)
 
     payload = {
         "system_instruction": {
@@ -332,26 +337,37 @@ def _call_gemini_api(system_prompt: str, user_prompt: str) -> Optional[str]:
         ],
         "generationConfig": {
             "temperature": 0.3,
-            "maxOutputTokens": 300,
-            "thinkingConfig": {"thinkingBudget": 0}
+            "maxOutputTokens": 300
         }
     }
 
-    try:
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            candidates = data.get("candidates", [])
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if parts:
-                    return parts[0].get("text", "").strip()
-    except Exception as e:
-        logger.warning(f"[AI Service] Gemini Flash API call failed: {e}")
+    data_bytes = json.dumps(payload).encode("utf-8")
+
+    for model in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        try:
+            req = urllib.request.Request(
+                url,
+                data=data_bytes,
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts:
+                        return parts[0].get("text", "").strip()
+        except urllib.error.HTTPError as he:
+            # If 404 model not found for this key, try the next candidate model
+            if he.code == 404:
+                continue
+            logger.warning(f"[AI Service] Gemini ({model}) HTTP Error {he.code}: {he.read().decode('utf-8')[:200]}")
+            break
+        except Exception as e:
+            logger.warning(f"[AI Service] Gemini ({model}) API call failed: {e}")
+            break
+
     return None
 
 
@@ -542,7 +558,16 @@ def generate_qwen_reply(
     if gemini_resp:
         answer = gemini_resp
     else:
-        # 5. Seamlessly fallback to Groq API if Gemini is rate-limited or fails
+        # 4b. Try secondary Gemini API Key fallback if primary key fails or is rate-limited
+        fallback_gemini_key = getattr(config, "GEMINI_FALLBACK_API_KEY", None)
+        if fallback_gemini_key:
+            logger.info("[AI Service] Primary Gemini failed or rate-limited; trying Gemini fallback key...")
+            gemini_resp_2 = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt, api_key_override=fallback_gemini_key)
+            if gemini_resp_2:
+                answer = gemini_resp_2
+
+    if not answer:
+        # 5. Seamlessly fallback to Groq API if both Gemini keys fail or are rate-limited
         logger.info("[AI Service] Gemini unavailable or rate-limited; trying Groq fallback...")
         groq_resp = _call_groq_api(SALES_SYSTEM_PROMPT, full_prompt)
         if groq_resp:
