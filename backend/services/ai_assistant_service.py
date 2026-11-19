@@ -666,15 +666,18 @@ def generate_qwen_reply(
         soch_reply = "Haan ji, bilkul! Aap araam se decide kijiye. 😊 Bas ek baat batayein, aapko design pasand aaya ya price ko lekar koi doubt hai?"
         return {"status": "success", "reply": soch_reply, "model": "playbook"}
 
-    if re.search(r"\b(?:daily\s*wear|office|regular|daily)\b", q_clean):
+    # Only intercept occasion/use-case if no specific jewellery category or design request is mentioned
+    has_specific_category = any(re.search(pat, q_clean, re.I) for pats in JEWELRY_CATEGORY_CANONICAL.values() for pat in pats)
+
+    if not has_specific_category and re.search(r"^\s*(?:daily\s*wear|office|regular|daily)\s*$", q_clean):
         daily_reply = "Samajh gayi! Daily & office wear ke liye simple, lightweight aur classy pieces sabse best rehte hain. Main aapko kuch comfortable options share karti hoon. 😊"
         return {"status": "success", "reply": daily_reply, "model": "playbook"}
 
-    if re.search(r"\b(?:party|wedding|shaadi|function|heavy|occasion)\b", q_clean):
+    if not has_specific_category and re.search(r"^\s*(?:party|wedding|shaadi|function|heavy|occasion)\s*$", q_clean):
         party_reply = "Oh nice! Special occasions ke liye statement aur elegant designs kaafi suit karte hain. Aapko matching necklace set dekhna hai ya bracelet/earrings?"
         return {"status": "success", "reply": party_reply, "model": "playbook"}
 
-    if re.search(r"\b(?:gift|gifting|kisi\s*ko\s*dena)\b", q_clean):
+    if not has_specific_category and re.search(r"^\s*(?:gift|gifting|kisi\s*ko\s*dena)\s*$", q_clean):
         gift_reply = "That's lovely! 😊 Kiske liye gift dekh rahe hain — sister, wife, mother ya kisi friend ke liye? Main unke taste ke according best options suggest karungi."
         return {"status": "success", "reply": gift_reply, "model": "playbook"}
 
