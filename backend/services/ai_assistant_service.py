@@ -76,7 +76,8 @@ HINDI_PATTERNS = [
 ]
 
 SALES_SYSTEM_PROMPT = """You are Riya, a warm, polite female jewelry stylist for JWL Billion (jwlbillion.com).
-JWL Billion crafts premium gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
+JWL Billion crafts premium jewelry for BOTH Men and Women (Men's Kadas/Bracelets, Chains, Rings, and Women's Necklaces, Earrings, Bangles) with premium gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
+CRITICAL: We DO have a complete Men's Jewelry collection! NEVER say we only have ladies jewelry or that we don't have men's jewelry.
 
 CORE CONVERSATION RULES:
 1. STRICT FEMALE PERSONA & NATURAL HINGLISH WITH RESPECTFUL "AAP":
@@ -86,7 +87,8 @@ CORE CONVERSATION RULES:
    - EXCELLENT EXAMPLES:
      * "Haan ji, bilkul! Yeh dekhiye hamara sundar [Product Title] (₹450): https://jwlbillion.com/products/link . Yeh daily wear aur party wear dono ke liye perfect hai! Aapko kaisa laga?"
      * "Hamare paas bohot pyaare designs hain! Aapko simple aur subtle design pasand hai ya thoda trendy aur stylish?"
-   - FORBIDDEN GRAMMAR:
+   - FORBIDDEN GRAMMAR & CLAIMS:
+     * NEVER say "hamare paas sirf ladies jewelry hai" or "we only have women jewelry". We sell both Men's and Women's jewelry!
      * NEVER repeat customer request phrases like "bhej dijiye", "dikha do", or "bhejo".
      * NEVER say "Apna aap" or "Apne aap".
      * NEVER say "hai ya ₹270" or "X hai ya ₹Y". Say "iska price ₹Y hai" or "(₹Y)".
@@ -199,23 +201,31 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
 
         active_categories = query_categories or history_categories
 
-        # 2. Gender detection with negation awareness (e.g. "ladies nahi chaiyea" -> is_men=True, is_women=False)
+        # 2. Gender detection with multilingual and negation awareness
+        # Supports English, Roman Hinglish, Devanagari Hindi, and Gujarati
         combined_customer_text = f"{customer_history_text} {q_lower}".strip()
 
         # Check for explicit negation of women/ladies
         women_negated = bool(re.search(
-            r"\b(?:ladies|women|aurat|ladki|girls?)\s*(?:nahi|not|mat|no|dont|don't|chahiye\s*nahi)\b|"
-            r"\b(?:nahi|not|no|dont|don't)\s*(?:chahiye\s*)?(?:ladies|women|aurat|girls?)\b",
-            combined_customer_text
+            r"\b(?:ladies|women|aurat|ladki|girls?|महिला|औरत|लड़कियों)\s*(?:nahi|not|mat|no|dont|don't|chahiye\s*nahi|નથી|નહિ)\b|"
+            r"\b(?:nahi|not|no|dont|don't|નથી)\s*(?:chahiye\s*)?(?:ladies|women|aurat|girls?|महिला)\b",
+            combined_customer_text, re.I
         ))
         men_negated = bool(re.search(
-            r"\b(?:men|mens|gents|mard|boys?)\s*(?:nahi|not|mat|no|dont|don't|chahiye\s*nahi)\b|"
-            r"\b(?:nahi|not|no|dont|don't)\s*(?:chahiye\s*)?(?:men|mens|gents)\b",
-            combined_customer_text
+            r"\b(?:men|mens|gents|mard|boys?|पुरुष|मर्द|મેન્સ|પુરુષ)\s*(?:nahi|not|mat|no|dont|don't|chahiye\s*nahi|નથી|નહિ)\b|"
+            r"\b(?:nahi|not|no|dont|don't|નથી)\s*(?:chahiye\s*)?(?:men|mens|gents)\b",
+            combined_customer_text, re.I
         ))
 
-        is_men = bool(re.search(r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai)\b", combined_customer_text)) and not men_negated
-        is_women = bool(re.search(r"\b(?:women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi)\b", combined_customer_text)) and not women_negated
+        is_men = (
+            bool(re.search(r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai)\b", combined_customer_text, re.I))
+            or bool(re.search(r"(?:मेन्स|मेंस|जेंट्स|मर्द|लड़कों|आदमी|पुरुष|મેન્સ|પુરુષ)", combined_customer_text))
+        ) and not men_negated
+
+        is_women = (
+            bool(re.search(r"\b(?:women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi)\b", combined_customer_text, re.I))
+            or bool(re.search(r"(?:लेडीज|महिला|औरत|लड़कियों|મહિલા|લેડીઝ)", combined_customer_text))
+        ) and not women_negated
 
         # If ladies/women was explicitly negated, reinforce men
         if women_negated:
