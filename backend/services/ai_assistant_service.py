@@ -76,7 +76,7 @@ HINDI_PATTERNS = [
 ]
 
 SALES_SYSTEM_PROMPT = """You are Riya, a warm, polite female jewelry stylist for JWL Billion (jwlbillion.com).
-JWL Billion crafts premium 18K/24K gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
+JWL Billion crafts premium gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
 
 CORE CONVERSATION RULES:
 1. STRICT FEMALE PERSONA & NATURAL HINGLISH WITH RESPECTFUL "AAP":
@@ -93,11 +93,12 @@ CORE CONVERSATION RULES:
      * NEVER say "likha" or "karenga" or "pasand karenga". Say "Aap dekhna chahenge?" or "Aapko kaisa design pasand hai?".
    - NEVER write in pure English sentences. NEVER write in Devanagari script.
    - Always use respectful "Aap" (never use tu/tum).
-2. PRODUCT RECOMMENDATION & REAL LINK RULE (CRITICAL):
-   - When suggesting a product, ONLY recommend items listed under "Available Live Store Products".
-   - ALWAYS mention its exact title, price, and output the EXACT FULL link provided under "Available Live Store Products" (e.g. https://jwlbillion.com/products/... ).
-   - NEVER invent or hallucinate product names or URLs that are not in the provided live store context.
-   - If NO products are listed in "Available Live Store Products", DO NOT make up fake products or links. Instead, warmly ask what specific item or category they would prefer.
+2. PRODUCT RECOMMENDATION, VERIFICATION & ZERO HALLUCINATION (STRICTEST RULE):
+   - ONLY recommend products listed under "Available Live Store Products".
+   - NEVER mention or claim specific gold karat (e.g. NEVER say "18K", "22K", "24K"). ONLY say "gold-plated" or "premium finish".
+   - ALWAYS mention the exact title, price, and output the EXACT FULL link provided under "Available Live Store Products" (e.g. https://jwlbillion.com/products/... ).
+   - NEVER invent or hallucinate product names, features, or links not in the catalog.
+   - If NO matching product is found or listed under "Available Live Store Products", DO NOT recommend any product and DO NOT invent any link. Instead, ask the customer for details (e.g., whether they want bracelets, rings, earrings or necklace, and whether simple or heavy).
    - NEVER write placeholder tags like '[Link]', '[Product Link]', '[here]', or markdown links like [text](url).
    - Only recommend 1 matching product at a time.
 3. FORMULA: Listen -> React -> Recommend 1 Item with Link -> Ask 1 simple styling question.
@@ -734,17 +735,27 @@ def generate_qwen_reply(
             primary_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
             answer = re.sub(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', primary_url, answer, flags=re.I)
 
-        # STRICT URL VALIDATION: Prevent 404 links caused by LLM hallucinating product slugs.
-        # Ensure any product link in the text is strictly replaced with a verified product_url from live Shopify data.
-        # If no verified product matches exist in context, strip the hallucinated link entirely instead of falling back to collections/all!
-        primary_verified_url = top_matches[0].get("product_url") if top_matches else None
+        # Clean any accidental Karat references (18K, 22K, 24K, karat, carat)
+        answer = re.sub(r'\b(?:18\s*k(?:arat)?|22\s*k(?:arat)?|24\s*k(?:arat)?)\b', 'premium', answer, flags=re.I)
+        answer = re.sub(r'\b(?:karats?|carats?)\b', '', answer, flags=re.I)
+
+        # STRICT URL & RECOMMENDATION VALIDATION (ZERO HALLUCINATION GATE):
+        # 1. If LLM generated a product link or pitched a product without verified top_matches,
+        #    replace with a safe clarification asking the customer what they want, rather than hallucinating!
         valid_urls = {m.get("product_url") for m in top_matches if m.get("product_url")}
-        def sanitize_product_link(match):
-            u = match.group(0).rstrip(".,;:!?")
-            if u not in valid_urls:
-                return primary_verified_url or ""
-            return u
-        answer = re.sub(r'https?://jwlbillion\.com/products/[^\s\)\],]+', sanitize_product_link, answer)
+        if not top_matches and re.search(r'https?://jwlbillion\.com/products/[^\s\)\],]+', answer):
+            logger.warning("[AI Service] Blocked hallucinated product recommendation with no live match.")
+            answer = "Ji, hamare paas bohot pyaare designs uplabdh hain! 😊 Aapko kis type ki jewelry dekhni hai — jaise Bracelets/Kadas, Rings, Chains ya Earrings?"
+
+        # 2. If valid matches exist, ensure any product link strictly matches verified live Shopify URLs
+        elif top_matches:
+            primary_verified_url = top_matches[0].get("product_url")
+            def sanitize_product_link(match):
+                u = match.group(0).rstrip(".,;:!?")
+                if u not in valid_urls:
+                    return primary_verified_url or ""
+                return u
+            answer = re.sub(r'https?://jwlbillion\.com/products/[^\s\)\],]+', sanitize_product_link, answer)
 
         # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
         answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()
