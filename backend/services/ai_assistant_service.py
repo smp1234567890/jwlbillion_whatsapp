@@ -571,6 +571,18 @@ def generate_qwen_reply(
             primary_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
             answer = re.sub(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', primary_url, answer, flags=re.I)
 
+        # STRICT URL VALIDATION: Prevent 404 links caused by LLM hallucinating product slugs.
+        # Ensure any product link in the text is strictly replaced with the verified product_url from live Shopify data.
+        if top_matches:
+            primary_verified_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
+            valid_urls = {m.get("product_url") for m in top_matches if m.get("product_url")}
+            def sanitize_product_link(match):
+                u = match.group(0).rstrip(".,;:!?")
+                if u not in valid_urls:
+                    return primary_verified_url
+                return u
+            answer = re.sub(r'https?://jwlbillion\.com/products/[^\s\)\],]+', sanitize_product_link, answer)
+
         # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
         answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()
 
