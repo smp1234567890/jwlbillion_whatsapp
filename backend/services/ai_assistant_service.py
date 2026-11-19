@@ -75,11 +75,13 @@ HINDI_PATTERNS = [
     r"\b(?:kya|keya|kia|h|hai|hain|he|ho|batao|bhejo|dikhao|dekhao|chahiye|chiya|chahie|muje|mujhe|hum|hume|apka|aapka|kripya|kitna|kitne|kaise|kaha|kab|nahi|bhai|bhaiya|didi|kaisa|kaisi|ye|yeh|wo|woh|wale|wali|wala|mil|milega|milegi|shukriya|dhanyawad|dekhna|soch|ke|batati|batata|achha|acha|sahi|bilkul|aur|kuch|kisko|kiske|apne|liye)\b"
 ]
 
-SALES_SYSTEM_PROMPT = """You are Maya, warm, personal jewelry stylist for JWL Billion (jwlbillion.com).
+SALES_SYSTEM_PROMPT = """You are Riya, a warm, polite female jewelry stylist for JWL Billion (jwlbillion.com).
 JWL Billion crafts premium 18K/24K gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
 
 CORE CONVERSATION RULES:
-1. STRICT NATURAL HINGLISH WITH RESPECTFUL "AAP":
+1. STRICT FEMALE PERSONA & NATURAL HINGLISH WITH RESPECTFUL "AAP":
+   - Your name is Riya. If asked your name, introduce yourself as Riya from JWL Billion.
+   - Always speak as a female/girl using feminine Hindi grammar (e.g., 'main suggest karungi', 'bata sakti hoon', 'main check karti hoon', 'dekh sakti hoon'). NEVER use masculine verbs like 'karunga', 'bataunga'.
    - Speak ONLY in natural, fluent Romanized Hinglish (Hindi written in English alphabet).
    - EXCELLENT EXAMPLES:
      * "Haan ji, bilkul! Yeh dekhiye hamara sundar [Product Title] (₹450): https://jwlbillion.com/products/link . Yeh daily wear aur party wear dono ke liye perfect hai! Aapko kaisa laga?"
@@ -91,8 +93,11 @@ CORE CONVERSATION RULES:
      * NEVER say "likha" or "karenga" or "pasand karenga". Say "Aap dekhna chahenge?" or "Aapko kaisa design pasand hai?".
    - NEVER write in pure English sentences. NEVER write in Devanagari script.
    - Always use respectful "Aap" (never use tu/tum).
-2. PRODUCT RECOMMENDATION & FULL LINK RULE (CRITICAL):
-   - When suggesting a product, ALWAYS mention its exact title, price, and output the FULL link (e.g. https://jwlbillion.com/products/... ).
+2. PRODUCT RECOMMENDATION & REAL LINK RULE (CRITICAL):
+   - When suggesting a product, ONLY recommend items listed under "Available Live Store Products".
+   - ALWAYS mention its exact title, price, and output the EXACT FULL link provided under "Available Live Store Products" (e.g. https://jwlbillion.com/products/... ).
+   - NEVER invent or hallucinate product names or URLs that are not in the provided live store context.
+   - If NO products are listed in "Available Live Store Products", DO NOT make up fake products or links. Instead, warmly ask what specific item or category they would prefer.
    - NEVER write placeholder tags like '[Link]', '[Product Link]', '[here]', or markdown links like [text](url).
    - Only recommend 1 matching product at a time.
 3. FORMULA: Listen -> React -> Recommend 1 Item with Link -> Ask 1 simple styling question.
@@ -135,7 +140,7 @@ def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int
         msgs.reverse()
         history_lines = ["Recent Conversation History:"]
         for m in msgs:
-            sender = "Customer" if m.sender_type == "CUSTOMER" else "Maya (JWL Stylist)"
+            sender = "Customer" if m.sender_type == "CUSTOMER" else "Riya (JWL Stylist)"
             body = (m.text or "").strip()
             if body and not body.startswith("Sent interactive"):
                 history_lines.append(f"{sender}: {body}")
@@ -165,7 +170,7 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         if not products:
             return "", []
 
-        # Isolate customer's own utterances from chat history (ignore Maya's bot replies to avoid self-contamination)
+        # Isolate customer's own utterances from chat history (ignore Riya's / Maya's bot replies to avoid self-contamination)
         customer_history_lines = [
             re.sub(r"^(?:Customer|User):\s*", "", line, flags=re.I).strip()
             for line in chat_history.splitlines()
@@ -267,8 +272,27 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             matches.append((total_score, p))
 
         # Filter out products that have zero relevance score
-        # Only consider products if the customer mentioned a category or relevant keyword
         valid_matches = [m for m in matches if m[0] > 0]
+
+        # If customer explicitly asked for Men's or Women's jewelry without a specific category (e.g. "Male friends", "Gents ke liye"),
+        # provide the top bestsellers for that gender so the AI doesn't hallucinate fake items or fall back to generic links!
+        if not valid_matches and (is_men or is_women) and not active_categories:
+            gender_matches = []
+            for p in products:
+                p_title = p.get("title", "").lower()
+                p_type = (p.get("product_type") or "").lower()
+                p_tags = " ".join(p.get("tags", [])).lower()
+                p_text = f"{p_title} {p_type} {p_tags}"
+                p_has_men = bool(re.search(r"\b(?:men|mens|gents|boys?)\b", p_text))
+                p_has_women = bool(re.search(r"\b(?:women|womens|ladies|girls?)\b", p_text))
+
+                if is_men and not is_women:
+                    if p_has_men and not (p_has_women and not bool(re.search(r"\b(?:men|mens|gents)\b", p_title))):
+                        gender_matches.append((10, p))
+                elif is_women and not is_men:
+                    if p_has_women and not (p_has_men and not bool(re.search(r"\b(?:women|womens|ladies)\b", p_title))):
+                        gender_matches.append((10, p))
+            valid_matches = gender_matches
 
         # Prioritize mid-range (₹500–₹1,200) options first as recommended bestsellers;
         # do not pitch entry-level / cheap items (< ₹400) first unless customer explicitly asks for low budget.
@@ -579,8 +603,13 @@ def generate_qwen_reply(
         return {"status": "success", "reply": party_reply, "model": "playbook"}
 
     if re.search(r"\b(?:gift|gifting|kisi\s*ko\s*dena)\b", q_clean):
-        gift_reply = "That's lovely! 😊 Kiske liye gift dekh rahe hain — sister, wife, mother ya kisi friend ke liye? Main unke taste ke according best options suggest kar dungi."
+        gift_reply = "That's lovely! 😊 Kiske liye gift dekh rahe hain — sister, wife, mother ya kisi friend ke liye? Main unke taste ke according best options suggest karungi."
         return {"status": "success", "reply": gift_reply, "model": "playbook"}
+
+    # 0d. Fast-Path for generic "friend" or "friends"
+    if re.search(r"^\s*(?:dost|friend|friends|dosto|doston)\s*$", q_clean):
+        friend_reply = "Aapke dost ke liye gift dekhna toh bohot achha idea hai! 😊 Kya dost male hain ya female, aur unhe kis type ki jewelry pasand aayegi (jaise Men's Kada/Bracelet, Ring ya Chain)?"
+        return {"status": "success", "reply": friend_reply, "model": "playbook"}
 
     # 1. Refuse forbidden/off-topic requests
     if is_forbidden_query(customer_query):
@@ -618,8 +647,8 @@ def generate_qwen_reply(
     prompt_parts.append(
         f"New Customer Message: {customer_query}\n"
         f"Language to reply in: {lang_pref}\n"
-        f"CRITICAL INSTRUCTION: Reply in warm, natural Hindi / Hinglish with respectful 'Aap'. Be precise, helpful, and concise (2 short sentences).\n"
-        f"Maya (JWL Stylist response, concise, friendly, selling with links/prices if product was asked):"
+        f"CRITICAL INSTRUCTION: Reply in warm, natural Hindi / Hinglish with respectful 'Aap'. Always speak as a female stylist named Riya using feminine grammar ('main suggest karungi', 'bata sakti hoon'). Be precise, helpful, and concise (2 short sentences).\n"
+        f"Riya (Female JWL Stylist response, concise, friendly, selling with links/prices if product was asked):"
     )
 
     full_prompt = "\n\n".join(prompt_parts)
@@ -692,7 +721,7 @@ def generate_qwen_reply(
 
     try:
         # Clean any leftover meta tags or artifacts if present
-        answer = re.sub(r"^(Maya|Consultant|JWL Stylist):\s*", "", answer, flags=re.I).strip()
+        answer = re.sub(r"^(?:Riya|Maya|Consultant|JWL Stylist):\s*", "", answer, flags=re.I).strip()
         
         # Clean markdown link syntax: WhatsApp does not support markdown links like [here](https://...)
         # Convert [text](url) -> url so WhatsApp displays a clean, clickable preview link
@@ -707,12 +736,13 @@ def generate_qwen_reply(
 
         # STRICT URL VALIDATION: Prevent 404 links caused by LLM hallucinating product slugs.
         # Ensure any product link in the text is strictly replaced with a verified product_url from live Shopify data.
-        primary_verified_url = top_matches[0].get("product_url") if top_matches else "https://jwlbillion.com/collections/all"
+        # If no verified product matches exist in context, strip the hallucinated link entirely instead of falling back to collections/all!
+        primary_verified_url = top_matches[0].get("product_url") if top_matches else None
         valid_urls = {m.get("product_url") for m in top_matches if m.get("product_url")}
         def sanitize_product_link(match):
             u = match.group(0).rstrip(".,;:!?")
             if u not in valid_urls:
-                return primary_verified_url
+                return primary_verified_url or ""
             return u
         answer = re.sub(r'https?://jwlbillion\.com/products/[^\s\)\],]+', sanitize_product_link, answer)
 
