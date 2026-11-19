@@ -1461,6 +1461,17 @@ async def receive_inbound_whatsapp_message(
                             inbound_media_url = dl_info.get("relative_url")
                             if "filename" in dl_info and not media_payload.get("filename"):
                                 inbound_filename = dl_info["filename"]
+
+                            # Transcribe incoming voice notes/audio using Sarvam AI
+                            if msg_type in ["audio", "voice"] and dl_info.get("filepath"):
+                                try:
+                                    from services.ai_assistant_service import transcribe_voice_with_sarvam
+                                    transcription = transcribe_voice_with_sarvam(dl_info["filepath"])
+                                    if transcription:
+                                        raw_body = f"🎤 {transcription}"
+                                        logger.info(f"[Webhook] Audio transcribed via Sarvam: '{transcription}'")
+                                except Exception as _sarvam_err:
+                                    logger.warning(f"[Webhook] Sarvam transcription failed: {_sarvam_err}")
                 elif msg_type == "location":
                     loc = msg.get("location", {})
                     lat, lng = loc.get("latitude"), loc.get("longitude")

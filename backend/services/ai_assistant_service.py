@@ -371,6 +371,79 @@ def _call_gemini_api(system_prompt: str, user_prompt: str, api_key_override: Opt
     return None
 
 
+def _call_openai_api(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """
+    Calls OpenAI ChatGPT (gpt-4o-mini) as the primary sales stylist engine.
+    Exceptional instruction-following, objection handling, and Roman Hinglish fluency.
+    """
+    api_key = getattr(config, "OPENAI_API_KEY", None) or ""
+    if not api_key:
+        return None
+
+    model = getattr(config, "OPENAI_MODEL", "gpt-4o-mini")
+    url = "https://api.openai.com/v1/chat/completions"
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "max_tokens": 250,
+        "temperature": 0.3
+    }
+
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            choices = data.get("choices", [])
+            if choices:
+                return choices[0].get("message", {}).get("content", "").strip()
+    except Exception as e:
+        logger.warning(f"[AI Service] OpenAI API call failed: {e}")
+    return None
+
+
+def transcribe_voice_with_sarvam(audio_file_path: str) -> Optional[str]:
+    """
+    Transcribes WhatsApp audio/voice notes using Sarvam AI's Saaras Indic ASR model.
+    Handles Indian accents, Hindi, Gujarati, Marathi, and Hinglish voice notes.
+    """
+    api_key = getattr(config, "SARVAM_API_KEY", None) or ""
+    if not api_key or not audio_file_path:
+        return None
+
+    try:
+        import os, requests
+        if not os.path.exists(audio_file_path):
+            return None
+
+        url = "https://api.sarvam.ai/speech-to-text"
+        headers = {"api-subscription-key": api_key}
+        data = {"model": "saaras:v2", "mode": "transcribe"}
+
+        with open(audio_file_path, "rb") as f:
+            files = {"file": (os.path.basename(audio_file_path), f, "audio/ogg")}
+            resp = requests.post(url, headers=headers, data=data, files=files, timeout=15)
+            if resp.status_code == 200:
+                transcript = resp.json().get("transcript", "").strip()
+                logger.info(f"[Sarvam ASR] Transcribed voice note: {transcript}")
+                return transcript
+            else:
+                logger.warning(f"[Sarvam ASR] Failed ({resp.status_code}): {resp.text}")
+    except Exception as e:
+        logger.warning(f"[Sarvam ASR] Error transcribing voice note: {e}")
+    return None
+
+
 def _call_groq_api(system_prompt: str, user_prompt: str) -> Optional[str]:
     """
     Calls Groq Cloud API as high-speed fallback with fluent Hinglish capabilities.
@@ -551,24 +624,32 @@ def generate_qwen_reply(
 
     full_prompt = "\n\n".join(prompt_parts)
 
-    # 4. Generate reply via Google Gemini Flash API (Primary)
+    # 4. Generate sales reply via Tiered Multi-AI Hierarchy:
+    # ── Tier 1: OpenAI ChatGPT (Best sales, strict instruction following, objection handling) ──
     answer = None
-    used_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
-    gemini_resp = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt)
-    if gemini_resp:
-        answer = gemini_resp
+    used_model = getattr(config, "OPENAI_MODEL", "gpt-4o-mini")
+    openai_resp = _call_openai_api(SALES_SYSTEM_PROMPT, full_prompt)
+    if openai_resp:
+        answer = openai_resp
     else:
-        # 4b. Try secondary Gemini API Key fallback if primary key fails or is rate-limited
-        fallback_gemini_key = getattr(config, "GEMINI_FALLBACK_API_KEY", None)
-        if fallback_gemini_key:
-            logger.info("[AI Service] Primary Gemini failed or rate-limited; trying Gemini fallback key...")
-            gemini_resp_2 = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt, api_key_override=fallback_gemini_key)
-            if gemini_resp_2:
-                answer = gemini_resp_2
+        # ── Tier 2: Primary Google Gemini (High-speed, long catalog context) ──
+        logger.info("[AI Service] OpenAI unavailable or failed; failing over to Primary Gemini...")
+        used_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
+        gemini_resp = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt)
+        if gemini_resp:
+            answer = gemini_resp
+        else:
+            # ── Tier 3: Secondary Google Gemini Fallback Key ──
+            fallback_gemini_key = getattr(config, "GEMINI_FALLBACK_API_KEY", None)
+            if fallback_gemini_key:
+                logger.info("[AI Service] Primary Gemini rate-limited; trying Secondary Gemini key...")
+                gemini_resp_2 = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt, api_key_override=fallback_gemini_key)
+                if gemini_resp_2:
+                    answer = gemini_resp_2
 
     if not answer:
-        # 5. Seamlessly fallback to Groq API if both Gemini keys fail or are rate-limited
-        logger.info("[AI Service] Gemini unavailable or rate-limited; trying Groq fallback...")
+        # ── Tier 4: Groq High-Speed LPU Failover (0.2s sub-second response) ──
+        logger.info("[AI Service] OpenAI and Gemini unavailable; failing over to Groq LPU...")
         groq_resp = _call_groq_api(SALES_SYSTEM_PROMPT, full_prompt)
         if groq_resp:
             answer = groq_resp
