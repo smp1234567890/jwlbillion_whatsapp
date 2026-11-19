@@ -647,6 +647,15 @@ def generate_qwen_reply(
                 if gemini_resp_2:
                     answer = gemini_resp_2
 
+            # ── Tier 3b: Tertiary Google Gemini Fallback Key (3rd key) ──
+            if not answer:
+                fallback_gemini_key_2 = getattr(config, "GEMINI_FALLBACK_API_KEY_2", None)
+                if fallback_gemini_key_2:
+                    logger.info("[AI Service] Secondary Gemini rate-limited; trying 3rd Gemini key...")
+                    gemini_resp_3 = _call_gemini_api(SALES_SYSTEM_PROMPT, full_prompt, api_key_override=fallback_gemini_key_2)
+                    if gemini_resp_3:
+                        answer = gemini_resp_3
+
     if not answer:
         # ── Tier 4: Groq High-Speed LPU Failover (0.2s sub-second response) ──
         logger.info("[AI Service] OpenAI and Gemini unavailable; failing over to Groq LPU...")
