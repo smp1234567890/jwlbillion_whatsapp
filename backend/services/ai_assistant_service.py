@@ -258,8 +258,9 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             if active_categories and cat_score == 0:
                 continue
 
-            # Keyword score
-            q_terms = [w for w in re.split(r"\W+", q_lower) if len(w) > 2]
+            # Keyword score: ignore generic words like 'jewellery', 'jewelry', 'collection', 'design', etc.
+            STOP_TERMS = {"jewellery", "jewelry", "collection", "product", "products", "item", "items", "good", "acchi", "achhi", "best", "dekh", "rahe", "hain", "liye", "kharidne"}
+            q_terms = [w for w in re.split(r"\W+", q_lower) if len(w) > 2 and w not in STOP_TERMS]
             text_score = sum(3 if re.search(r"\b" + re.escape(t), p_title) else 1 for t in q_terms if re.search(r"\b" + re.escape(t), p_text))
 
             total_score = cat_score + text_score
@@ -602,24 +603,21 @@ def generate_qwen_reply(
         answer = re.sub(r'\s{2,}', ' ', answer).strip()
 
         # Determine whether to accompany this reply with a product image
-        # Whenever AI recommends or references a specific product with its link or price, ALWAYS attach its product image
+        # ONLY send a photo if the AI actually pitched/recommended a specific product in its text (with link or price or title)
+        # NEVER send a product photo when the AI is simply asking a qualifying/clarification question!
         send_image_url = None
         if top_matches:
             first_match = top_matches[0]
             img_candidate = _clean_product_photo(first_match)
             if img_candidate:
-                # Always send photo if customer asked to see something, or if AI included a link or price or product title
                 has_product_ref = (
                     "https://" in answer or
                     "₹" in answer or
                     first_match.get("title", "").lower() in answer.lower()
                 )
-                wants_to_see = bool(re.search(
-                    r'\b(?:dijan|designs?|dikha\w*|bhej\w*|dekh\w*|photos?|pics?|images?|simple|trendy|special|heavy|aur|kuch|aur\s*kuch|kuch\s*aur|next|another|options?|necklaces?|chains?|pendants?|rings?|bracelets?|kadas?|earrings?)\b',
-                    q_clean,
-                    re.I
-                ))
-                if has_product_ref or wants_to_see:
+                # If the AI response is purely asking a question to clarify category without pitching a product, do NOT attach a photo
+                is_pure_question = answer.strip().endswith("?") and not has_product_ref
+                if has_product_ref and not is_pure_question:
                     send_image_url = img_candidate
 
         return {
