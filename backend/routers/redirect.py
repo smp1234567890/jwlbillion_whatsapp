@@ -20,10 +20,17 @@ logger = logging.getLogger("redirect_router")
 router = APIRouter(tags=["Smart Link Tracking & Redirects"])
 
 
-def _delayed_followup_after_click(phone: str, delay_seconds: int = 20):
+# Rate-limiting / deduplication cache for link followups to prevent duplicate messages
+# Key: (phone, tracking_code), Value: timestamp of last follow-up trigger
+_LINK_FOLLOWUP_LOCKS: dict[tuple[str, str], float] = {}
+_LINK_FOLLOWUP_COOLDOWN_SECONDS = 3600  # 1 hour per specific link per customer
+
+
+def _delayed_followup_after_click(phone: str, tracking_code: str, delay_seconds: int = 20):
     """
     Waits 20 seconds after a customer clicks a product link in chat,
     then checks if a human or customer already replied before asking how they liked the jewellery.
+    Deduplicated per (phone, tracking_code) so repeated taps on the same link never spam the customer.
     """
     time.sleep(delay_seconds)
     try:
@@ -42,7 +49,7 @@ def _delayed_followup_after_click(phone: str, delay_seconds: int = 20):
                     logger.info(f"[Link Followup] AI disabled for {phone}. Skipping click follow-up.")
                     return
 
-            # Check recent messages in the last 20 seconds to see if customer or agent already chatted
+            # Check recent messages in the last 25 seconds to see if customer or agent already chatted
             cutoff = datetime.utcnow() - __import__('datetime').timedelta(seconds=25)
             recent_msg = db.query(models.ChatMessage).filter(
                 models.ChatMessage.customer_phone.in_([phone, clean_p, f"+{clean_p}"]),
@@ -56,7 +63,7 @@ def _delayed_followup_after_click(phone: str, delay_seconds: int = 20):
             followup_text = "Aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge? 😊"
             res = send_whatsapp_free_text(phone, followup_text, db=db)
             _save_bot_message(db, phone, followup_text, res.get("message_id"))
-            logger.info(f"[Link Followup Sent] 20s post-click follow-up delivered to {phone}")
+            logger.info(f"[Link Followup Sent] 20s post-click follow-up delivered to {phone} for code {tracking_code}")
         finally:
             db.close()
     except Exception as e:
@@ -149,8 +156,16 @@ def track_and_redirect(
         logger.warning(f"Failed to record link click: {e}")
 
     # 3. If click originated from chat, schedule polite follow-up after 20 seconds
+    # Cooldown check: ensures the customer does NOT receive the same follow-up if they tap the same link again within 1 hour
     if click_source == "chat" and recipient_phone:
-        background_tasks.add_task(_delayed_followup_after_click, recipient_phone, delay_seconds=20)
+        now_ts = time.time()
+        dedup_key = (recipient_phone.replace("+", "").strip(), tracking_code)
+        last_triggered = _LINK_FOLLOWUP_LOCKS.get(dedup_key, 0)
+        if (now_ts - last_triggered) >= _LINK_FOLLOWUP_COOLDOWN_SECONDS:
+            _LINK_FOLLOWUP_LOCKS[dedup_key] = now_ts
+            background_tasks.add_task(_delayed_followup_after_click, recipient_phone, tracking_code, delay_seconds=20)
+        else:
+            logger.info(f"[Link Followup Skipped] Cooldown active for {recipient_phone} on tracking code {tracking_code}")
 
     # 4. Add UTM parameters for Google Analytics / Shopify attribution if not already present
     sep = "&" if "?" in target_url else "?"

@@ -88,6 +88,8 @@ CORE PSYCHOLOGICAL & CONVERSATIONAL SELLING PRINCIPLES:
 2. AVOID THE 5 SALES DEAL BREAKERS (Connie Podesta & Delia Passi):
    - Never sound aggressive, pushy, or manipulative. Women despise high-pressure sales scripts.
    - Be completely transparent and respectful. NEVER claim fake gold karat (NEVER say 18K/22K/24K; always say "premium gold-plated finish" or "anti-tarnish polish").
+   - CRITICAL ON WARRANTY: We do NOT provide any time-bound warranty (e.g. NEVER say 1 year or 6 months warranty). When asked about warranty: explain politely that fashion/imitation jewelry does not carry a time-bound warranty, but we provide 7-day easy replacement/exchange if damaged on delivery, premium anti-tarnish finish, and 100% COD inspection.
+   - ON SHINING / POLISH RESTORATION: Explain that anti-tarnish plating lasts long with normal care (avoiding direct water, perfumes, sweat). We do not provide re-plating/re-shining services after use.
    - When asked about price or COD, give the exact ₹ price and confirm Cash on Delivery (COD) with complete clarity.
 
 3. SPIRAL EVALUATION & CHOICE ARCHITECTURE (Marti Barletta):
@@ -645,8 +647,8 @@ def generate_qwen_reply(
         photo_ask = "Haan ji, bilkul share karti hoon! 😊 Aapko kis category ke designs dekhne hain — jaise Earrings, Necklaces/Chains, Bangles, ya Bracelets?"
         return {"status": "success", "reply": photo_ask, "model": "playbook"}
 
-    # 0c. Fast-Path for Acknowledgements, Sign-offs & Thank Yous ("ok thanks", "thank you", "dhanyawad", "koi nahi")
-    if re.search(r"^\s*(?:ok\s*)?(?:thanks?|thank\s*you|shukriya|dhanyawad|welcome|ok\s*bye|bye|good\s*night|alvida|tc|take\s*care)\s*!*\s*$", q_clean):
+    # 0c. Fast-Path for Acknowledgements, Sign-offs & Thank Yous ("ok thanks", "thank you", "dhanyawad", "bye", "by", "byy")
+    if re.search(r"^\s*(?:ok\s*)?(?:thanks?|thank\s*you|shukriya|dhanyawad|welcome|ok\s*bye|bye+|by+|good\s*night|alvida|tc|take\s*care)\s*!*\s*$", q_clean):
         thanks_reply = "Most welcome ji! 😊 Aapka din shubh rahe. Jab bhi koi naya design dekhna ho, bas message kar dijiyega!"
         return {"status": "success", "reply": thanks_reply, "model": "playbook"}
 
@@ -673,6 +675,14 @@ def generate_qwen_reply(
         return {"status": "success", "reply": fast_reply, "model": "qwen2.5:1.5b"}
 
     # 0c. Objections & Natural Playbook Fast-Paths (Accurate, Instant & Hinglish)
+    if re.search(r"\b(?:warrenty|warranty|garanty|guarantee)\b", q_clean):
+        warranty_reply = (
+            "Hamari fashion jewellery par koi 1 saal ya time-bound warranty nahi hoti hai. 😊 "
+            "Lekin hamare sabhi pieces premium anti-tarnish finish ke saath aate hain, aur delivery ke waqt agar koi defect ya damage ho "
+            "toh 7-day easy replacement/exchange milta hai! Saath hi 100% Cash on Delivery (COD) bhi available hai."
+        )
+        return {"status": "success", "reply": warranty_reply, "model": "playbook"}
+
     if re.search(r"\b(?:fade|color\s*fade|colour\s*fade|kaala|kala|rang\s*(?:nikal|uth|fade)|tarnish)\b", q_clean):
         fade_reply = "Ismein anti-tarnish coating ke sath multi-layer gold plating hai. ❤️ Normal water aur perfume se bacha kar rakhein toh shine lambe time tak maintain rehti hai. Saath mein care guide bhi milti hai!"
         return {"status": "success", "reply": fade_reply, "model": "playbook"}
