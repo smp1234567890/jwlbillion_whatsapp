@@ -75,6 +75,8 @@ def track_and_redirect(
     Example: https://130-210-23-25.sslip.io/r/c3_918780001820
     Records click event in link_clicks table and redirects browser to destination URL.
     """
+    # Strip any trailing sentence punctuation that mobile clients or browsers include in tracking_code
+    tracking_code = (tracking_code or "").rstrip(".,;:!?")
     # 1. Parse tracking code pattern: e.g. "c{campaign_id}_{phone}" or custom code
     campaign_id = None
     recipient_phone = None

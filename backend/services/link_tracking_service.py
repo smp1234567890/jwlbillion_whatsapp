@@ -59,12 +59,13 @@ def rewrite_text_links(
         return text
 
     def _replace_url(match):
-        raw_url = match.group(0)
+        raw_url = match.group(0).rstrip(".,;:!?")
         # Avoid double-rewriting if already a tracking redirect
         if "/r/" in raw_url:
             return raw_url
-        return build_tracked_url(raw_url, recipient_phone, source=source, campaign_id=campaign_id)
+        tracked = build_tracked_url(raw_url, recipient_phone, source=source, campaign_id=campaign_id)
+        return f"{tracked} "
 
-    # Match http/https URLs containing jwlbillion.com, stripping any sentence-ending punctuation (. , ! ? ; :) from the URL
-    pattern = r'https?://(?:www\.)?jwlbillion\.com[^\s\)]+?(?=[.,!?;:]?(?:\s|$|\)))'
+    # Match http/https URLs containing jwlbillion.com
+    pattern = r'https?://(?:www\.)?jwlbillion\.com[^\s\)]+'
     return re.sub(pattern, _replace_url, text)
