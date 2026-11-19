@@ -393,17 +393,15 @@ def generate_qwen_reply(
         )
         return {"status": "success", "reply": welcome_hinglish, "model": "qwen2.5:1.5b"}
 
-    # 0b. Fast-Path for Generic Photo Requests without category ("Pic bhejiye", "Photos bhejo", "Design dikhao")
+    # 0b. Fast-Path for Generic Photo Requests without category ("Pic bhejiye", "Photos bhejo", "Design dikhao", "aap design bhje")
     # Clarify which jewelry piece the customer would like to see instead of dumping random pendants or scale photos
-    is_generic_photo_request = bool(re.search(
-        r"^(?:please\s*)?(?:pics?|photos?|tasveer|dijan|designs?)\s*(?:bhej(?:o|iye|na)?|dikha(?:o|ye)?|send|share)?(?:\s*please)?$",
-        q_clean
-    )) or bool(re.search(
-        r"^(?:kripya\s*)?(?:photo|pic|design)\s*(?:bhejo|bhejiye|dikhao|dikhaye)\??$",
-        q_clean
-    ))
+    is_generic_photo_request = (
+        bool(re.search(r"\b(?:designs?|dijan|डिज़ाइन|डिजाइन|फोटो|photo|photos?|pics?|tasveer)\b", q_clean, re.I))
+        and bool(re.search(r"\b(?:bhej\w*|bhj\w*|dikha\w*|dekha\w*|send|share|karo|do|दिखाओ|भेजो|दीजिए|दे)\b", q_clean, re.I))
+        and not any(re.search(pat, q_clean, re.I) for pats in JEWELRY_CATEGORY_CANONICAL.values() for pat in pats)
+    )
     if is_generic_photo_request:
-        photo_ask = "Haan ji, bilkul share karti hoon! 😊 Aapko kis type ki jewellery dekhni hai — jaise Earrings, Necklaces/Haar, Bangles, ya Bracelets?"
+        photo_ask = "Haan ji, bilkul share karti hoon! 😊 Aapko kis category ke designs dekhne hain — jaise Earrings, Necklaces/Chains, Bangles, ya Bracelets?"
         return {"status": "success", "reply": photo_ask, "model": "playbook"}
 
     # 0c. Fast-Path for Acknowledgements, Sign-offs & Thank Yous ("ok thanks", "thank you", "dhanyawad", "koi nahi")
