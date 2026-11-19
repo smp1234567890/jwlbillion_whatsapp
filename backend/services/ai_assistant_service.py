@@ -80,21 +80,21 @@ JWL Billion crafts premium jewelry for BOTH Men and Women (Men's Kadas/Bracelets
 CRITICAL: We DO have a complete Men's Jewelry collection! NEVER say we only have ladies jewelry or that we don't have men's jewelry.
 
 CORE CONVERSATION RULES:
-1. STRICT FEMALE PERSONA & NATURAL HINGLISH WITH RESPECTFUL "AAP":
+1. STRICT FEMALE PERSONA & DYNAMIC MULTILINGUAL ADAPTATION:
    - Your name is Riya. If asked your name, introduce yourself as Riya from JWL Billion.
-   - Always speak as a female/girl using feminine Hindi grammar (e.g., 'main suggest karungi', 'bata sakti hoon', 'main check karti hoon', 'dekh sakti hoon'). NEVER use masculine verbs like 'karunga', 'bataunga'.
-   - Speak ONLY in natural, fluent Romanized Hinglish (Hindi written in English alphabet).
-   - EXCELLENT EXAMPLES:
-     * "Haan ji, bilkul! Yeh dekhiye hamara sundar [Product Title] (₹450): https://jwlbillion.com/products/link . Yeh daily wear aur party wear dono ke liye perfect hai! Aapko kaisa laga?"
-     * "Hamare paas bohot pyaare designs hain! Aapko simple aur subtle design pasand hai ya thoda trendy aur stylish?"
+   - Always speak as a female/girl using feminine polite grammar.
+   - ALWAYS MIRROR AND REPLY IN THE CUSTOMER'S OWN LANGUAGE:
+     * If customer writes/speaks in Gujarati (e.g. "મેન્સમાં શું સારું છે?" or "Kem cho"), reply warmly in Gujarati.
+     * If customer writes/speaks in Hindi/Devanagari, reply in natural Hindi.
+     * If customer speaks/writes in Roman Hinglish (e.g. "Kya collection hai"), reply in natural fluent Hinglish.
+     * If customer speaks/writes in Marathi, Bengali, Tamil, Telugu, Kannada, Punjabi or English, reply in that language!
+     * If the language is unclear, default to warm conversational Hinglish.
+   - Respectful tone: Always treat the customer with great respect (use "Aap" in Hindi, "Tame/Aap" in Gujarati, "Neengal" in Tamil, etc.).
    - FORBIDDEN GRAMMAR & CLAIMS:
      * NEVER say "hamare paas sirf ladies jewelry hai" or "we only have women jewelry". We sell both Men's and Women's jewelry!
      * NEVER repeat customer request phrases like "bhej dijiye", "dikha do", or "bhejo".
      * NEVER say "Apna aap" or "Apne aap".
      * NEVER say "hai ya ₹270" or "X hai ya ₹Y". Say "iska price ₹Y hai" or "(₹Y)".
-     * NEVER say "likha" or "karenga" or "pasand karenga". Say "Aap dekhna chahenge?" or "Aapko kaisa design pasand hai?".
-   - NEVER write in pure English sentences. NEVER write in Devanagari script.
-   - Always use respectful "Aap" (never use tu/tum).
 2. PRODUCT RECOMMENDATION, VERIFICATION & ZERO HALLUCINATION (STRICTEST RULE):
    - ONLY recommend products listed under "Available Live Store Products".
    - NEVER mention or claim specific gold karat (e.g. NEVER say "18K", "22K", "24K"). ONLY say "gold-plated" or "premium finish".
@@ -109,7 +109,7 @@ CORE CONVERSATION RULES:
    - Do NOT pitch cheap or entry-level items (< ₹400) first unless the customer explicitly asks for lowest price or low budget.
 5. PRICE DISCLOSURE: If asked "Price?", give the exact ₹ price immediately!
 
-Keep replies to 2 short sentences in Roman Hinglish. End with a friendly question or clear next step."""
+Keep replies to 2 short sentences. End with a friendly question or clear next step."""
 
 
 def is_forbidden_query(query: str) -> bool:
@@ -668,12 +668,34 @@ def generate_qwen_reply(
     # 3. Retrieve live Shopify product context matching customer's inquiry
     product_context, top_matches = get_relevant_product_context(customer_query, chat_history)
 
-    # Default to Conversational Hinglish for all Indian customer conversations,
-    # unless customer explicitly asks or speaks in pure formal English without Indian phrasing
-    combined_convo = f"{chat_history} {customer_query}".lower()
-    is_pure_english = bool(re.search(r"^[a-zA-Z0-9\s\.,!\?']+$", customer_query)) and not any(bool(re.search(p, combined_convo, re.I)) for p in HINDI_PATTERNS)
-    # Even if in English, if it's an initial Meta inquiry or greeting, we greet in warm Hinglish
-    lang_pref = "Conversational Hinglish"
+    # Detect customer's preferred language and script dynamically
+    combined_convo = f"{chat_history} {customer_query}".strip()
+    
+    # 1. Indic scripts detection
+    if re.search(r"[\u0A80-\u0AFF]", customer_query):
+        lang_pref = "Gujarati (reply in natural, polite Gujarati)"
+    elif re.search(r"[\u0900-\u097F]", customer_query):
+        lang_pref = "Hindi (reply in natural, polite Hindi)"
+    elif re.search(r"[\u0B80-\u0BFF]", customer_query):
+        lang_pref = "Tamil (reply in polite Tamil)"
+    elif re.search(r"[\u0C00-\u0C7F]", customer_query):
+        lang_pref = "Telugu (reply in polite Telugu)"
+    elif re.search(r"[\u0C80-\u0CFF]", customer_query):
+        lang_pref = "Kannada (reply in polite Kannada)"
+    elif re.search(r"[\u0D00-\u0D7F]", customer_query):
+        lang_pref = "Malayalam (reply in polite Malayalam)"
+    elif re.search(r"[\u0980-\u09FF]", customer_query):
+        lang_pref = "Bengali (reply in polite Bengali)"
+    elif re.search(r"[\u0A00-\u0A7F]", customer_query):
+        lang_pref = "Punjabi (reply in polite Punjabi)"
+    elif re.search(r"[\u0B00-\u0B7F]", customer_query):
+        lang_pref = "Odia (reply in polite Odia)"
+    elif re.search(r"\b(?:kem\s*cho|majama|su\s*che|batao|karvu|tamare|tamne|shu|che|nathi|joye|chhe)\b", customer_query, re.I):
+        lang_pref = "Gujarati (in Roman script / Gujlish)"
+    elif re.search(r"^[a-zA-Z0-9\s\.,!\?']+$", customer_query) and not any(bool(re.search(p, combined_convo.lower(), re.I)) for p in HINDI_PATTERNS):
+        lang_pref = "English (reply in warm, professional English)"
+    else:
+        lang_pref = "Conversational Hinglish (Hindi in Roman script)"
 
     prompt_parts = []
     if product_context:
@@ -683,9 +705,9 @@ def generate_qwen_reply(
 
     prompt_parts.append(
         f"New Customer Message: {customer_query}\n"
-        f"Language to reply in: {lang_pref}\n"
-        f"CRITICAL INSTRUCTION: Reply in warm, natural Hindi / Hinglish with respectful 'Aap'. Always speak as a female stylist named Riya using feminine grammar ('main suggest karungi', 'bata sakti hoon'). Be precise, helpful, and concise (2 short sentences).\n"
-        f"Riya (Female JWL Stylist response, concise, friendly, selling with links/prices if product was asked):"
+        f"Target Language: {lang_pref}\n"
+        f"CRITICAL INSTRUCTION: Reply in the customer's own language ({lang_pref}). Always speak as female stylist Riya. Be polite, concise (2 short sentences), and help with product links/prices.\n"
+        f"Riya (Female JWL Stylist response):"
     )
 
     full_prompt = "\n\n".join(prompt_parts)
