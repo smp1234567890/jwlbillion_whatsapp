@@ -1164,25 +1164,53 @@ def handle_inbound_auto_reply(
                     pass
 
             from services.link_tracking_service import rewrite_text_links, build_tracked_url
+            from services.ai_assistant_service import _clean_product_photo
             qwen_text = rewrite_text_links(qwen_text, sender_phone, source="ai_chat")
 
-            if image_to_send and matched_prod:
-                raw_prod_url = matched_prod.get('product_url') or 'https://jwlbillion.com'
+            # Support sending multiple product images if AI recommended multiple designs (up to 3)
+            products_to_send = ai_result.get("products") or ([matched_prod] if matched_prod else [])
+            import time
+
+            sent_images_count = 0
+            for prod in products_to_send[:3]:
+                prod_img = _clean_product_photo(prod)
+                if not prod_img:
+                    continue
+
+                # Check if this customer already received this exact image recently
+                if db and sender_phone:
+                    try:
+                        from models import ChatMessage
+                        clean_p = sender_phone.replace("+", "")
+                        already_sent = db.query(ChatMessage).filter(
+                            ChatMessage.customer_phone.in_([sender_phone, clean_p]),
+                            ChatMessage.sender_type != "CUSTOMER",
+                            ChatMessage.media_url == prod_img
+                        ).first() is not None
+                        if already_sent:
+                            continue
+                    except Exception:
+                        pass
+
+                raw_prod_url = prod.get('product_url') or 'https://jwlbillion.com'
                 tracked_prod_url = build_tracked_url(raw_prod_url, sender_phone, source="ai_chat")
                 cap = (
-                    f"*{matched_prod.get('title')}*\n"
-                    f"Price: ₹{float(matched_prod.get('price') or 0):,.0f}\n"
+                    f"*{prod.get('title')}*\n"
+                    f"Price: ₹{float(prod.get('price') or 0):,.0f}\n"
                     f"Link: {tracked_prod_url}"
                 )
-                media_res = send_whatsapp_media(sender_phone, "image", media_url=image_to_send, caption=cap, db=db)
+                media_res = send_whatsapp_media(sender_phone, "image", media_url=prod_img, caption=cap, db=db)
                 _save_bot_message(
                     db,
                     sender_phone,
-                    f"*{matched_prod.get('title')}*\nPrice: ₹{float(matched_prod.get('price') or 0):,.0f}",
+                    f"*{prod.get('title')}*\nPrice: ₹{float(prod.get('price') or 0):,.0f}",
                     media_res.get("message_id"),
-                    media_url=image_to_send,
+                    media_url=prod_img,
                     message_type="image"
                 )
+                sent_images_count += 1
+                if sent_images_count < len(products_to_send[:3]):
+                    time.sleep(0.5)
 
             res = send_whatsapp_free_text(sender_phone, qwen_text, db=db)
             _save_bot_message(db, sender_phone, qwen_text, res.get("message_id"))

@@ -102,8 +102,10 @@ CORE CONVERSATION RULES:
    - NEVER invent or hallucinate product names, features, or links not in the catalog.
    - If NO matching product is found or listed under "Available Live Store Products", DO NOT recommend any product and DO NOT invent any link. Instead, ask the customer for details (e.g., whether they want bracelets, rings, earrings or necklace, and whether simple or heavy).
    - NEVER write placeholder tags like '[Link]', '[Product Link]', '[here]', or markdown links like [text](url).
-   - Only recommend 1 matching product at a time.
-3. FORMULA: Listen -> React -> Recommend 1 Item with Link -> Ask 1 simple styling question.
+   - RECOMMENDATION QUANTITY:
+     * If customer asks for multiple designs, options, or varieties (e.g. "designs bhejo", "options dikhao", "aur dikhao", "necklace aur earrings dono", "designs dekhna hai"): Recommend 2 to 3 distinct matching products from "Available Live Store Products". For each product, mention its Title, Price, and full Product Link.
+     * If customer asks about a single item or asking generally: Recommend 1 best matching product.
+3. FORMULA: Listen -> React -> Recommend matching item(s) with Link(s) -> Ask 1 simple styling question.
 4. MID-RANGE FIRST STRATEGY (CRITICAL):
    - Always showcase our premium mid-range bestseller designs (₹500–₹1,200) first to make a strong premium impression.
    - Do NOT pitch cheap or entry-level items (< ₹400) first unless the customer explicitly asks for lowest price or low budget.
@@ -347,7 +349,7 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             valid_matches = unseen_matches + seen_matches
 
         valid_matches.sort(key=product_rank, reverse=True)
-        top_matches = [m[1] for m in valid_matches[:2]]
+        top_matches = [m[1] for m in valid_matches[:3]]
 
         lines = ["Available Live Store Products:"]
         for p in top_matches:
@@ -863,28 +865,40 @@ def generate_qwen_reply(
         answer = re.sub(r'\b(?:bhej\s*dijiye|bhej\s*do|dikha\s*dijiye|dikha\s*do)\.?', '', answer, flags=re.I).strip()
         answer = re.sub(r'\s{2,}', ' ', answer).strip()
 
-        # Determine whether to accompany this reply with a product image
-        # Whenever a product from Shopify is actively recommended or presented, attach its image
-        send_image_url = None
-        if top_matches:
-            first_match = top_matches[0]
-            img_candidate = _clean_product_photo(first_match)
-            if img_candidate:
-                # Attach photo if the AI referenced the product, mentioned price, provided link, or recommended it
-                has_product_ref = (
-                    "https://" in answer or
-                    "₹" in answer or
-                    "dekhiye" in answer.lower() or
-                    first_match.get("title", "").lower() in answer.lower()
-                )
-                if has_product_ref:
-                    send_image_url = img_candidate
+        # Determine products and images to send:
+        # Collect all products that were actively mentioned, linked, or pitched in the AI's reply
+        recommended_products = []
+        for p in top_matches:
+            p_title = (p.get("title") or "").strip()
+            p_url = (p.get("product_url") or "").rstrip(".,;:!?")
+            if p_url and p_url in answer:
+                recommended_products.append(p)
+            elif p_title and p_title.lower() in answer.lower():
+                recommended_products.append(p)
+
+        # If none matched by explicit string but products were recommended in text
+        if not recommended_products and top_matches:
+            if "https://" in answer or "₹" in answer or "dekhiye" in answer.lower():
+                recommended_products = [top_matches[0]]
+
+        # Keep unique products up to 3
+        seen_p_ids = set()
+        unique_rec_prods = []
+        for p in recommended_products:
+            p_id = p.get("id") or p.get("product_url")
+            if p_id and p_id not in seen_p_ids:
+                seen_p_ids.add(p_id)
+                unique_rec_prods.append(p)
+
+        first_prod = unique_rec_prods[0] if unique_rec_prods else (top_matches[0] if top_matches else None)
+        first_img = _clean_product_photo(first_prod) if first_prod else None
 
         return {
             "status": "success",
             "reply": answer,
-            "image_url": send_image_url,
-            "product": top_matches[0] if top_matches else None,
+            "image_url": first_img,
+            "product": first_prod,
+            "products": unique_rec_prods,
             "model": used_model
         }
     except Exception as e:
