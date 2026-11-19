@@ -747,10 +747,25 @@ def handle_inbound_auto_reply(
     Evaluates inbound customer message or interactive selection and delivers the response.
     Returns dict info on sent reply or None.
     """
-    # Immediate circuit breaker: pause bot auto-reply if disabled
+    # Immediate circuit breaker: pause bot auto-reply if globally disabled
     if not ENABLE_BOT_AUTOREPLY:
         logger.debug(f"[Bot Auto-Reply] Bot is currently paused. Skipping reply to {sender_phone}.")
         return None
+
+    # Check if AI / auto-replies are disabled specifically for this customer
+    if db and sender_phone:
+        try:
+            from models import Contact
+            clean_p = sender_phone.replace("+", "").strip()
+            contact = db.query(Contact).filter(
+                Contact.phone.in_([sender_phone, clean_p, f"+{clean_p}"])
+            ).first()
+            if contact and isinstance(contact.custom_attributes, dict):
+                if contact.custom_attributes.get("ai_disabled"):
+                    logger.info(f"[Bot Auto-Reply] AI auto-reply is disabled for customer {sender_phone}. Skipping.")
+                    return None
+        except Exception as e:
+            logger.warning(f"[Bot Auto-Reply] Error checking customer ai_disabled status: {e}")
 
     text_clean = (message_text or "").strip().lower()
     sel_id = (interactive_id or "").strip()

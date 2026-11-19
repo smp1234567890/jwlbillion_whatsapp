@@ -185,7 +185,8 @@ def list_conversations(
             interest_level=analysis["interest_level"],
             interest_score=analysis["interest_score"],
             detected_signals=analysis["detected_signals"],
-            inbound_count=analysis["inbound_count"]
+            inbound_count=analysis["inbound_count"],
+            ai_disabled=bool(custom_attrs.get("ai_disabled", False)) if isinstance(custom_attrs, dict) else False
         ))
 
     return summaries
@@ -1279,6 +1280,53 @@ def get_chat_inbox_analytics(
         },
         "contacts": items
     }
+
+
+@router.post("/toggle-ai")
+def toggle_customer_ai(
+    payload: dict,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Enables or disables automated AI replies for an individual customer phone number.
+    """
+    phone = (payload.get("phone") or "").strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="Customer phone is required")
+
+    clean_p = phone.replace("+", "").strip()
+    contact = db.query(models.Contact).filter(
+        models.Contact.phone.in_([phone, clean_p, f"+{clean_p}"])
+    ).first()
+
+    if not contact:
+        contact = models.Contact(
+            phone=phone,
+            name="Customer",
+            custom_attributes={}
+        )
+        db.add(contact)
+        db.flush()
+
+    attrs = dict(contact.custom_attributes or {})
+    current_disabled = bool(attrs.get("ai_disabled", False))
+    # If caller specifies desired state explicitly, use it, else toggle
+    new_disabled = payload.get("ai_disabled") if "ai_disabled" in payload else not current_disabled
+
+    attrs["ai_disabled"] = bool(new_disabled)
+    contact.custom_attributes = attrs
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(contact, "custom_attributes")
+    db.commit()
+    db.refresh(contact)
+
+    return {
+        "status": "success",
+        "phone": phone,
+        "ai_disabled": attrs["ai_disabled"]
+    }
+
 
 
 

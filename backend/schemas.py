@@ -502,6 +502,7 @@ class ChatConversationSummary(BaseModel):
     interest_score: int = 0
     detected_signals: List[str] = []
     inbound_count: int = 0
+    ai_disabled: bool = False
 
 
 class WorkflowFlowCreate(BaseModel):

@@ -142,6 +142,7 @@ export default function LiveChatPage({
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [callStatusMsg, setCallStatusMsg] = useState("");
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [aiToggling, setAiToggling] = useState(false);
   const profileDrawerOpenRef = useRef(false);
 
   useEffect(() => {
@@ -497,6 +498,29 @@ export default function LiveChatPage({
     }
   };
 
+  const handleToggleCustomerAi = async (phone, currentDisabled) => {
+    if (!phone || aiToggling) return;
+    setAiToggling(true);
+    try {
+      const nextDisabled = !currentDisabled;
+      // Optimistically update conversation summary
+      const conv = chatConversations.find((c) => c.customer_phone === phone);
+      if (conv) conv.ai_disabled = nextDisabled;
+
+      await api.post("/api/chat/toggle-ai", {
+        phone: phone,
+        ai_disabled: nextDisabled
+      });
+    } catch (err) {
+      console.error("Failed to toggle AI for customer:", err);
+      // Revert optimistic update
+      const conv = chatConversations.find((c) => c.customer_phone === phone);
+      if (conv) conv.ai_disabled = currentDisabled;
+    } finally {
+      setAiToggling(false);
+    }
+  };
+
   const handleFilePicked = (e, forcedType = null) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -799,13 +823,20 @@ export default function LiveChatPage({
                       </div>
 
                       {/* City & Orders Tag */}
-                      <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-gray-400">
-                        <span className="font-mono">{conv.customer_phone}</span>
-                        {conv.customer_city && (
-                          <>
-                            <span>•</span>
-                            <span>{conv.customer_city}</span>
-                          </>
+                      <div className="flex items-center justify-between gap-1.5 mt-1.5 text-[10px] text-gray-400">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-mono">{conv.customer_phone}</span>
+                          {conv.customer_city && (
+                            <>
+                              <span>•</span>
+                              <span>{conv.customer_city}</span>
+                            </>
+                          )}
+                        </div>
+                        {conv.ai_disabled && (
+                          <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 font-semibold border border-amber-200 shrink-0 text-[9px] flex items-center gap-0.5" title="AI auto-replies are paused for this customer">
+                            AI OFF
+                          </span>
                         )}
                       </div>
                     </div>
@@ -917,7 +948,24 @@ export default function LiveChatPage({
                   </div>
 
                   {/* Right Header Toolbar: Clean, compact call & options icons */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                    {/* Customer AI Reply Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleCustomerAi(selectedChatPhone, activeConv?.ai_disabled)}
+                      disabled={aiToggling}
+                      className={`px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-full text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                        activeConv?.ai_disabled
+                          ? "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                          : "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                      }`}
+                      title={activeConv?.ai_disabled ? "Click to enable AI replies for this customer" : "Click to disable AI replies for this customer"}
+                    >
+                      <Sparkles className={`w-3.5 h-3.5 ${activeConv?.ai_disabled ? "text-amber-500" : "text-[#25D366]"}`} />
+                      <span className="hidden sm:inline">AI {activeConv?.ai_disabled ? "Paused" : "Active"}</span>
+                      <span className={`w-2 h-2 rounded-full ${activeConv?.ai_disabled ? "bg-amber-400" : "bg-[#25D366] animate-pulse"}`} />
+                    </button>
+
                     {/* Quick Call Button */}
                     <a
                       href={`tel:${selectedChatPhone}`}
@@ -1831,6 +1879,33 @@ export default function LiveChatPage({
                       ) : (
                         <p className="text-xs text-gray-400 mt-1">No recorded store orders yet.</p>
                       )}
+                    </div>
+
+                    {/* Management & Safety */}
+                    <div className="space-y-2 pt-2">
+                      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">
+                        AI Automation Control
+                      </span>
+
+                      {/* AI Toggle in Profile Drawer */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCustomerAi(selectedChatPhone, activeConv?.ai_disabled)}
+                        disabled={aiToggling}
+                        className={`w-full py-2.5 px-4 rounded-xl border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                          activeConv?.ai_disabled
+                            ? "bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100"
+                            : "bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Sparkles className={`w-4 h-4 ${activeConv?.ai_disabled ? "text-amber-600" : "text-[#25D366]"}`} />
+                          {activeConv?.ai_disabled ? "Enable AI Assistant Reply" : "Disable AI Assistant Reply"}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${activeConv?.ai_disabled ? "bg-amber-200 text-amber-900" : "bg-emerald-200 text-emerald-900"}`}>
+                          {activeConv?.ai_disabled ? "Paused" : "Active"}
+                        </span>
+                      </button>
                     </div>
 
                     {/* Dangerous Actions */}
