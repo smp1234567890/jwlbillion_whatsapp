@@ -155,21 +155,7 @@ def list_conversations(
                 last_order = None
 
         thread_msgs = phone_messages_map.get(phone, [])
-        # Check if Qwen analysis is cached in contact custom_attributes
-        qwen_cached = custom_attrs.get("qwen_analysis") if isinstance(custom_attrs, dict) else None
-        if qwen_cached and isinstance(qwen_cached, dict) and qwen_cached.get("interest_level"):
-            analysis = {
-                "is_client_initiated": thread_msgs[0].get("sender_type") == "CUSTOMER" if thread_msgs else False,
-                "interest_level": qwen_cached.get("interest_level"),
-                "interest_score": qwen_cached.get("interest_score", 50),
-                "detected_signals": qwen_cached.get("detected_signals") or [],
-                "inbound_count": sum(1 for m in thread_msgs if m.get("sender_type") == "CUSTOMER"),
-                "outbound_count": sum(1 for m in thread_msgs if m.get("sender_type") == "AGENT"),
-                "summary": qwen_cached.get("summary") or "Analyzed with Qwen 2.5",
-                "analyzed_by": "qwen2.5"
-            }
-        else:
-            analysis = analyze_conversation_interest(thread_msgs)
+        analysis = analyze_conversation_interest(thread_msgs)
 
         summaries.append(schemas.ChatConversationSummary(
             customer_phone=r[0],
@@ -309,21 +295,7 @@ def get_lead_interest_report(
         last_sender = r[9]
 
         thread_msgs = phone_messages_map.get(phone, [])
-        # Check if Qwen analysis is cached in contact custom_attributes
-        qwen_cached = custom_attrs.get("qwen_analysis") if isinstance(custom_attrs, dict) else None
-        if qwen_cached and isinstance(qwen_cached, dict) and qwen_cached.get("interest_level"):
-            analysis = {
-                "is_client_initiated": thread_msgs[0].get("sender_type") == "CUSTOMER" if thread_msgs else False,
-                "interest_level": qwen_cached.get("interest_level"),
-                "interest_score": qwen_cached.get("interest_score", 50),
-                "detected_signals": qwen_cached.get("detected_signals") or [],
-                "inbound_count": sum(1 for m in thread_msgs if m.get("sender_type") == "CUSTOMER"),
-                "outbound_count": sum(1 for m in thread_msgs if m.get("sender_type") == "AGENT"),
-                "summary": qwen_cached.get("summary") or "Analyzed with Qwen 2.5",
-                "analyzed_by": "qwen2.5"
-            }
-        else:
-            analysis = analyze_conversation_interest(thread_msgs)
+        analysis = analyze_conversation_interest(thread_msgs)
 
         called_info = custom_attrs.get("called_status") if isinstance(custom_attrs, dict) else {}
         is_called = bool(called_info.get("called")) if isinstance(called_info, dict) else False
@@ -405,56 +377,6 @@ def get_lead_interest_report(
             "total_uncalled": max(0, len(rows) - total_called)
         },
         "records": results
-    }
-
-
-@router.post("/analyze-lead-intent/{phone}")
-def trigger_qwen_lead_analysis(
-    phone: str,
-    current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    On-demand AI qualification: Runs Qwen 2.5 LLM to analyze the lead's
-    conversation history and caches the outcome in the contact record.
-    """
-    from services.lead_intent_service import classify_intent_with_qwen
-    from sqlalchemy.orm.attributes import flag_modified
-
-    contact = db.query(models.Contact).filter(models.Contact.phone == phone).first()
-    if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
-
-    msgs = (
-        db.query(models.ChatMessage.sender_type, models.ChatMessage.text, models.ChatMessage.created_at)
-        .filter(models.ChatMessage.customer_phone == phone)
-        .order_by(models.ChatMessage.created_at.asc())
-        .all()
-    )
-    raw_msgs = [{"sender_type": m[0], "text": m[1], "created_at": m[2]} for m in msgs]
-
-    qwen_result = classify_intent_with_qwen(raw_msgs)
-    if not qwen_result:
-        raise HTTPException(status_code=503, detail="Qwen 2.5 model is currently busy or unavailable.")
-
-    # Cache into contact custom_attributes
-    attrs = dict(contact.custom_attributes or {})
-    attrs["qwen_analysis"] = {
-        "interest_level": qwen_result["interest_level"],
-        "interest_score": qwen_result["interest_score"],
-        "detected_signals": qwen_result["detected_signals"],
-        "summary": qwen_result["summary"],
-        "analyzed_at": datetime.utcnow().isoformat(),
-        "model": "qwen2.5:3b"
-    }
-    contact.custom_attributes = attrs
-    flag_modified(contact, "custom_attributes")
-    db.commit()
-
-    return {
-        "phone": phone,
-        "contact_id": contact.id,
-        "qwen_analysis": attrs["qwen_analysis"]
     }
 
 

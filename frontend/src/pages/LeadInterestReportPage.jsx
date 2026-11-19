@@ -436,30 +436,15 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold rounded-md border border-rose-200 text-xs shadow-2xs">
                             <Flame className="w-3.5 h-3.5 fill-current text-rose-600" />
                             <span>Highly Interested ({r.interest_score}%)</span>
-                            {r.analyzed_by === "qwen2.5" && (
-                              <span className="text-[9px] px-1 py-0.2 rounded bg-rose-100 text-rose-800 font-extrabold uppercase">
-                                Qwen
-                              </span>
-                            )}
                           </div>
                         ) : r.interest_level === "INTERESTED" ? (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 font-semibold rounded-md border border-amber-200 text-xs">
                             <Star className="w-3.5 h-3.5 fill-current text-amber-600" />
                             <span>Interested ({r.interest_score}%)</span>
-                            {r.analyzed_by === "qwen2.5" && (
-                              <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold uppercase">
-                                Qwen
-                              </span>
-                            )}
                           </div>
                         ) : (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-600 font-medium rounded-md border border-gray-200 text-xs">
                             <span>General ({r.interest_score}%)</span>
-                            {r.analyzed_by === "qwen2.5" && (
-                              <span className="text-[9px] px-1 py-0.2 rounded bg-gray-200 text-gray-700 font-extrabold uppercase">
-                                Qwen
-                              </span>
-                            )}
                           </div>
                         )}
                         {r.detected_signals && r.detected_signals.length > 0 && (
