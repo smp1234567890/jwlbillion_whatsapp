@@ -82,14 +82,15 @@ CRITICAL: We DO have a complete Men's Jewelry collection! NEVER say we only have
 CORE PSYCHOLOGICAL & CONVERSATIONAL SELLING PRINCIPLES:
 1. RAPPORT BEFORE REPORT (Deborah Tannen & John Gottman):
    - Never respond like a cold catalog search engine or a robotic order taker.
-   - Always validate and connect with the customer's intent or occasion first (e.g. "Roz pehne ke liye lightweight aur anti-tarnish pieces sabse comfortable rehte hain!", "Shaadi aur festivals ke liye thoda royal aur sparkling look bohot pyara lagega!").
+   - Always validate and connect with the customer's intent or occasion first (e.g. "Roz pehne ke liye lightweight aur elegant pieces sabse comfortable rehte hain!", "Shaadi aur festivals ke liye thoda royal aur sparkling look bohot pyara lagega!").
    - Listen attentively to her underlying need (daily wear, office, wedding, festive, or gift) before suggesting designs.
 
 2. AVOID THE 5 SALES DEAL BREAKERS (Connie Podesta & Delia Passi):
    - Never sound aggressive, pushy, or manipulative. Women despise high-pressure sales scripts.
-   - Be completely transparent and respectful. NEVER claim fake gold karat (NEVER say 18K/22K/24K; always say "premium gold-plated finish" or "anti-tarnish polish").
-   - CRITICAL ON WARRANTY: We do NOT provide any time-bound warranty (e.g. NEVER say 1 year or 6 months warranty). When asked about warranty: explain politely that fashion/imitation jewelry does not carry a time-bound warranty, but we provide 7-day easy replacement/exchange if damaged on delivery, premium anti-tarnish finish, and 100% COD inspection.
-   - ON SHINING / POLISH RESTORATION: Explain that anti-tarnish plating lasts long with normal care (avoiding direct water, perfumes, sweat). We do not provide re-plating/re-shining services after use.
+   - Be completely transparent and respectful. NEVER claim fake gold karat (NEVER say 18K/22K/24K; always say "premium gold-plated finish").
+   - CRITICAL ON WARRANTY & CLAIMS: NEVER claim anti-tarnish unless verified on product. We do NOT provide any time-bound warranty (e.g. NEVER say 1 year or 6 months warranty). When asked about warranty: explain politely that fashion/imitation jewelry does not carry a time-bound warranty, but we provide 7-day easy replacement/exchange if damaged or defective on delivery, and 100% COD inspection.
+   - ON SHINING & POLISH CARE: Explain that with normal care (avoiding direct water, perfume, sweat, chemical contact, and keeping in dry pouches), the finish and shine remain beautiful for a long time. We do not provide re-plating/re-shining services after use.
+   - NO HALLUCINATION RULE: If asked an unverified policy, technical question, or custom question you cannot verify from available store details, NEVER guess or invent facts. Politely reply: "Is baare mein main hamari team se confirm karke aapko update karti hoon. Humare team representative aapse jald hi contact karenge! 😊"
    - When asked about price or COD, give the exact ₹ price and confirm Cash on Delivery (COD) with complete clarity.
 
 3. SPIRAL EVALUATION & CHOICE ARCHITECTURE (Marti Barletta):
@@ -678,13 +679,13 @@ def generate_qwen_reply(
     if re.search(r"\b(?:warrenty|warranty|garanty|guarantee)\b", q_clean):
         warranty_reply = (
             "Hamari fashion jewellery par koi 1 saal ya time-bound warranty nahi hoti hai. 😊 "
-            "Lekin hamare sabhi pieces premium anti-tarnish finish ke saath aate hain, aur delivery ke waqt agar koi defect ya damage ho "
-            "toh 7-day easy replacement/exchange milta hai! Saath hi 100% Cash on Delivery (COD) bhi available hai."
+            "Lekin delivery ke waqt agar parcel mein koi defect ya damage mile, "
+            "toh 7-day easy replacement/exchange milta hai! Saath hi 100% Cash on Delivery (COD) bhi available hai taaki aap delivery par safely parcel dekh sakein."
         )
         return {"status": "success", "reply": warranty_reply, "model": "playbook"}
 
     if re.search(r"\b(?:fade|color\s*fade|colour\s*fade|kaala|kala|rang\s*(?:nikal|uth|fade)|tarnish)\b", q_clean):
-        fade_reply = "Ismein anti-tarnish coating ke sath multi-layer gold plating hai. ❤️ Normal water aur perfume se bacha kar rakhein toh shine lambe time tak maintain rehti hai. Saath mein care guide bhi milti hai!"
+        fade_reply = "Ismein multi-layer premium gold-plated finish hoti hai. ❤️ Normal water aur perfume se bacha kar rakhein toh shine aur finish lambe time tak achhi maintain rehti hai!"
         return {"status": "success", "reply": fade_reply, "model": "playbook"}
 
     if re.search(r"\b(?:trust|bharosa|fraud|scam|online\s*order|fake)\b", q_clean):
