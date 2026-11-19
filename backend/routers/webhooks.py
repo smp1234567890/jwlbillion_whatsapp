@@ -1610,6 +1610,32 @@ async def receive_inbound_whatsapp_message(
                                 if isinstance(ws.state_data, dict):
                                     ws.state_data["optin_confirmed"] = True
 
+                # Check if message is a quoted reply / tagged product message
+                context_data = msg.get("context", {})
+                quoted_meta_id = context_data.get("id")
+                quoted_payload = None
+
+                if quoted_meta_id:
+                    quoted_chat = db.query(models.ChatMessage).filter(
+                        models.ChatMessage.meta_message_id == quoted_meta_id
+                    ).first()
+                    if quoted_chat:
+                        quoted_payload = {
+                            "meta_message_id": quoted_meta_id,
+                            "text": quoted_chat.text,
+                            "media_url": quoted_chat.media_url,
+                            "sender_type": quoted_chat.sender_type,
+                            "message_type": quoted_chat.message_type
+                        }
+                    else:
+                        quoted_payload = {
+                            "meta_message_id": quoted_meta_id,
+                            "text": None,
+                            "media_url": None,
+                            "sender_type": None,
+                            "message_type": None
+                        }
+
                 new_chat_msg = models.ChatMessage(
                     customer_phone=sender_phone,
                     sender_type="CUSTOMER",
@@ -1618,6 +1644,7 @@ async def receive_inbound_whatsapp_message(
                     media_url=inbound_media_url,
                     filename=inbound_filename,
                     meta_message_id=meta_id,
+                    quoted_message=quoted_payload,
                     channel=msg_channel,
                     status="RECEIVED",
                     is_read=False
@@ -1696,6 +1723,7 @@ async def receive_inbound_whatsapp_message(
                             "message_type": msg_type,
                             "text": raw_body,
                             "media_url": inbound_media_url,
+                            "quoted_message": quoted_payload,
                             "channel": msg_channel,
                             "status": "DELIVERED",
                             "is_read": False,

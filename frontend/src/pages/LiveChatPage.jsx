@@ -1096,6 +1096,31 @@ export default function LiveChatPage({
                               </div>
                             )}
 
+                            {/* Quoted / Tagged Message Bubble (WhatsApp Swipe-to-Reply) */}
+                            {msg.quoted_message && (
+                              <div className="mb-2 p-2 rounded-lg bg-black/5 border-l-4 border-emerald-500 text-xs flex gap-2 items-center overflow-hidden">
+                                {msg.quoted_message.media_url && (
+                                  <img
+                                    src={
+                                      msg.quoted_message.media_url.startsWith("http")
+                                        ? msg.quoted_message.media_url
+                                        : `${getApiBaseUrl().replace(/\/$/, "")}${msg.quoted_message.media_url.startsWith("/") ? "" : "/"}${msg.quoted_message.media_url}`
+                                    }
+                                    alt="Quoted media"
+                                    className="w-10 h-10 object-cover rounded shrink-0 border border-black/10"
+                                  />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                                    <span>↩️</span> Replying to {msg.quoted_message.sender_type === "AGENT" ? "JWL Stylist / Agent" : "Customer"}
+                                  </p>
+                                  <p className="text-[11px] text-gray-700 truncate line-clamp-1">
+                                    {msg.quoted_message.text || (msg.quoted_message.media_url ? "[Photo / Product]" : "Tagged Message")}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Contact Card Message */}
                             {msg.message_type === "contacts" && (
                               <div className="mb-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-gray-900 flex items-center gap-3">

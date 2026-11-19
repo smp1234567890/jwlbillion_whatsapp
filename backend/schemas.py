@@ -450,6 +450,7 @@ class ChatMessageResponse(BaseModel):
     meta_message_id: Optional[str] = None
     reaction: Optional[str] = None
     carousel_cards: Optional[List[Dict[str, Any]]] = None
+    quoted_message: Optional[Dict[str, Any]] = None
     status: str
     is_read: bool
     channel: Optional[str] = "general"

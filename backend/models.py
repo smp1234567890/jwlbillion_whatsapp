@@ -259,6 +259,7 @@ class ChatMessage(Base):
     is_read = Column(Boolean, default=False, index=True)
     assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     channel = Column(String(30), default="general", index=True)  # "general" or "support"
+    quoted_message = Column(JSON, nullable=True)  # {meta_message_id, text, media_url, sender_type, message_type}
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
