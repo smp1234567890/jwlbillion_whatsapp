@@ -528,13 +528,14 @@ def generate_qwen_reply(
         return {"status": "success", "reply": clarify_short, "model": "playbook"}
 
     # 0a. Instant Fast-Path for Meta Ads Default Inbound ("Hello! Can I get more info on this?")
+    # Default greeting directly introduces Riya, welcomes the user, and asks how to help without invoking AI
     if re.search(r"^(?:hello!?\s*)?can\s*i\s*get\s*more\s*info\s*(?:on\s*this)?\??$", q_clean):
         welcome_hinglish = (
-            "Hey! Welcome to JWL Billion 😊\n\n"
-            "Thanks for checking out our collection!\n\n"
-            "Aap kuch specific jewellery dekh rahe hain ya bas collection explore kar rahe hain?"
+            "Namaste! Welcome to JWL Billion ✨\n\n"
+            "Main Riya hoon, aapki personal jewelry stylist. "
+            "Main aapki kya madad kar sakti hoon? Aap koi specific jewellery dekh rahe hain ya latest collection explore karna chahenge?"
         )
-        return {"status": "success", "reply": welcome_hinglish, "model": "qwen2.5:1.5b"}
+        return {"status": "success", "reply": welcome_hinglish, "model": "default-greeting"}
 
     # 0b. Fast-Path for Generic Photo Requests without category ("Pic bhejiye", "Photos bhejo", "Design dikhao", "aap design bhje")
     # Clarify which jewelry piece the customer would like to see instead of dumping random pendants or scale photos
