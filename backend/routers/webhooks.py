@@ -1462,14 +1462,20 @@ async def receive_inbound_whatsapp_message(
                             if "filename" in dl_info and not media_payload.get("filename"):
                                 inbound_filename = dl_info["filename"]
 
-                            # Transcribe incoming voice notes/audio using Sarvam AI
+                            # Transcribe & Translate incoming voice notes/audio using Sarvam AI (23 Indian languages)
                             if msg_type in ["audio", "voice"] and dl_info.get("filepath"):
                                 try:
                                     from services.ai_assistant_service import transcribe_voice_with_sarvam
-                                    transcription = transcribe_voice_with_sarvam(dl_info["filepath"])
-                                    if transcription:
-                                        raw_body = f"🎤 {transcription}"
-                                        logger.info(f"[Webhook] Audio transcribed via Sarvam: '{transcription}'")
+                                    sarvam_res = transcribe_voice_with_sarvam(dl_info["filepath"])
+                                    if sarvam_res:
+                                        t_native = sarvam_res.get("transcript") or ""
+                                        t_en = sarvam_res.get("translated") or ""
+                                        # If translation to English is available, format so Live Chat shows native and ChatGPT understands translated meaning
+                                        if t_en and t_en.lower() != t_native.lower():
+                                            raw_body = f"🎤 {t_native} ({t_en})"
+                                        else:
+                                            raw_body = f"🎤 {t_native}"
+                                        logger.info(f"[Webhook] Audio processed via Sarvam: '{raw_body}'")
                                 except Exception as _sarvam_err:
                                     logger.warning(f"[Webhook] Sarvam transcription failed: {_sarvam_err}")
                 elif msg_type == "location":

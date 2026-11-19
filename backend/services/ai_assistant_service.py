@@ -447,10 +447,13 @@ def _call_openai_api(system_prompt: str, user_prompt: str) -> Optional[str]:
     return None
 
 
-def transcribe_voice_with_sarvam(audio_file_path: str) -> Optional[str]:
+def transcribe_voice_with_sarvam(audio_file_path: str) -> Optional[dict]:
     """
-    Transcribes WhatsApp audio/voice notes using Sarvam AI's Saaras Indic ASR model.
-    Handles Indian accents, Hindi, Gujarati, Marathi, and Hinglish voice notes.
+    Transcribes & translates WhatsApp audio/voice notes across 23 Indian languages using Sarvam AI Saaras model.
+    Returns a dict with:
+      - transcript: original transcript in native script (Hindi, Gujarati, Tamil, etc.)
+      - translated: clear English translation for accurate ChatGPT understanding
+      - language_code: detected language (e.g., 'gu-IN', 'hi-IN', 'ta-IN')
     """
     api_key = getattr(config, "SARVAM_API_KEY", None) or ""
     if not api_key or not audio_file_path:
@@ -463,18 +466,39 @@ def transcribe_voice_with_sarvam(audio_file_path: str) -> Optional[str]:
 
         url = "https://api.sarvam.ai/speech-to-text"
         headers = {"api-subscription-key": api_key}
-        # Use saaras:v3 as recommended by Sarvam API for accurate Indic ASR
-        data = {"model": "saaras:v3", "mode": "transcribe"}
+        filename = os.path.basename(audio_file_path)
 
+        # 1. Fetch direct translation to English (works across all 23 Indian languages)
+        translated_text = ""
+        lang_code = ""
         with open(audio_file_path, "rb") as f:
-            files = {"file": (os.path.basename(audio_file_path), f, "audio/ogg")}
+            files = {"file": (filename, f, "audio/ogg")}
+            data = {"model": "saaras:v3", "mode": "translate"}
             resp = requests.post(url, headers=headers, data=data, files=files, timeout=15)
             if resp.status_code == 200:
-                transcript = resp.json().get("transcript", "").strip()
-                logger.info(f"[Sarvam ASR] Transcribed voice note: {transcript}")
-                return transcript
-            else:
-                logger.warning(f"[Sarvam ASR] Failed ({resp.status_code}): {resp.text}")
+                res_json = resp.json()
+                translated_text = res_json.get("transcript", "").strip()
+                lang_code = res_json.get("language_code", "")
+
+        # 2. Fetch original native transcription
+        native_text = ""
+        with open(audio_file_path, "rb") as f:
+            files = {"file": (filename, f, "audio/ogg")}
+            data = {"model": "saaras:v3", "mode": "transcribe"}
+            resp2 = requests.post(url, headers=headers, data=data, files=files, timeout=15)
+            if resp2.status_code == 200:
+                native_text = resp2.json().get("transcript", "").strip()
+
+        final_transcript = native_text or translated_text
+        if not final_transcript:
+            return None
+
+        logger.info(f"[Sarvam ASR] Lang={lang_code} | Native='{native_text}' | Translated='{translated_text}'")
+        return {
+            "transcript": final_transcript,
+            "translated": translated_text,
+            "language_code": lang_code
+        }
     except Exception as e:
         logger.warning(f"[Sarvam ASR] Error transcribing voice note: {e}")
     return None
