@@ -262,9 +262,11 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             total_score = cat_score + text_score
             matches.append((total_score, p))
 
-        matches.sort(key=lambda x: x[0], reverse=True)
-        # Give top 2-3 matching products context so LLM has real store options
-        top_matches = [m[1] for m in matches[:2]]
+        # Filter out products that have zero relevance score
+        # Only consider products if the customer mentioned a category or relevant keyword
+        valid_matches = [m for m in matches if m[0] > 0]
+        valid_matches.sort(key=lambda x: x[0], reverse=True)
+        top_matches = [m[1] for m in valid_matches[:2]]
 
         lines = ["Available Live Store Products:"]
         for p in top_matches:
@@ -375,6 +377,12 @@ def generate_qwen_reply(
     Generates a natural, context-aware sales-converting reply using Qwen 2.5 via Ollama.
     """
     q_clean = (customer_query or "").strip().lower()
+
+    # 00. Guard against single characters, typos, or gibberish (e.g. "H", "k", "??", "...")
+    # Don't dump products or assume intent — politely ask customer to clarify
+    if len(q_clean) <= 2 and not re.match(r"^(?:hi|ok|hm|no|ji)$", q_clean):
+        clarify_short = "Ji, kahiye! 😊 Aap kis type ki jewellery dekh rahe hain — jaise Earrings, Necklace, Rings ya Bracelets?"
+        return {"status": "success", "reply": clarify_short, "model": "playbook"}
 
     # 0a. Instant Fast-Path for Meta Ads Default Inbound ("Hello! Can I get more info on this?")
     if re.search(r"^(?:hello!?\s*)?can\s*i\s*get\s*more\s*info\s*(?:on\s*this)?\??$", q_clean):
