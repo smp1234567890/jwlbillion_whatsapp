@@ -159,9 +159,10 @@ JEWELRY_CATEGORY_CANONICAL = {
     "bangle": [r"\b(?:bangles?|banglez|chudi|choodi|choodiyan|chudiya|kangan|bangals?|bangels?)\b", r"चूड़ी|कंगन"],
     "anklet": [r"\b(?:anklets?|payals?|pajeb|panjeb|pair\s*ke)\b", r"पायल|पाजेब|एंक्लेट"],
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"अंगूठी|रिंग"],
-    "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"चैन|चेन"],
-    "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent)\b", r"हार|नेकलेस|पेंडेंट"],
-    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?|ear?nings?|e?rings?|erring|earings?|ering|earng)\b", r"झुमका|बाली|इयररिंग"]
+    "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચૈન|चैन|चेन"],
+    "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent)\b", r"હાર|हार|नेकलेस|पेंडेंट"],
+    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?|ear?nings?|e?rings?|erring|earings?|ering|earng)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग"],
+    "set": [r"\b(?:sets?|combo|combos?|jewellery\s*sets?|necklace\s*sets?|complete\s*set)\b", r"સેટ|सेट"]
 }
 
 
@@ -269,6 +270,8 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
                         cat_score += multiplier
                     elif cat == "earring" and ("earring" in p_text or "jhumka" in p_text or "bali" in p_text or p_type == "earrings"):
                         cat_score += multiplier
+                    elif cat == "set" and ("set" in p_text or p_type in ["set", "jewelry set", "jewellery set"]):
+                        cat_score += multiplier
             
             # If a specific category was detected, reject products that don't match it
             if active_categories and cat_score == 0:
@@ -328,6 +331,20 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             else: # Entry-level items (< ₹400) ranked lower
                 boost = -15
             return (relevance + boost, -abs(pr - 750))
+
+        # If customer asks for "dusra", "aur", "other", "next", deprioritize or exclude items already shown in chat history!
+        is_another_request = bool(re.search(r"\b(?:dusra|dusri|doosra|doosri|aur\s*dikhao|aur\s*bhejo|aur\s*batao|next|another|other|different)\b", q_lower))
+        if is_another_request and chat_history:
+            # Filter out or push down products whose titles already appeared in the conversation history
+            unseen_matches = []
+            seen_matches = []
+            for item in valid_matches:
+                p_title_clean = (item[1].get("title") or "").strip().lower()
+                if p_title_clean and p_title_clean in chat_history.lower():
+                    seen_matches.append((item[0] - 50, item[1]))
+                else:
+                    unseen_matches.append(item)
+            valid_matches = unseen_matches + seen_matches
 
         valid_matches.sort(key=product_rank, reverse=True)
         top_matches = [m[1] for m in valid_matches[:2]]
@@ -556,9 +573,25 @@ def generate_qwen_reply(
     """
     q_clean = (customer_query or "").strip().lower()
 
+    # Retrieve recent chat history early so we know if the customer already defined what they want!
+    chat_history = get_recent_chat_history(customer_phone, db, limit=6) if (customer_phone and db) else ""
+
+    # Check if the customer previously stated their desired items in chat history
+    has_prior_context = bool(chat_history and any(
+        re.search(pat, chat_history, re.I)
+        for pats in JEWELRY_CATEGORY_CANONICAL.values()
+        for pat in pats
+    ))
+
     # 00. Guard against single characters, typos, or gibberish (e.g. "H", "k", "??", "...")
-    # Don't dump products or assume intent — politely ask customer to clarify
-    if len(q_clean) <= 2 and not re.match(r"^(?:hi|ok|hm|no|ji)$", q_clean):
+    # Only show generic category ask if there is NO prior customer category in history!
+    # If the customer already told us what they want (e.g. "Sets aur Earrings,Rings") or said "Dusra",
+    # DO NOT ask them again what they want — let AI provide the next item from their requested categories!
+    is_short_or_followup = (
+        (len(q_clean) <= 2 and not re.match(r"^(?:hi|ok|hm|no|ji)$", q_clean))
+        or bool(re.search(r"^\s*(?:dusra|dusri|aur|next|other|more|aur\s*dikhao|aur\s*bhejo|aur\s*batao|kuch\s*aur)\s*$", q_clean, re.I))
+    )
+    if is_short_or_followup and not has_prior_context:
         clarify_short = "Ji, kahiye! 😊 Aap kis type ki jewellery dekh rahe hain — jaise Earrings, Necklace, Rings ya Bracelets?"
         return {"status": "success", "reply": clarify_short, "model": "playbook"}
 
@@ -661,9 +694,6 @@ def generate_qwen_reply(
             "reply": refusal_msg,
             "model": MODEL_NAME
         }
-
-    # 2. Retrieve recent chat history so the AI has conversational memory
-    chat_history = get_recent_chat_history(customer_phone, db, limit=6) if (customer_phone and db) else ""
 
     # 3. Retrieve live Shopify product context matching customer's inquiry
     product_context, top_matches = get_relevant_product_context(customer_query, chat_history)
