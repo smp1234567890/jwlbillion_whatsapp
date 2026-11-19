@@ -155,25 +155,63 @@ JEWELRY_CATEGORY_CANONICAL = {
 
 
 def get_relevant_product_context(customer_query: str, chat_history: str = "") -> tuple[str, list[dict]]:
-    """Finds matching live Shopify products based on query and accumulated conversation history with robust typo tolerance."""
+    """Finds matching live Shopify products based on query and customer conversation history."""
     try:
         data = fetch_shopify_products(limit=150)
         products = data.get("products", [])
         if not products:
             return "", []
 
-        combined_text = f"{chat_history} {customer_query}".lower()
-        
-        # 1. Detect active jewelry categories (with typo tolerance across history and current query)
-        active_categories = set()
+        # Isolate customer's own utterances from chat history (ignore Maya's bot replies to avoid self-contamination)
+        customer_history_lines = [
+            re.sub(r"^(?:Customer|User):\s*", "", line, flags=re.I).strip()
+            for line in chat_history.splitlines()
+            if re.match(r"^(?:Customer|User):", line, flags=re.I)
+        ]
+        customer_history_text = " ".join(customer_history_lines).lower()
+        q_lower = (customer_query or "").lower()
+
+        # 1. Detect categories requested in current query first
+        query_categories = set()
         for cat_name, patterns in JEWELRY_CATEGORY_CANONICAL.items():
             for pat in patterns:
-                if re.search(pat, combined_text, re.IGNORECASE):
-                    active_categories.add(cat_name)
+                if re.search(pat, q_lower, re.IGNORECASE):
+                    query_categories.add(cat_name)
                     break
 
-        is_men = bool(re.search(r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai)\b", combined_text))
-        is_women = bool(re.search(r"\b(?:women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi)\b", combined_text))
+        # Fallback to customer's past statements only if current query mentions no category
+        history_categories = set()
+        if not query_categories and customer_history_text:
+            for cat_name, patterns in JEWELRY_CATEGORY_CANONICAL.items():
+                for pat in patterns:
+                    if re.search(pat, customer_history_text, re.IGNORECASE):
+                        history_categories.add(cat_name)
+                        break
+
+        active_categories = query_categories or history_categories
+
+        # 2. Gender detection with negation awareness (e.g. "ladies nahi chaiyea" -> is_men=True, is_women=False)
+        combined_customer_text = f"{customer_history_text} {q_lower}".strip()
+
+        # Check for explicit negation of women/ladies
+        women_negated = bool(re.search(
+            r"\b(?:ladies|women|aurat|ladki|girls?)\s*(?:nahi|not|mat|no|dont|don't|chahiye\s*nahi)\b|"
+            r"\b(?:nahi|not|no|dont|don't)\s*(?:chahiye\s*)?(?:ladies|women|aurat|girls?)\b",
+            combined_customer_text
+        ))
+        men_negated = bool(re.search(
+            r"\b(?:men|mens|gents|mard|boys?)\s*(?:nahi|not|mat|no|dont|don't|chahiye\s*nahi)\b|"
+            r"\b(?:nahi|not|no|dont|don't)\s*(?:chahiye\s*)?(?:men|mens|gents)\b",
+            combined_customer_text
+        ))
+
+        is_men = bool(re.search(r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai)\b", combined_customer_text)) and not men_negated
+        is_women = bool(re.search(r"\b(?:women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi)\b", combined_customer_text)) and not women_negated
+
+        # If ladies/women was explicitly negated, reinforce men
+        if women_negated:
+            is_women = False
+            is_men = True
 
         matches = []
         for p in products:
@@ -197,35 +235,36 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             cat_score = 0
             if active_categories:
                 for cat in active_categories:
+                    multiplier = 30 if cat in query_categories else 15
                     if cat == "bracelet" and ("bracelet" in p_text or "kada" in p_text or p_type in ["bracelet", "kada"]):
-                        cat_score += 15
+                        cat_score += multiplier
                     elif cat == "bangle" and ("bangle" in p_text or "chudi" in p_text or "kangan" in p_text or p_type in ["bangle"]):
-                        cat_score += 15
+                        cat_score += multiplier
                     elif cat == "anklet" and ("anklet" in p_text or "payal" in p_text or p_type == "anklet"):
-                        cat_score += 15
+                        cat_score += multiplier
                     elif cat == "ring" and ("ring" in p_text or p_type == "ring") and "earring" not in p_text:
-                        cat_score += 15
+                        cat_score += multiplier
                     elif cat == "necklace" and ("necklace" in p_text or "pendant" in p_text or "choker" in p_text or p_type in ["necklace", "pendant"]):
-                        cat_score += 15
+                        cat_score += multiplier
                     elif cat == "chain" and ("chain" in p_text or p_type == "chain"):
-                        cat_score += 15
+                        cat_score += multiplier
                     elif cat == "earring" and ("earring" in p_text or "jhumka" in p_text or "bali" in p_text or p_type == "earrings"):
-                        cat_score += 15
+                        cat_score += multiplier
             
-            # If user actively asked for a specific category, reject products that don't match that category
+            # If a specific category was detected, reject products that don't match it
             if active_categories and cat_score == 0:
                 continue
 
             # Keyword score
-            q_terms = [w for w in re.split(r"\W+", customer_query.lower()) if len(w) > 2]
+            q_terms = [w for w in re.split(r"\W+", q_lower) if len(w) > 2]
             text_score = sum(3 if re.search(r"\b" + re.escape(t), p_title) else 1 for t in q_terms if re.search(r"\b" + re.escape(t), p_text))
 
             total_score = cat_score + text_score
             matches.append((total_score, p))
 
         matches.sort(key=lambda x: x[0], reverse=True)
-        # Limit to 1 primary top match in prompt context to prevent LLM listing multiple products in broken sentences
-        top_matches = [m[1] for m in matches[:1]]
+        # Give top 2-3 matching products context so LLM has real store options
+        top_matches = [m[1] for m in matches[:2]]
 
         lines = ["Available Live Store Products:"]
         for p in top_matches:
