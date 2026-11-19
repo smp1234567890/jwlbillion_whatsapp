@@ -96,7 +96,10 @@ CORE CONVERSATION RULES:
    - NEVER write placeholder tags like '[Link]', '[Product Link]', '[here]', or markdown links like [text](url).
    - Only recommend 1 matching product at a time.
 3. FORMULA: Listen -> React -> Recommend 1 Item with Link -> Ask 1 simple styling question.
-4. PRICE DISCLOSURE: If asked "Price?", give the exact ₹ price immediately!
+4. MID-RANGE FIRST STRATEGY (CRITICAL):
+   - Always showcase our premium mid-range bestseller designs (₹500–₹1,200) first to make a strong premium impression.
+   - Do NOT pitch cheap or entry-level items (< ₹400) first unless the customer explicitly asks for lowest price or low budget.
+5. PRICE DISCLOSURE: If asked "Price?", give the exact ₹ price immediately!
 
 Keep replies to 2 short sentences in Roman Hinglish. End with a friendly question or clear next step."""
 
@@ -265,7 +268,32 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         # Filter out products that have zero relevance score
         # Only consider products if the customer mentioned a category or relevant keyword
         valid_matches = [m for m in matches if m[0] > 0]
-        valid_matches.sort(key=lambda x: x[0], reverse=True)
+
+        # Prioritize mid-range (₹500–₹1,200) options first as recommended bestsellers;
+        # do not pitch entry-level / cheap items (< ₹400) first unless customer explicitly asks for low budget.
+        is_low_budget_inquiry = bool(re.search(r"\b(?:sasta|kam\s*budget|cheap|low\s*price|200|300)\b", combined_customer_text))
+        def product_rank(item):
+            relevance, prod = item
+            try:
+                pr = float(prod.get("price") or 0)
+            except Exception:
+                pr = 0
+            if is_low_budget_inquiry:
+                return (relevance, -pr)
+            # Mid-range sweet spot: ₹500 - ₹999 gets highest priority (+20)
+            if 500 <= pr <= 999:
+                boost = 20
+            elif 1000 <= pr <= 1500:
+                boost = 12
+            elif 400 <= pr < 500:
+                boost = 5
+            elif pr > 1500:
+                boost = 3
+            else: # Entry-level items (< ₹400) ranked lower
+                boost = -15
+            return (relevance + boost, -abs(pr - 750))
+
+        valid_matches.sort(key=product_rank, reverse=True)
         top_matches = [m[1] for m in valid_matches[:2]]
 
         lines = ["Available Live Store Products:"]
