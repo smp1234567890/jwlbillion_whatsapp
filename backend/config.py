@@ -144,6 +144,11 @@ INTEGRATION_ALLOWED_HOSTS_RAW = os.getenv("INTEGRATION_ALLOWED_HOSTS", "")
 INTEGRATION_ALLOWED_HOSTS = [
     h.strip().lower() for h in INTEGRATION_ALLOWED_HOSTS_RAW.split(",") if h.strip()
 ]
+NEODOVE_LEAD_WEBHOOK_URL = os.getenv(
+    "NEODOVE_LEAD_WEBHOOK_URL",
+    "https://d7f9432d-67a4-4897-95ea-d59e92b2df94.neodove.com/integration/custom/af2944a0-ebd9-490b-97e2-4625e4658bd5/leads"
+).strip()
+
 
 # ── Shopify Configuration ──
 SHOPIFY_STORE_DOMAIN = os.getenv("SHOPIFY_STORE_DOMAIN", "").strip()

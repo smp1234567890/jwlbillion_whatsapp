@@ -1659,6 +1659,14 @@ async def receive_inbound_whatsapp_message(
                     )
                     db.add(new_contact)
 
+                    # Trigger external lead push for new inbound WhatsApp contact (e.g. NeoDove)
+                    try:
+                        from services.external_lead_service import send_lead_to_neodove
+                        background_tasks.add_task(send_lead_to_neodove, profile_name, sender_phone)
+                    except Exception as lead_err:
+                        logger.warning(f"[NeoDove Lead Hook Error] Could not enqueue lead task: {lead_err}")
+
+
                 try:
                     db.commit()
                     processed_messages_count += 1
