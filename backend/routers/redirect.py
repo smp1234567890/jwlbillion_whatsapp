@@ -4,10 +4,11 @@ Generates personalized tracking URLs for WhatsApp campaigns and automations,
 tracks clicks with recipient identity and timestamp, and issues instant 302 redirects.
 """
 
+import time
 import logging
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -19,10 +20,54 @@ logger = logging.getLogger("redirect_router")
 router = APIRouter(tags=["Smart Link Tracking & Redirects"])
 
 
+def _delayed_followup_after_click(phone: str, delay_seconds: int = 20):
+    """
+    Waits 20 seconds after a customer clicks a product link in chat,
+    then checks if a human or customer already replied before asking how they liked the jewellery.
+    """
+    time.sleep(delay_seconds)
+    try:
+        from database import SessionLocal
+        from whatsapp_service import send_whatsapp_free_text
+        from services.bot_service import _save_bot_message
+        db = SessionLocal()
+        try:
+            clean_p = phone.replace("+", "").strip()
+            # Check if AI is paused for this customer
+            contact = db.query(models.Contact).filter(
+                models.Contact.phone.in_([phone, clean_p, f"+{clean_p}"])
+            ).first()
+            if contact and isinstance(contact.custom_attributes, dict):
+                if contact.custom_attributes.get("ai_disabled"):
+                    logger.info(f"[Link Followup] AI disabled for {phone}. Skipping click follow-up.")
+                    return
+
+            # Check recent messages in the last 20 seconds to see if customer or agent already chatted
+            cutoff = datetime.utcnow() - __import__('datetime').timedelta(seconds=25)
+            recent_msg = db.query(models.ChatMessage).filter(
+                models.ChatMessage.customer_phone.in_([phone, clean_p, f"+{clean_p}"]),
+                models.ChatMessage.created_at >= cutoff
+            ).first()
+
+            if recent_msg:
+                logger.info(f"[Link Followup] New message already exchanged with {phone}. Skipping follow-up.")
+                return
+
+            followup_text = "Aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge? 😊"
+            res = send_whatsapp_free_text(phone, followup_text, db=db)
+            _save_bot_message(db, phone, followup_text, res.get("message_id"))
+            logger.info(f"[Link Followup Sent] 20s post-click follow-up delivered to {phone}")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"[Link Followup Error] Failed to send 20s click follow-up: {e}")
+
+
 @router.get("/r/{tracking_code}")
 def track_and_redirect(
     tracking_code: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
@@ -62,6 +107,7 @@ def track_and_redirect(
                     if padding != 4:
                         b64_str += "=" * padding
                     decoded = base64.urlsafe_b64decode(b64_str.encode("utf-8")).decode("utf-8")
+                    decoded = decoded.rstrip(".,;:!?")
                     if decoded.startswith("http://") or decoded.startswith("https://"):
                         target_url = decoded
                 except Exception as dec_err:
@@ -100,7 +146,11 @@ def track_and_redirect(
         db.rollback()
         logger.warning(f"Failed to record link click: {e}")
 
-    # 3. Add UTM parameters for Google Analytics / Shopify attribution if not already present
+    # 3. If click originated from chat, schedule polite follow-up after 20 seconds
+    if click_source == "chat" and recipient_phone:
+        background_tasks.add_task(_delayed_followup_after_click, recipient_phone, delay_seconds=20)
+
+    # 4. Add UTM parameters for Google Analytics / Shopify attribution if not already present
     sep = "&" if "?" in target_url else "?"
     utm_params = f"{sep}utm_source=whatsapp&utm_medium=broadcast"
     if campaign_id:

@@ -573,16 +573,15 @@ def generate_qwen_reply(
             answer = re.sub(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', primary_url, answer, flags=re.I)
 
         # STRICT URL VALIDATION: Prevent 404 links caused by LLM hallucinating product slugs.
-        # Ensure any product link in the text is strictly replaced with the verified product_url from live Shopify data.
-        if top_matches:
-            primary_verified_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
-            valid_urls = {m.get("product_url") for m in top_matches if m.get("product_url")}
-            def sanitize_product_link(match):
-                u = match.group(0).rstrip(".,;:!?")
-                if u not in valid_urls:
-                    return primary_verified_url
-                return u
-            answer = re.sub(r'https?://jwlbillion\.com/products/[^\s\)\],]+', sanitize_product_link, answer)
+        # Ensure any product link in the text is strictly replaced with a verified product_url from live Shopify data.
+        primary_verified_url = top_matches[0].get("product_url") if top_matches else "https://jwlbillion.com/collections/all"
+        valid_urls = {m.get("product_url") for m in top_matches if m.get("product_url")}
+        def sanitize_product_link(match):
+            u = match.group(0).rstrip(".,;:!?")
+            if u not in valid_urls:
+                return primary_verified_url
+            return u
+        answer = re.sub(r'https?://jwlbillion\.com/products/[^\s\)\],]+', sanitize_product_link, answer)
 
         # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
         answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()
@@ -603,21 +602,20 @@ def generate_qwen_reply(
         answer = re.sub(r'\s{2,}', ' ', answer).strip()
 
         # Determine whether to accompany this reply with a product image
-        # ONLY send a photo if the AI actually pitched/recommended a specific product in its text (with link or price or title)
-        # NEVER send a product photo when the AI is simply asking a qualifying/clarification question!
+        # Whenever a product from Shopify is actively recommended or presented, attach its image
         send_image_url = None
         if top_matches:
             first_match = top_matches[0]
             img_candidate = _clean_product_photo(first_match)
             if img_candidate:
+                # Attach photo if the AI referenced the product, mentioned price, provided link, or recommended it
                 has_product_ref = (
                     "https://" in answer or
                     "₹" in answer or
+                    "dekhiye" in answer.lower() or
                     first_match.get("title", "").lower() in answer.lower()
                 )
-                # If the AI response is purely asking a question to clarify category without pitching a product, do NOT attach a photo
-                is_pure_question = answer.strip().endswith("?") and not has_product_ref
-                if has_product_ref and not is_pure_question:
+                if has_product_ref:
                     send_image_url = img_candidate
 
         return {

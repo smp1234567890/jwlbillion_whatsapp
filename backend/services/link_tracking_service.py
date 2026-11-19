@@ -65,6 +65,6 @@ def rewrite_text_links(
             return raw_url
         return build_tracked_url(raw_url, recipient_phone, source=source, campaign_id=campaign_id)
 
-    # Match http/https URLs containing jwlbillion.com
-    pattern = r'https?://(?:www\.)?jwlbillion\.com[^\s\)]*'
+    # Match http/https URLs containing jwlbillion.com, stripping any sentence-ending punctuation (. , ! ? ; :) from the URL
+    pattern = r'https?://(?:www\.)?jwlbillion\.com[^\s\)]+?(?=[.,!?;:]?(?:\s|$|\)))'
     return re.sub(pattern, _replace_url, text)
