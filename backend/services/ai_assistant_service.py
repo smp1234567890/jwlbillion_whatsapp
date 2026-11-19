@@ -453,7 +453,8 @@ def transcribe_voice_with_sarvam(audio_file_path: str) -> Optional[str]:
 
         url = "https://api.sarvam.ai/speech-to-text"
         headers = {"api-subscription-key": api_key}
-        data = {"model": "saaras:v2", "mode": "transcribe"}
+        # Use saaras:v3 as recommended by Sarvam API for accurate Indic ASR
+        data = {"model": "saaras:v3", "mode": "transcribe"}
 
         with open(audio_file_path, "rb") as f:
             files = {"file": (os.path.basename(audio_file_path), f, "audio/ogg")}
