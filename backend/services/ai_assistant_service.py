@@ -232,7 +232,7 @@ JEWELRY_CATEGORY_CANONICAL = {
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"(?<![a-zA-Z\u0900-\u097F])(?:अंगूठी|रिंग)(?![a-zA-Z\u0900-\u097F])"],
     "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચેન|चैन|चेन"],
     "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent|gale\s*ka|gale\s*ki|gale\s*ke)\b", r"હાર|हार|नेकलेस|पेंडेंट|गले\s*का|गले\s*की"],
-    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|jhumkhe|balis?|studs?|ear?nings?|errings?|earings?)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके"],
+    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[aie]|jhumkas?|jhumkis?|jhumkhes?|balis?|studs?|ear?nings?|errings?|earings?|kan\s*ke|kaan\s*ke|kaan\s*ki|kan\s*ki)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके|कान\s*के|कान\s*की"],
     "set": [r"\b(?:sets?|combo|combos?|jewellery\s*sets?|necklace\s*sets?|complete\s*set)\b", r"સેટ|सेट"]
 }
 
