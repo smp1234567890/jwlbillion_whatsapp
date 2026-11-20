@@ -948,6 +948,11 @@ def generate_qwen_reply(
     if chat_history:
         prompt_parts.append(chat_history)
 
+    # Ingest recent real human agent high-converting conversations if available
+    learned_context = get_top_learned_interactions(db, limit=3)
+    if learned_context:
+        prompt_parts.append(learned_context)
+
     prompt_parts.append(
         f"New Customer Message: {customer_query}\n"
         f"Target Language: {lang_pref}\n"
