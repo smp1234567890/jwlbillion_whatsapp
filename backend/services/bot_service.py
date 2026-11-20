@@ -48,8 +48,9 @@ GREETING_PHRASES = [
 ]
 
 ORDER_QUERY_TRIGGERS = [
-    "order", "track", "tracking", "status", "where is my order", "parcel", "shipment", "delivery",
-    "kaha hai", "kaha pahucha", "kab aayega", "kab milega", "dispatch"
+    "track order", "track my order", "where is my order", "kaha hai mera order", "kaha pahucha",
+    "kab aayega", "kab milega", "dispatch kab hoga", "tracking link", "order tracking", "parcel status",
+    "delivery status", "order status"
 ]
 
 COD_QUERY_PATTERNS = [
@@ -1115,6 +1116,21 @@ def handle_inbound_auto_reply(
         return res
 
     # -------------------------------------------------------------
+    # 2b. Cash on Delivery (COD) Priority Check
+    # Ensures "Cash on delivery" queries NEVER get hijacked by order tracking
+    # -------------------------------------------------------------
+    is_cod_inquiry = any(re.search(p, text_clean, re.I) for p in COD_QUERY_PATTERNS)
+    if is_cod_inquiry:
+        cod_reply = (
+            "Haan ji, 100% Cash on Delivery (COD) uplabdh hai pure India mein! 📦✨\n\n"
+            "Parcel aapke haath mein aane ke baad hi aapko payment karna hai. "
+            "Aapko kaun sa jewellery design ya item pasand aaya hai?"
+        )
+        res = send_whatsapp_free_text(sender_phone, cod_reply, db=db)
+        _save_bot_message(db, sender_phone, cod_reply, res.get("message_id"))
+        return res
+
+    # -------------------------------------------------------------
     # 3. Check for Order Tracking Intent (e.g. "where is my order", "track")
     # -------------------------------------------------------------
     is_order_intent = any(trigger in text_clean for trigger in ORDER_QUERY_TRIGGERS)
@@ -1168,6 +1184,13 @@ def handle_inbound_auto_reply(
             qwen_text = rewrite_text_links(qwen_text, sender_phone, source="ai_chat")
 
             # Support sending multiple product images if AI recommended multiple designs (up to 3)
+            # If customer specifically asked for designs/photos ("dikhao", "bhejo", "options", "photos", etc.),
+            # ensure images are always dispatched even if previously viewed.
+            explicit_design_request = bool(re.search(
+                r"\b(?:design|designs|photo|photos|pic|pics|image|images|dikhao|dekhao|dekhna|bhejo|options|aur|dusra|chain|necklace|earring|ring|bracelet|kada|anklet)\b",
+                text_clean, re.I
+            ))
+
             products_to_send = ai_result.get("products") or ([matched_prod] if matched_prod else [])
             import time
 
@@ -1177,15 +1200,18 @@ def handle_inbound_auto_reply(
                 if not prod_img:
                     continue
 
-                # Check if this customer already received this exact image recently
-                if db and sender_phone:
+                # Check if this customer already received this exact image in the last 60 seconds (prevents accidental double taps)
+                if db and sender_phone and not explicit_design_request:
                     try:
                         from models import ChatMessage
+                        from datetime import datetime, timedelta
                         clean_p = sender_phone.replace("+", "")
+                        cutoff = datetime.utcnow() - timedelta(seconds=60)
                         already_sent = db.query(ChatMessage).filter(
                             ChatMessage.customer_phone.in_([sender_phone, clean_p]),
                             ChatMessage.sender_type != "CUSTOMER",
-                            ChatMessage.media_url == prod_img
+                            ChatMessage.media_url == prod_img,
+                            ChatMessage.created_at >= cutoff
                         ).first() is not None
                         if already_sent:
                             continue

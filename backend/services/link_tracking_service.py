@@ -68,5 +68,6 @@ def rewrite_text_links(
         return f"{tracked} "
 
     # Match http/https URLs containing jwlbillion.com
-    pattern = r'https?://(?:www\.)?jwlbillion\.com[^\s\)]+'
+    # Only match completed valid URLs that do not get cut off mid-protocol or mid-domain
+    pattern = r'https?://(?:www\.)?jwlbillion\.com/[a-zA-Z0-9_\-\./\?=%&]+'
     return re.sub(pattern, _replace_url, text)

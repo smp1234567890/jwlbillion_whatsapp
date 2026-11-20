@@ -89,14 +89,14 @@ def track_and_redirect(
     recipient_phone = None
     target_url = "https://jwlbillion.com"
 
-    # Helper to validate and sanitize target URLs so nonexistent or hallucinated paths never 404
+    # Helper to validate and sanitize target URLs so nonexistent, truncated or hallucinated paths never 404
     def _sanitize_destination(raw_target: str) -> str:
-        if not raw_target or not raw_target.startswith("http"):
+        if not raw_target or not raw_target.startswith("http://") and not raw_target.startswith("https://"):
             return "https://jwlbillion.com"
         u_clean = raw_target.rstrip(".,;:!?")
         u_lower = u_clean.lower()
-        if "jwlbillion.com" not in u_lower:
-            return u_clean
+        if "jwlbillion.com" not in u_lower or u_clean.strip() in ["https://", "http://", "https:/", "http:/"]:
+            return "https://jwlbillion.com"
 
         from services.shopify_service import fetch_shopify_products
         try:
