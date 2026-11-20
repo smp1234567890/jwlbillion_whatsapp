@@ -218,7 +218,7 @@ JEWELRY_CATEGORY_CANONICAL = {
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"(?<![a-zA-Z\u0900-\u097F])(?:अंगूठी|रिंग)(?![a-zA-Z\u0900-\u097F])"],
     "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચેન|चैन|चेन"],
     "necklace": [r"\b(?:necklaces?|necjlace?|haars?|har|harr|choker|mangalsutra|pendant|pendants?|pendent|gal[ae]\s*k[aie]|gala|gale)\b", r"હાર|हार|नेकलेस|पेंडेंट|गले\s*का|गले\s*की|गले\s*के|गला\s*के"],
-    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[aie]|jhumkas?|jhumkis?|jhumkhes?|balis?|studs?|ear?nings?|errings?|earings?|kan\s*ke|kaan\s*ke|kaan\s*ki|kan\s*ki)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके|कान\s*के|कान\s*की"],
+    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[aie]|jhumkas?|jhumkis?|jhumkhes?|balis?|studs?|ear?nings?|errings?|earings?|kan\s*ke|kaan\s*ke|kaan\s*ki|kan\s*ki|sui\s*dhaaga|suidhaaga|latkan)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके|कान\s*के|कान\s*की|सुई\s*धागा"],
     "set": [r"\b(?:sets?|combo|combos?|jewellery\s*sets?|necklace\s*sets?|complete\s*set)\b", r"સેટ|सेट"]
 }
 
@@ -374,10 +374,29 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             STOP_TERMS = {
                 "jewellery", "jewelry", "collection", "product", "products", "item", "items", "good",
                 "acchi", "achhi", "best", "dekh", "rahe", "hain", "liye", "kharidne", "for", "with",
-                "been", "transit", "days", "know", "when", "will", "order", "status", "support", "help"
+                "been", "transit", "days", "know", "when", "will", "order", "status", "support", "help",
+                "kuchh", "kuch", "mein", "wali", "wale", "wala", "dikhao", "batao"
             }
             q_terms = [w for w in re.split(r"\W+", q_lower) if len(w) > 2 and w not in STOP_TERMS]
             text_score = sum(3 if re.search(r"\b" + re.escape(t), p_title) else 1 for t in q_terms if re.search(r"\b" + re.escape(t), p_text))
+
+            # Long / Sui Dhaaga / Dangle specific intent matching
+            is_long_earring_query = bool(re.search(r"\b(?:long|sui\s*dhaaga|suidhaaga|dangle|hanging|drop|chain\s*drop|jhumar)\b", combined_customer_text, re.I))
+            if is_long_earring_query:
+                p_is_long = bool(re.search(r"\b(?:dangle|drop|chain\s*drop|sui\s*dhaaga|hanging)\b", p_text, re.I))
+                p_is_stud = bool(re.search(r"\b(?:stud|studs?|statement\s*stud)\b", p_title, re.I)) and not p_is_long
+                if p_is_long:
+                    text_score += 40
+                elif p_is_stud:
+                    text_score -= 30
+
+            # Short / Stud specific intent matching
+            is_short_earring_query = bool(re.search(r"\b(?:short|choti|chhota|stud|studs?|small|tops?)\b", combined_customer_text, re.I)) and not is_long_earring_query
+            if is_short_earring_query:
+                if "stud" in p_text or "small" in p_text:
+                    text_score += 40
+                elif "dangle" in p_text or "drop" in p_text:
+                    text_score -= 30
 
             # If no jewelry category was identified in current query or history,
             # require at least 2 distinct jewelry keyword hits to avoid matching random words
@@ -413,14 +432,18 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         # Prioritize mid-range (₹500–₹1,200) options first as recommended bestsellers;
         # do not pitch entry-level / cheap items (< ₹400) first unless customer explicitly asks for low budget.
         is_low_budget_inquiry = bool(re.search(r"\b(?:sasta|kam\s*budget|cheap|low\s*price|200|300)\b", combined_customer_text))
+        is_long_query = bool(re.search(r"\b(?:long|sui\s*dhaaga|suidhaaga|dangle|hanging|drop|chain\s*drop|jhumar)\b", combined_customer_text, re.I))
+
         def product_rank(item):
             relevance, prod = item
             try:
                 pr = float(prod.get("price") or 0)
             except Exception:
                 pr = 0
-            if is_low_budget_inquiry:
-                return (relevance, -pr)
+            if is_low_budget_inquiry or is_long_query:
+                # When customer specifically searches for long/sui-dhaaga or low budget,
+                # let pure keyword relevance score take priority over price tier boost!
+                return (relevance, -abs(pr - 500))
             # Mid-range sweet spot: ₹500 - ₹999 gets highest priority (+20)
             if 500 <= pr <= 999:
                 boost = 20
