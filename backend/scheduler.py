@@ -797,10 +797,125 @@ def start_scheduler():
             id="campaign_health_and_recovery_sweep",
             replace_existing=True
         )
+        # 6. Daily 8:45 PM IST Evening Re-Engagement for Customers who clicked/browsed today without replying
+        scheduler.add_job(
+            func=run_evening_click_reengagement_sweep,
+            trigger=CronTrigger(hour=20, minute=45),
+            id="daily_evening_click_reengagement_sweep",
+            replace_existing=True
+        )
         scheduler.start()
-        logger.info("APScheduler started successfully with daily sweep, continuous workflow engine, Meta template sync, and Shopify customer sync.")
+        logger.info("APScheduler started successfully with daily sweep, continuous workflow engine, Meta template sync, Shopify sync, and 8:45 PM evening re-engagement.")
 
-def run_rule_execution(rule_id: int, force_approved: bool = False) -> dict:
+def run_evening_click_reengagement_sweep():
+    """
+    Daily 8:45 PM IST Evening Sweep for Same-Day Link Clickers.
+    Re-engages customers who clicked/browsed a jewellery link today (since 8:00 AM IST)
+    but remained silent (did not send a reply or place an order).
+    
+    Safeguards:
+    1. Checks if customer is Opted-out / DND or AI is paused.
+    2. Checks if customer already replied after clicking (if so, skips).
+    3. Checks if customer already received an evening check-in or recent message in last 3 hours (if so, skips).
+    4. Frames message with psychological empathy & service (COD, sizing, color options).
+    """
+    db = SessionLocal()
+    try:
+        now_utc = datetime.utcnow()
+        # Today's window: links clicked since 8:00 AM IST (~ 02:30 UTC today)
+        today_start_utc = now_utc.replace(hour=2, minute=30, second=0, microsecond=0)
+        if now_utc < today_start_utc:
+            today_start_utc = today_start_utc - timedelta(days=1)
+
+        # Find unique customers who clicked a tracked link today
+        clicks = db.query(models.LinkClick).filter(
+            models.LinkClick.clicked_at >= today_start_utc,
+            models.LinkClick.recipient_phone.isnot(None)
+        ).order_by(models.LinkClick.clicked_at.desc()).all()
+
+        if not clicks:
+            logger.info("[Evening Sweep] No tracked link clicks found today.")
+            return
+
+        from whatsapp_service import send_whatsapp_free_text
+        from services.bot_service import _save_bot_message
+
+        processed_phones = set()
+        dispatched_count = 0
+
+        for click in clicks:
+            raw_phone = (click.recipient_phone or "").strip()
+            if not raw_phone or raw_phone in processed_phones:
+                continue
+
+            processed_phones.add(raw_phone)
+            clean_p = raw_phone.replace("+", "").strip()
+
+            # 1. Check Contact DND / AI status
+            contact = db.query(models.Contact).filter(
+                models.Contact.phone.in_([raw_phone, clean_p, f"+{clean_p}"])
+            ).first()
+
+            if contact:
+                if contact.is_opted_out:
+                    continue
+                if isinstance(contact.custom_attributes, dict) and contact.custom_attributes.get("ai_disabled"):
+                    continue
+
+            # 2. Check if customer sent ANY message AFTER clicking
+            customer_reply_after_click = db.query(models.ChatMessage).filter(
+                models.ChatMessage.customer_phone.in_([raw_phone, clean_p, f"+{clean_p}"]),
+                models.ChatMessage.sender_type == "CUSTOMER",
+                models.ChatMessage.created_at >= click.clicked_at
+            ).first()
+
+            if customer_reply_after_click:
+                logger.debug(f"[Evening Sweep] {raw_phone} already replied after clicking. Skipping.")
+                continue
+
+            # 3. Check if any message was exchanged in the last 2 hours (don't disturb active or recent chats)
+            two_hours_ago = now_utc - timedelta(hours=2)
+            recent_exchange = db.query(models.ChatMessage).filter(
+                models.ChatMessage.customer_phone.in_([raw_phone, clean_p, f"+{clean_p}"]),
+                models.ChatMessage.created_at >= two_hours_ago
+            ).first()
+
+            if recent_exchange:
+                logger.debug(f"[Evening Sweep] {raw_phone} had a recent message within 2 hours. Skipping.")
+                continue
+
+            # 4. Check if we ALREADY sent an evening re-engagement to this customer today
+            already_nudged_today = db.query(models.ChatMessage).filter(
+                models.ChatMessage.customer_phone.in_([raw_phone, clean_p, f"+{clean_p}"]),
+                models.ChatMessage.sender_type != "CUSTOMER",
+                models.ChatMessage.text.like("%aaj jo design aapne dekha tha%"),
+                models.ChatMessage.created_at >= today_start_utc
+            ).first()
+
+            if already_nudged_today:
+                logger.debug(f"[Evening Sweep] {raw_phone} already received evening check-in today. Skipping.")
+                continue
+
+            # 5. Send warm, respectful evening service check-in
+            evening_msg = (
+                "Namaste ji! 😊 Aaj jo jewellery design aapne dekha tha, "
+                "kya usme koi specific color, size ya aur options dekhna chahenge? "
+                "Pure India mein Cash on Delivery (COD) uplabdh hai. ✨"
+            )
+
+            res = send_whatsapp_free_text(raw_phone, evening_msg, db=db)
+            if res.get("success") or res.get("status") == "success":
+                _save_bot_message(db, raw_phone, evening_msg, res.get("message_id"))
+                dispatched_count += 1
+                logger.info(f"[Evening Sweep] Delivered 8:45 PM check-in to {raw_phone}")
+                time.sleep(0.5)  # brief pause to respect WhatsApp API pacing
+
+        logger.info(f"[Evening Sweep Complete] Re-engaged {dispatched_count} silent clicker(s) from today.")
+    except Exception as e:
+        logger.error(f"[Evening Sweep Error] Failed during execution: {e}")
+    finally:
+        db.close()
+
     """
     Executes an individual automation rule dynamically based on its condition.
     - INACTIVE_DAYS (e.g. 15 days or 30 days)
