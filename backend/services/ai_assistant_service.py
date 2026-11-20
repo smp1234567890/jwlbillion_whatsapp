@@ -170,11 +170,14 @@ JEWELRY_CATEGORY_CANONICAL = {
     "bangle": [r"\b(?:bangles?|banglez|chudi|choodi|choodiyan|chudiya|kangan|bangals?|bangels?)\b", r"चूड़ी|कंगन"],
     "anklet": [r"\b(?:anklets?|payals?|pajeb|panjeb|pair\s*ke)\b", r"पायल|पाजेब|एंक्लेट"],
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"अंगूठी|रिंग"],
-    "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચૈન|चैन|चेन"],
+    "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચેન|चैन|चेन"],
     "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent)\b", r"હાર|हार|नेकलेस|पेंडेंट"],
     "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?|ear?nings?|e?rings?|erring|earings?|ering|earng)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग"],
     "set": [r"\b(?:sets?|combo|combos?|jewellery\s*sets?|necklace\s*sets?|complete\s*set)\b", r"સેટ|सेट"]
 }
+
+
+DUAL_GENDER_CATEGORIES = {"chain", "bracelet", "kada", "ring", "necklace", "pendant"}
 
 
 def get_relevant_product_context(customer_query: str, chat_history: str = "") -> tuple[str, list[dict]]:
@@ -264,6 +267,14 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         if women_negated:
             is_women = False
             is_men = True
+
+        # Option A Proactive Qualification:
+        # If the customer is asking for a category that exists for BOTH Men & Women (e.g. chains, bracelets, kadas, rings)
+        # and has NOT yet specified whether it's for Men or Women, DO NOT return products yet!
+        # This prevents sending mixed men/women photos before qualifying the customer.
+        is_dual_gender = bool(active_categories and active_categories.intersection(DUAL_GENDER_CATEGORIES))
+        if is_dual_gender and not is_men and not is_women:
+            return "", []
 
         matches = []
         for p in products:
@@ -723,6 +734,33 @@ def generate_qwen_reply(
     if re.search(r"^\s*(?:dost|friend|friends|dosto|doston)\s*$", q_clean):
         friend_reply = "Aapke dost ke liye gift dekhna toh bohot achha idea hai! 😊 Kya dost male hain ya female, aur unhe kis type ki jewelry pasand aayegi (jaise Men's Kada/Bracelet, Ring ya Chain)?"
         return {"status": "success", "reply": friend_reply, "model": "playbook"}
+
+    # 0e. Option A: Proactive Gender Qualification for Dual-Gender Categories
+    # If customer asks for chains, bracelets, kadas, rings, or pendants and has NOT specified gender anywhere:
+    is_asking_dual_cat = any(
+        re.search(pat, q_clean, re.I)
+        for cat in DUAL_GENDER_CATEGORIES
+        for pat in JEWELRY_CATEGORY_CANONICAL.get(cat, [])
+    )
+    # Check if gender was mentioned in current query or past customer messages
+    combined_convo_for_gender = f"{chat_history} {q_clean}".lower()
+    has_gender_context = bool(re.search(
+        r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai|women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi)\b|"
+        r"(?:मेन्स|मेंस|जेंट्स|मर्द|लड़कों|आदमी|पुरुष|लेडीज|महिला|औरत|लड़कियों|મહિલા|લેડીઝ|મેન્સ|પુરુષ)",
+        combined_convo_for_gender
+    ))
+
+    if is_asking_dual_cat and not has_gender_context:
+        # Detect language preference for natural qualification
+        if re.search(r"[\u0A80-\u0AFF]", customer_query) or re.search(r"\b(?:kem\s*cho|tamne|tamare|joye)\b", customer_query, re.I):
+            gender_ask = "ચોક્કસ જી! 😊 તમે જેન્ટ્સ માટે જોઈ રહ્યા છો કે લેડીઝ માટે? જેથી હું તમને એકદમ પરફેક્ટ ડિઝાઇન્સ બતાવી શકું."
+        elif re.search(r"[\u0900-\u097F]", customer_query):
+            gender_ask = "बिल्कुल जी! 😊 आप जेंट्स के लिए देख रहे हैं या लेडीज के लिए? ताकि मैं आपको सही और बेस्ट डिज़ाइन दिखा सकूं।"
+        elif re.search(r"^[a-zA-Z0-9\s\.,!\?']+$", customer_query) and not any(bool(re.search(p, q_clean, re.I)) for p in HINDI_PATTERNS):
+            gender_ask = "Sure! 😊 Are you looking for men or women? So I can share the best designs for you."
+        else:
+            gender_ask = "Bilkul ji! 😊 Aap gents ke liye dekh rahe hain ya ladies ke liye? Taaki main aapko perfect designs dikha sakun."
+        return {"status": "success", "reply": gender_ask, "model": "proactive-qualification"}
 
     # 1. Refuse forbidden/off-topic requests
     if is_forbidden_query(customer_query):
