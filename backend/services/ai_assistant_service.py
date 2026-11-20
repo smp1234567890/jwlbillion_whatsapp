@@ -49,7 +49,7 @@ def _clean_product_photo(product: dict) -> Optional[str]:
         fn = u.split("/")[-1].split("?")[0].lower()
         if any(bad in fn for bad in [
             "scale", "ruler", "measurement", "cm_",
-            "wa0060", "wa0006", "wa0011", "wa0018", "wa0021"
+            "wa0060", "wa0006", "wa0011", "wa0019", "wa0020", "wa0021"
         ]):
             continue
         clean_photos.append(u)
