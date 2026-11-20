@@ -168,12 +168,12 @@ def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int
 
 JEWELRY_CATEGORY_CANONICAL = {
     "bracelet": [r"\b(?:bracelets?|bracelete?|breslets?|breslete?|braclets?|wristlets?|kadas?|kade|kara|cuff)\b", r"ब्रेसलेट|कड़ा"],
-    "bangle": [r"\b(?:bangles?|banglez|chudi|choodi|choodiyan|chudiya|kangan|bangals?|bangels?)\b", r"चूड़ी|कंगन"],
+    "bangle": [r"\b(?:bangles?|banglez|chudi|choodi|choodiyan|chudiya|kangan|bangals?|bangels?)\b", r"चूड़ी|कंगन|बैंगल|बेंगल"],
     "anklet": [r"\b(?:anklets?|payals?|pajeb|panjeb|pair\s*ke)\b", r"पायल|पाजेब|एंक्लेट"],
-    "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"अंगूठी|रिंग"],
+    "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"(?<![a-zA-Z\u0900-\u097F])(?:अंगूठी|रिंग)(?![a-zA-Z\u0900-\u097F])"],
     "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચેન|चैन|चेन"],
     "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent)\b", r"હાર|हार|नेकलेस|पेंडेंट"],
-    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?|ear?nings?|e?rings?|erring|earings?|ering|earng)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग"],
+    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?|ear?nings?|e?rings?|erring|earings?|ering|earng)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके"],
     "set": [r"\b(?:sets?|combo|combos?|jewellery\s*sets?|necklace\s*sets?|complete\s*set)\b", r"સેટ|सेट"]
 }
 
@@ -277,6 +277,8 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         if is_dual_gender and not is_men and not is_women:
             return "", []
 
+        is_both = (is_men and is_women) or bool(re.search(r"\b(?:both|dono|donon|sab|sabhi)\b|(?:दोनों|બંને)", combined_customer_text, re.I))
+
         matches = []
         for p in products:
             p_title = p.get("title", "").lower()
@@ -287,8 +289,10 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             p_has_men = bool(re.search(r"\b(?:men|mens|gents|boys?)\b", p_text))
             p_has_women = bool(re.search(r"\b(?:women|womens|ladies|girls?)\b", p_text))
 
-            # Filter out opposite gender when explicitly specified
-            if is_men and not is_women:
+            # Filter out opposite gender when explicitly specified (unless both was requested)
+            if is_both:
+                pass
+            elif is_men and not is_women:
                 if not p_has_men or (p_has_women and not bool(re.search(r"\b(?:men|mens|gents)\b", p_title))):
                     continue
             elif is_women and not is_men:
@@ -909,22 +913,60 @@ def generate_qwen_reply(
         answer = re.sub(r'\b(?:karats?|carats?)\b', '', answer, flags=re.I)
 
         # STRICT URL & RECOMMENDATION VALIDATION (ZERO HALLUCINATION GATE):
-        # 1. If LLM generated a product link or pitched a product without verified top_matches,
-        #    replace with a safe clarification asking the customer what they want, rather than hallucinating!
+        # 1. Fetch live published Shopify catalog handles to strictly verify existence
+        live_catalog_data = fetch_shopify_products(limit=250)
+        live_catalog_products = live_catalog_data.get("products", [])
+        live_catalog_handles = {p.get("handle") for p in live_catalog_products if p.get("handle")}
         valid_urls = {m.get("product_url") for m in top_matches if m.get("product_url")}
+        primary_verified_url = top_matches[0].get("product_url") if top_matches else "https://jwlbillion.com"
+
+        # Helper to check if any extracted link is an authentic live Shopify product or collection
+        def sanitize_any_store_link(match):
+            u = match.group(0).rstrip(".,;:!?")
+            # If it's a specific product URL: check against verified live handles
+            prod_match = re.search(r'/products/([a-zA-Z0-9_-]+)', u)
+            if prod_match:
+                slug = prod_match.group(1).lower()
+                if slug in live_catalog_handles:
+                    return f"https://jwlbillion.com/products/{slug}"
+                # If not live in catalog, replace with top verified match or collection
+                return primary_verified_url
+
+            # If it's a collection URL: check if it's a known valid collection
+            coll_match = re.search(r'/collections/([a-zA-Z0-9_-]+)', u)
+            if coll_match:
+                cslug = coll_match.group(1).lower()
+                if cslug in ["bangle", "bracelet", "earrings", "chains", "necklace", "rings", "anklet", "all", "mens-collection"]:
+                    return f"https://jwlbillion.com/collections/{cslug}"
+                return "https://jwlbillion.com/collections/all"
+
+            # Fallback for weird URLs like /ladies-earrings/... or hallucinated routes
+            if u.startswith("https://jwlbillion.com"):
+                # Check if it was trying to point to an earring, bangle, chain, ring, etc.
+                u_lower = u.lower()
+                if "earring" in u_lower:
+                    return "https://jwlbillion.com/collections/earrings"
+                elif "bangle" in u_lower:
+                    return "https://jwlbillion.com/collections/bangle"
+                elif "bracelet" in u_lower or "kada" in u_lower:
+                    return "https://jwlbillion.com/collections/bracelet"
+                elif "chain" in u_lower:
+                    return "https://jwlbillion.com/collections/chains"
+                elif "ring" in u_lower:
+                    return "https://jwlbillion.com/collections/rings"
+                elif "necklace" in u_lower or "pendant" in u_lower:
+                    return "https://jwlbillion.com/collections/necklace"
+                return primary_verified_url
+            return u
+
+        # Replace all store URLs with verified live URLs
+        answer = re.sub(r'https?://(?:www\.)?jwlbillion\.com[^\s\)\],]+', sanitize_any_store_link, answer)
+
+        # If LLM generated a product link or pitched a product without verified top_matches,
+        # replace with a safe clarification asking the customer what they want, rather than hallucinating!
         if not top_matches and re.search(r'https?://jwlbillion\.com/products/[^\s\)\],]+', answer):
             logger.warning("[AI Service] Blocked hallucinated product recommendation with no live match.")
             answer = "Ji, hamare paas bohot pyaare designs uplabdh hain! 😊 Aapko kis type ki jewelry dekhni hai — jaise Bracelets/Kadas, Rings, Chains ya Earrings?"
-
-        # 2. If valid matches exist, ensure any product link strictly matches verified live Shopify URLs
-        elif top_matches:
-            primary_verified_url = top_matches[0].get("product_url")
-            def sanitize_product_link(match):
-                u = match.group(0).rstrip(".,;:!?")
-                if u not in valid_urls:
-                    return primary_verified_url or ""
-                return u
-            answer = re.sub(r'https?://jwlbillion\.com/products/[^\s\)\],]+', sanitize_product_link, answer)
 
         # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
         answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()

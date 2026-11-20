@@ -89,10 +89,65 @@ def track_and_redirect(
     recipient_phone = None
     target_url = "https://jwlbillion.com"
 
+    # Helper to validate and sanitize target URLs so nonexistent or hallucinated paths never 404
+    def _sanitize_destination(raw_target: str) -> str:
+        if not raw_target or not raw_target.startswith("http"):
+            return "https://jwlbillion.com"
+        u_clean = raw_target.rstrip(".,;:!?")
+        u_lower = u_clean.lower()
+        if "jwlbillion.com" not in u_lower:
+            return u_clean
+
+        from services.shopify_service import fetch_shopify_products
+        try:
+            catalog_data = fetch_shopify_products(limit=250)
+            valid_handles = {p.get("handle") for p in catalog_data.get("products", []) if p.get("handle")}
+        except Exception:
+            valid_handles = set()
+
+        import re
+        prod_m = re.search(r'/products/([a-zA-Z0-9_-]+)', u_clean)
+        if prod_m:
+            slug = prod_m.group(1).lower()
+            if valid_handles and slug not in valid_handles:
+                # 404 product slug fallback to matching collection
+                if "earring" in slug:
+                    return "https://jwlbillion.com/collections/earrings"
+                elif "bangle" in slug:
+                    return "https://jwlbillion.com/collections/bangle"
+                elif "bracelet" in slug or "kada" in slug:
+                    return "https://jwlbillion.com/collections/bracelet"
+                elif "chain" in slug:
+                    return "https://jwlbillion.com/collections/chains"
+                elif "ring" in slug:
+                    return "https://jwlbillion.com/collections/rings"
+                elif "necklace" in slug or "pendant" in slug:
+                    return "https://jwlbillion.com/collections/necklace"
+                return "https://jwlbillion.com/collections/all"
+            return u_clean
+
+        if "/collections/" in u_clean:
+            return u_clean
+
+        # Malformed route like /ladies-earrings/
+        if "earring" in u_lower:
+            return "https://jwlbillion.com/collections/earrings"
+        elif "bangle" in u_lower:
+            return "https://jwlbillion.com/collections/bangle"
+        elif "bracelet" in u_lower or "kada" in u_lower:
+            return "https://jwlbillion.com/collections/bracelet"
+        elif "chain" in u_lower:
+            return "https://jwlbillion.com/collections/chains"
+        elif "ring" in u_lower:
+            return "https://jwlbillion.com/collections/rings"
+        elif "necklace" in u_lower or "pendant" in u_lower:
+            return "https://jwlbillion.com/collections/necklace"
+        return "https://jwlbillion.com"
+
     # Check if this tracking code was pre-registered or if it follows structured convention
     existing_click = db.query(models.LinkClick).filter(models.LinkClick.tracking_code == tracking_code).first()
     if existing_click and existing_click.target_url:
-        target_url = existing_click.target_url
+        target_url = _sanitize_destination(existing_click.target_url)
         campaign_id = existing_click.campaign_id
         recipient_phone = existing_click.recipient_phone
     else:
@@ -116,9 +171,7 @@ def track_and_redirect(
                     if padding != 4:
                         b64_str += "=" * padding
                     decoded = base64.urlsafe_b64decode(b64_str.encode("utf-8")).decode("utf-8")
-                    decoded = decoded.rstrip(".,;:!?")
-                    if decoded.startswith("http://") or decoded.startswith("https://"):
-                        target_url = decoded
+                    target_url = _sanitize_destination(decoded)
                 except Exception as dec_err:
                     logger.warning(f"Failed to decode tracking b64: {dec_err}")
             elif prefix.startswith("c") and prefix[1:].isdigit():
