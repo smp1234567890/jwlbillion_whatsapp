@@ -691,16 +691,38 @@ def generate_qwen_reply(
         return {"status": "success", "reply": fast_reply, "model": "qwen2.5:1.5b"}
 
     # 0c. Objections & Natural Playbook Fast-Paths (Accurate, Instant & Hinglish)
-    if re.search(r"\b(?:warrenty|warranty|garanty|guarantee)\b", q_clean):
-        warranty_reply = (
-            "Hamari fashion jewellery par koi 1 saal ya time-bound warranty nahi hoti hai. 😊 "
-            "Lekin delivery ke waqt agar parcel mein koi defect ya damage mile, "
-            "toh 7-day easy replacement/exchange milta hai! Saath hi 100% Cash on Delivery (COD) bhi available hai taaki aap delivery par safely parcel dekh sakein."
-        )
+    if re.search(r"\b(?:warrenty|warranty|garanty|guarantee)\b|(?:गारंटी|वारंटी)", q_clean, re.I):
+        if re.search(r"[\u0900-\u097F]", customer_query):
+            warranty_reply = (
+                "हमारी फैशन ज्वेलरी पर कोई 1 साल की टाइम-बाउंड वारंटी नहीं होती है। 😊 "
+                "लेकिन डिलीवरी के समय पार्सल में कोई भी डिफेक्ट या डैमेज मिले, तो 7-दिन का आसान रिप्लेसमेंट/एक्सचेंज मिलता है! "
+                "साथ ही 100% Cash on Delivery (COD) उपलब्ध है ताकि आप डिलीवरी पर सुरक्षित रूप से पार्सल देख सकें।"
+            )
+        elif re.search(r"[\u0A80-\u0AFF]", customer_query):
+            warranty_reply = (
+                "અમારી ફેશન જ્વેલરી પર કોઈ 1 વર્ષની ટાઈમ-બાઉન્ડ વોરંટી નથી હોતી. 😊 "
+                "પણ ડિલિવરી વખતે જો પાર્સલમાં કોઈ ડિફેક્ટ હોય તો 7-દિવસનું ઇઝી રિપ્લેસમેન્ટ/એક્સચેન્જ મળે છે! "
+                "સાથે 100% Cash on Delivery (COD) પણ ઉપલબ્ધ છે."
+            )
+        else:
+            warranty_reply = (
+                "Hamari fashion jewellery par koi 1 saal ya time-bound warranty nahi hoti hai. 😊 "
+                "Lekin delivery ke waqt agar parcel mein koi defect ya damage mile, "
+                "toh 7-day easy replacement/exchange milta hai! Saath hi 100% Cash on Delivery (COD) bhi available hai taaki aap delivery par safely parcel dekh sakein."
+            )
         return {"status": "success", "reply": warranty_reply, "model": "playbook"}
 
-    if re.search(r"\b(?:fade|color\s*fade|colour\s*fade|kaala|kala|rang\s*(?:nikal|uth|fade)|tarnish)\b", q_clean):
-        fade_reply = "Ismein multi-layer premium gold-plated finish hoti hai. ❤️ Normal water aur perfume se bacha kar rakhein toh shine aur finish lambe time tak achhi maintain rehti hai!"
+    is_fade_or_tarnish_inquiry = bool(re.search(
+        r"\b(?:fade|color\s*fade|colour\s*fade|kaal[aieo]|kal[aieo]|rang\s*(?:nikal|uth|fade|chala)|tarnish|color\s*chala|colour\s*chala)\b|(?:काले|काला|काली|काळा|કળા|કાળી|કાળા|कलर\s*चला)",
+        q_clean, re.I
+    ))
+    if is_fade_or_tarnish_inquiry:
+        if re.search(r"[\u0900-\u097F]", customer_query):
+            fade_reply = "जी बिल्कुल नहीं! 😊 इसमें मल्टी-लेयर प्रीमियम गोल्ड-प्लेटेड फिनिश होती है जिससे यह आसानी से काली नहीं पड़ती। बस इसे पानी, पसीने और परफ्यूम से बचाकर रखें तो इसकी चमक और पॉलिश लंबे समय तक बिल्कुल नई जैसी बनी रहती है! ❤️"
+        elif re.search(r"[\u0A80-\u0AFF]", customer_query):
+            fade_reply = "જી બિલકુલ નહીં! 😊 આમાં મલ્ટી-લેયર પ્રીમિયમ ગોલ્ડ-પ્લેટેડ ફિનિશ હોય છે જેથી તે કાળી પડતી નથી. બસ પાણી અને પરફ્યુમથી દૂર રાખો તો ચમક લાંબા સમય સુધી સચવાઈ રહે છે! ❤️"
+        else:
+            fade_reply = "Ji bilkul nahi, yeh kaale nahi honge! 😊 Ismein multi-layer premium gold-plated finish hoti hai. Bas direct paani aur perfume se bacha kar rakhein toh iski shine aur polish lambe time tak bilkul nayi jaisi rehti hai! ❤️"
         return {"status": "success", "reply": fade_reply, "model": "playbook"}
 
     if re.search(r"\b(?:trust|bharosa|fraud|scam|online\s*order|fake)\b", q_clean):
