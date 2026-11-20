@@ -129,7 +129,7 @@ def is_forbidden_query(query: str) -> bool:
     return False
 
 
-def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int = 6) -> str:
+def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int = 15) -> str:
     """Fetches recent conversation messages from the database to give Qwen true conversational memory."""
     if not db or not sender_phone:
         return ""
@@ -381,7 +381,7 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
             return (relevance + boost, -abs(pr - 750))
 
         # If customer asks for "dusra", "aur", "other", "next", deprioritize or exclude items already shown in chat history!
-        is_another_request = bool(re.search(r"\b(?:dusra|dusri|doosra|doosri|aur\s*dikhao|aur\s*bhejo|aur\s*batao|next|another|other|different)\b", q_lower))
+        is_another_request = bool(re.search(r"\b(?:dusra|dusri|doosra|doosri|aur\s*dikhao|aur\s*dekhao|aur\s*dekhna|aur\s*dekhana|aur\s*bhejo|aur\s*batao|next|another|other|different|more)\b", q_lower))
         if is_another_request and chat_history:
             # Filter out or push down products whose titles already appeared in the conversation history
             unseen_matches = []
@@ -622,7 +622,7 @@ def generate_qwen_reply(
     q_clean = (customer_query or "").strip().lower()
 
     # Retrieve recent chat history early so we know if the customer already defined what they want!
-    chat_history = get_recent_chat_history(customer_phone, db, limit=6) if (customer_phone and db) else ""
+    chat_history = get_recent_chat_history(customer_phone, db, limit=15) if (customer_phone and db) else ""
 
     # Check if the customer previously stated their desired items in chat history
     has_prior_context = bool(chat_history and any(
@@ -637,7 +637,7 @@ def generate_qwen_reply(
     # DO NOT ask them again what they want — let AI provide the next item from their requested categories!
     is_short_or_followup = (
         (len(q_clean) <= 2 and not re.match(r"^(?:hi|ok|hm|no|ji)$", q_clean))
-        or bool(re.search(r"^\s*(?:dusra|dusri|aur|next|other|more|aur\s*dikhao|aur\s*bhejo|aur\s*batao|kuch\s*aur)\s*$", q_clean, re.I))
+        or bool(re.search(r"^\s*(?:dusra|dusri|aur|next|other|more|aur\s*dikhao|aur\s*dekhao|aur\s*dekhna|aur\s*dekhana|aur\s*bhejo|aur\s*batao|kuch\s*aur)\s*$", q_clean, re.I))
     )
     if is_short_or_followup and not has_prior_context:
         clarify_short = "Ji, kahiye! 😊 Aap kis type ki jewellery dekh rahe hain — jaise Earrings, Necklace, Rings ya Bracelets?"
