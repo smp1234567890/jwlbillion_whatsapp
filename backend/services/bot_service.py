@@ -631,13 +631,13 @@ def _match_and_send_product_designs(
             cap = (
                 f"*{lead_product['title']}*\n"
                 f"Price: ₹{float(lead_product.get('price') or 0):,.0f}\n"
-                f"View Design: {lead_product.get('product_url') or 'https://jwlbillion.com/'}"
+                f"Link: {lead_product.get('product_url') or 'https://jwlbillion.com/'}"
             )
             media_res = send_whatsapp_media(sender_phone, "image", media_url=best_photo, caption=cap, db=db)
             _save_bot_message(
                 db,
                 sender_phone,
-                f"*{lead_product['title']}*\nPrice: ₹{float(lead_product.get('price') or 0):,.0f}",
+                cap,
                 media_res.get("message_id"),
                 media_url=best_photo,
                 message_type="image"
@@ -1230,7 +1230,7 @@ def handle_inbound_auto_reply(
                 _save_bot_message(
                     db,
                     sender_phone,
-                    f"*{prod.get('title')}*\nPrice: ₹{float(prod.get('price') or 0):,.0f}",
+                    cap,
                     media_res.get("message_id"),
                     media_url=prod_img,
                     message_type="image"
