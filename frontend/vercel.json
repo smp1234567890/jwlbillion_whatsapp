@@ -5,6 +5,10 @@
       "destination": "https://130-210-23-25.sslip.io/api/:path*"
     },
     {
+      "source": "/r/:path*",
+      "destination": "https://130-210-23-25.sslip.io/r/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -11,8 +11,9 @@ and issue a 302 redirect with UTM attribution to the destination.
 import base64
 import re
 from typing import Optional
+import config
 
-TRACKING_BASE_URL = "https://130-210-23-25.sslip.io"
+TRACKING_BASE_URL = getattr(config, "TRACKING_BASE_URL", "https://jwlbillion.vercel.app")
 
 
 def build_tracked_url(

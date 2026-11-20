@@ -45,6 +45,9 @@ WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "1193304047210461")
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
 
+# Smart Link Tracking Domain (Vercel Frontend URL)
+TRACKING_BASE_URL = os.getenv("TRACKING_BASE_URL", "https://jwlbillion.vercel.app").rstrip("/")
+
 # ── Business Logic Limits & Constants ──
 # Subscription / Multi-tenant user limit (e.g. maximum 5 team members)
 MAX_USERS_LIMIT = int(os.getenv("MAX_USERS_LIMIT", "5"))
