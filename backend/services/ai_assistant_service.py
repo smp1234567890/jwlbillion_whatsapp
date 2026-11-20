@@ -173,7 +173,7 @@ JEWELRY_CATEGORY_CANONICAL = {
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"(?<![a-zA-Z\u0900-\u097F])(?:अंगूठी|रिंग)(?![a-zA-Z\u0900-\u097F])"],
     "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચેન|चैन|चेन"],
     "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent)\b", r"હાર|हार|नेकलेस|पेंडेंट"],
-    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|balis?|studs?|ear?nings?|e?rings?|erring|earings?|ering|earng)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके"],
+    "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|jhumkhe|balis?|studs?|ear?nings?|errings?|earings?)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके"],
     "set": [r"\b(?:sets?|combo|combos?|jewellery\s*sets?|necklace\s*sets?|complete\s*set)\b", r"સેટ|सेट"]
 }
 
@@ -184,7 +184,7 @@ DUAL_GENDER_CATEGORIES = {"chain", "bracelet", "kada", "ring", "necklace", "pend
 def get_relevant_product_context(customer_query: str, chat_history: str = "") -> tuple[str, list[dict]]:
     """Finds matching live Shopify products based on query and customer conversation history."""
     try:
-        data = fetch_shopify_products(limit=150)
+        data = fetch_shopify_products(limit=250)
         products = data.get("products", [])
         if not products:
             return "", []
@@ -260,8 +260,8 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         ) and not men_negated
 
         is_women = (
-            bool(re.search(r"\b(?:women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi)\b", combined_customer_text, re.I))
-            or bool(re.search(r"(?:लेडीज|महिला|औरत|लड़कियों|મહિલા|લેડીઝ)", combined_customer_text))
+            bool(re.search(r"\b(?:women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi|jhumk[ai]|jhumkhe|payal|mangalsutra|chudi|choodi|kangan|anklets?)\b", combined_customer_text, re.I))
+            or bool(re.search(r"(?:लेडीज|महिला|औरत|लड़कियों|મહિલા|લેડીઝ|झुमका|झुमकी|पायल|मंगलसूत्र|चूड़ी|कंगन)", combined_customer_text))
         ) and not women_negated
 
         # If ladies/women was explicitly negated, reinforce men
@@ -741,6 +741,55 @@ def generate_qwen_reply(
         soch_reply = "Haan ji, bilkul! Aap araam se decide kijiye. 😊 Bas ek baat batayein, aapko design pasand aaya ya price ko lekar koi doubt hai?"
         return {"status": "success", "reply": soch_reply, "model": "playbook"}
 
+    # 0c. Jhumki / Traditional Dome Jhumka Clarification & Alternative (Option B)
+    # JWL Billion specializes in modern western studs, hoops, and elegant drop/dangle earrings.
+    # When customer asks for Jhumki, honestly clarify that traditional dome jhumkas aren't in stock,
+    # and offer our top matching drop/dangle earrings as gorgeous alternatives with photos!
+    is_jhumki_inquiry = bool(re.search(
+        r"\b(?:jhumk[ai]|jhumkhe|jhumkas?|jhumkis?|chandbalis?)\b|(?:झुमका|झुमकी|झुमके|ઝુમકી|ઝુમકા)",
+        customer_query, re.I
+    ))
+    if is_jhumki_inquiry:
+        data_cat = fetch_shopify_products(limit=250)
+        all_prods = data_cat.get("products", [])
+        # Find elegant drop/dangle earrings to recommend as alternatives
+        drop_alternatives = [
+            p for p in all_prods
+            if any(k in (p.get("title") or "").lower() for k in ["drop", "dangle"])
+            and "earring" in (p.get("title") or "").lower()
+            and float(p.get("price") or 0) >= 300
+        ]
+        chosen_drops = drop_alternatives[:2] if drop_alternatives else []
+        chosen_first = chosen_drops[0] if chosen_drops else None
+        first_img = _clean_product_photo(chosen_first) if chosen_first else None
+
+        if re.search(r"[\u0900-\u097F]", customer_query):
+            jhumki_reply = (
+                "हमारे पास अभी ट्रेडिशनल डोम झुमकी उपलब्ध नहीं है जी। 😊 "
+                "लेकिन हमारे पास बहुत ही सुंदर और क्लासिक ड्राप और डैंगल इयररिंग्स हैं जो ट्रेडिशनल और पार्टी वियर दोनों के साथ बहुत प्यारे लगते हैं! "
+                "क्या आप इनमें से कोई स्टाइल देखना पसंद करेंगे?"
+            )
+        elif re.search(r"[\u0A80-\u0AFF]", customer_query):
+            jhumki_reply = (
+                "અમારી પાસે હમણાં ટ્રેડિશનલ ઝુમકી ઉપલબ્ધ નથી જી. 😊 "
+                "પણ અમારી પાસે ખૂબ જ સુંદર અને ક્લાસી ડ્રોપ અને ડેંગલ ઇયરરિંગ્સ છે જે ટ્રેડિશનલ અને પાર્ટી વેર સાથે ખૂબ જ સરસ લાગે છે! "
+                "શું તમે આ ડિઝાઇન્સ જોવા માંગો છો?"
+            )
+        else:
+            jhumki_reply = (
+                "Hamare paas abhi traditional dome jhumki uplabdh nahi hai ji. 😊 "
+                "Lekin hamare paas bohot sundar drop aur dangle earrings hain jo traditional aur party wear ke saath kaafi stylish lagte hain! "
+                "Aapko yeh alternative drop designs kaise lage?"
+            )
+        return {
+            "status": "success",
+            "reply": jhumki_reply,
+            "product": chosen_first,
+            "products": chosen_drops,
+            "image_url": first_img,
+            "model": "jhumki-alternative-playbook"
+        }
+
     # Only intercept occasion/use-case if no specific jewellery category or design request is mentioned
     has_specific_category = any(re.search(pat, q_clean, re.I) for pats in JEWELRY_CATEGORY_CANONICAL.values() for pat in pats)
 
@@ -771,8 +820,8 @@ def generate_qwen_reply(
     # Check if gender was mentioned in current query or past customer messages
     combined_convo_for_gender = f"{chat_history} {q_clean}".lower()
     has_gender_context = bool(re.search(
-        r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai|women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi)\b|"
-        r"(?:मेन्स|मेंस|जेंट्स|मर्द|लड़कों|आदमी|पुरुष|लेडीज|महिला|औरत|लड़कियों|મહિલા|લેડીઝ|મેન્સ|પુરુષ)",
+        r"\b(?:men|mens|male|mard|gents|boys?|husband|bhai|women|womens|ladies|ledis|ladis|ledies|girls?|female|aurat|wife|sister|didi|jhumk[ai]|jhumkhe|payal|mangalsutra|chudi|choodi|kangan|anklets?)\b|"
+        r"(?:मेन्स|मेंस|जेंट्स|मर्द|लड़कों|आदमी|पुरुष|लेडीज|महिला|औरत|लड़कियों|મહિલા|લેડીઝ|મેન્સ|પુરુષ|झुमका|झुमकी|पायल|मंगलसूत्र|चूड़ी|कंगन)",
         combined_convo_for_gender
     ))
 
