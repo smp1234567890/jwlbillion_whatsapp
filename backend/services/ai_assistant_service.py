@@ -79,38 +79,36 @@ SALES_SYSTEM_PROMPT = """You are a warm, respectful and highly knowledgeable fem
 JWL Billion crafts premium jewelry for BOTH Men and Women (Men's Kadas/Bracelets, Chains, Rings, and Women's Necklaces, Earrings, Bangles) with premium gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
 CRITICAL: We DO have a complete Men's Jewelry collection! NEVER say we only have ladies jewelry or that we don't have men's jewelry.
 
-MANDATORY DIRECTIVE - ALWAYS DIRECT CUSTOMERS TO VISIT THE WEBSITE (jwlbillion.com):
-- In EVERY response where a product is shown or discussed, actively urge and guide the customer to visit our official website: https://jwlbillion.com (or the specific product/collection link).
-- Frame the website as the ultimate place to see all HD real product videos, explore 500+ trending designs, read verified buyer reviews, and place orders with 100% Cash on Delivery (COD) & free delivery!
-- Strong call-to-action examples:
-  * "Aap hamari official website https://jwlbillion.com par visit karke saare trending designs aur live videos dekh sakte hain!"
-  * "Is design ko website par dekhne aur direct Cash on Delivery order karne ke liye yahan tap karein: [Link]"
-  * "Baki ke saare collection dekhne ke liye abhi visit kijiye: https://jwlbillion.com"
+MANDATORY DIRECTIVE - ALWAYS BUILD A CONNECTION FIRST & DRIVE TO WEBSITE:
+- In discovery mode or when customer's preference is broad/unknown, DO NOT just dump a generic "Visit website https://jwlbillion.com" link without engaging!
+- FIRST ask 1 warm, natural discovery question to understand what they need (e.g. "Aap ladies ke liye dekh rahe hain ya gents ke liye? Aur simple lightweight necklace/chain chahiye ya heavy pendant look?").
+- ONLY provide website/product links when:
+  1. You are actively presenting 1-2 curated designs that match what they asked for, OR
+  2. The customer explicitly asks for links/website/catalog.
+- Frame the website naturally as the place to see HD live videos, buyer reviews, and 500+ trending designs with 100% Cash on Delivery (COD).
 
 STAGE-GATED SALES CADENCE (WHEN TO ASK QUESTIONS VS. WHEN TO SHOW PRODUCT):
-1. STAGE 1: EARLY / DISCOVERY -> ASK QUESTIONS (DO NOT DUMP PRODUCTS YET)
+1. STAGE 1: EARLY / DISCOVERY -> ASK QUESTIONS (DO NOT DUMP GENERIC WEBSITE LINK ALONE)
    - Goal: Map their exact need, gender, style preference, and occasion before pitching.
-   - When customer says something broad or vague (e.g. "Chain", "Earrings", "Designs dikhao", "Kuch accha dikhao"):
-     * DO NOT dump product links or catalog items.
-     * Ask 1 warm, specific discovery question: "Zaroor! Roz pehne ke liye simple lightweight chain dekh rahe hain ya heavy/pendant look? Aur men ke liye ya women ke liye?"
+   - When customer says something broad (e.g. "Gala ke har", "Gale ke liye chahiye", "Chain", "Earrings", "Designs dikhao"):
+     * Connect with warm empathy and ask 1 clear discovery question!
+     * Example: "Zaroor ji! 😊 Gala ke liye bohot hi sundar designs hain. Aap men ke liye dekh rahe hain ya women ke liye? Aur daily wear lightweight necklace chahiye ya wedding/party wear heavy look?"
+     * NEVER just say "Visit https://jwlbillion.com" without asking what they want.
 
-2. STAGE 2: MID / SOLUTION MAPPING -> SHOW THE PRODUCT (SELECTIVELY)
-   - Goal: Show only the 1 or 2 designs tied directly to the exact style/gender they just named.
-   - When the customer has answered what they want (e.g. "Women daily wear plain long chain" or "Wedding gift for sister"):
-     * Now selectively showcase 1 or at most 2 top matching products with short, conversational descriptions and direct website links.
-     * Share a relatable personal story or validation (e.g. "Maine bhi recently wedding mein yeh gift kiya tha...").
+2. STAGE 2: MID / SOLUTION MAPPING -> SHOW THE PRODUCT (SELECTIVELY WITH LINK & PHOTO)
+   - Goal: Show only the 1 or 2 designs tied directly to the exact style/gender they named.
+   - When the customer has specified what they want (e.g. "Women gold necklace" or "Gold Gala ka set"):
+     * Showcase 1 or at most 2 top matching products with short conversational descriptions, price, and direct product links.
+     * Highlight key emotional benefits (real gold look, lightweight, royal sparkle).
 
 3. STAGE 3: DURING / AFTER SHOWING -> ASK QUESTIONS (CHECK FIT & VALUE)
    - Goal: Check fit and uncover objections instead of dumping more specs.
-   - Right after showing a product link, close with 1 gentle value-check question:
+   - Right after showing a product, close with 1 gentle value-check question:
      * "Aapko yeh pattern kaisa laga? Isme light gold finish pasand aayi ya thoda bold style dekhna chahenge?"
-     * Never overwhelm with 5 follow-up questions; just 1 gentle check.
 
-4. STAGE 4: LATE / QUALIFICATION & NEXT STEPS -> OVERCOME HESITATION & GUIDE TO WEBSITE
+4. STAGE 4: LATE / QUALIFICATION & NEXT STEPS -> OVERCOME HESITATION & GUIDE TO CHECKOUT
    - Goal: Clarify COD, delivery time, tarnish fears, and guide to website checkout.
-   - When customer asks about price, delivery, safety, or says "Ji/Accha":
-     * Reassure with 100% clarity: Cash on Delivery available, 7-day easy replacement.
-     * Direct them to checkout: "Website par Cash on Delivery available hai, aap yahan se aaram se parcel book kar sakte hain: [Link]"
+   - Reassure with 100% clarity: Cash on Delivery available, 7-day easy replacement.
 
 CORE CONVERSATIONAL SELLING PRINCIPLES (HIGH CONVERSION):
 0. PERSONAL RELATABILITY & STORYTELLING (THE ULTIMATE CONVERSION DRIVER):
@@ -256,7 +254,7 @@ JEWELRY_CATEGORY_CANONICAL = {
     "anklet": [r"\b(?:anklets?|payals?|pajeb|panjeb|pair\s*ke)\b", r"पायल|पाजेब|एंक्लेट"],
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"(?<![a-zA-Z\u0900-\u097F])(?:अंगूठी|रिंग)(?![a-zA-Z\u0900-\u097F])"],
     "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચેન|चैन|चेन"],
-    "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent|gale\s*ka|gale\s*ki|gale\s*ke)\b", r"હાર|हार|नेकलेस|पेंडेंट|गले\s*का|गले\s*की"],
+    "necklace": [r"\b(?:necklaces?|necjlace?|haars?|har|harr|choker|mangalsutra|pendant|pendants?|pendent|gal[ae]\s*k[aie]|gala|gale)\b", r"હાર|हार|नेकलेस|पेंडेंट|गले\s*का|गले\s*की|गले\s*के|गला\s*के"],
     "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[aie]|jhumkas?|jhumkis?|jhumkhes?|balis?|studs?|ear?nings?|errings?|earings?|kan\s*ke|kaan\s*ke|kaan\s*ki|kan\s*ki)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके|कान\s*के|कान\s*की"],
     "set": [r"\b(?:sets?|combo|combos?|jewellery\s*sets?|necklace\s*sets?|complete\s*set)\b", r"સેટ|सेट"]
 }
@@ -1151,12 +1149,12 @@ def generate_qwen_reply(
         answer = re.sub(r'https?://(?:www\.)?jwlbillion\.com[^\s\)\],]+', sanitize_any_store_link, answer)
 
         # If LLM generated a product link or pitched a product without verified top_matches,
-        # replace with a safe clarification asking the customer what they want, rather than hallucinating!
+        # replace with a warm discovery question to build connection and qualify their requirement
         if not top_matches and (re.search(r'https?://jwlbillion\.com/products/[^\s\)\],]+', answer) or re.search(r'https?://jwlbillion\.com/collections/[^\s\)\],]+', answer)):
             logger.warning("[AI Service] Blocked hallucinated product recommendation with no live match.")
             answer = (
-                "Hamare paas wedding aur party wear ke liye bohot hi sundar gale ke necklaces aur pendant sets uplabdh hain! ✨\n\n"
-                "Aap ladies ke liye dekh rahi hain ya men ke liye? Aap hamari official website https://jwlbillion.com par saare trending designs aur videos bhi aaram se dekh sakti hain."
+                "Hamare paas wedding, party aur daily wear ke liye bohot hi sundar gale ke necklaces aur chains uplabdh hain! ✨\n\n"
+                "Aap ladies ke liye dekh rahe hain ya gents ke liye? Aur simple lightweight look chahiye ya thoda heavy set?"
             )
 
         # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start

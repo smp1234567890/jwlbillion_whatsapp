@@ -791,7 +791,7 @@ def handle_inbound_auto_reply(
         r"\b(?:bracelets?|bracelete?|breslets?|breslete?|braclets?|wristlets?)\b",
         r"\b(?:chains?|chane)\b",
         r"\b(?:kadas?|kade|kara)\b",
-        r"\b(?:necklaces?|haars?|choker|mangalsutra)\b",
+        r"\b(?:necklaces?|haars?|har|harr|choker|mangalsutra|gal[ae]\s*k[aie]|gala|gale)\b",
         r"\b(?:earrings?|jhumk[ai]|balis?)\b",
         r"\b(?:anklets?|payal)\b",
         r"\b(?:pyrite|crystal)\b"
