@@ -88,6 +88,17 @@ MANDATORY DIRECTIVE - ALWAYS DIRECT CUSTOMERS TO VISIT THE WEBSITE (jwlbillion.c
   * "Baki ke saare collection dekhne ke liye abhi visit kijiye: https://jwlbillion.com"
 
 CORE CONVERSATIONAL SELLING PRINCIPLES (HIGH CONVERSION):
+0. PERSONAL RELATABILITY & STORYTELLING (THE ULTIMATE CONVERSION DRIVER):
+   - Always relate to the customer personally before or while presenting designs. Share a short, warm, relatable personal experience!
+   - WEDDING / GIFTING:
+     * If they ask for wedding/shadi gifts: Relate personally! Say: "Arey bohot badhiya! Maine bhi abhi recently apne cousin/bhai/behen ki wedding mein yeh set gift kiya tha, sabko iska royal sparkle aur finishing bohot pasand aaya tha!"
+     * If buying for wife/husband/fiancé/partner: Relate warmly! (e.g. "Gift ke liye yeh bohot hi pyaara aur thoughtful choice hai, unhe 100% pasand aayega!").
+     * If buying for mother/sister: Relate with family warmth! (e.g. "Maine apni mummy/sister ko bhi yeh design diya tha, daily wear ke saath traditional outfits dono pe bohot graceful lagta hai.").
+   - DAILY WEAR / OFFICE WEAR:
+     * Relate with practical comfort: "Main khud daily use ke liye lightweight chains prefer karti hoon, yeh bilkul comfortable rehti hai aur shine safe rehti hai."
+   - CELEBRATION / OCCASION:
+     * Always congratulate or celebrate their occasion genuinely first!
+
 1. SOUND HUMAN & TALK LIKE A REAL JEWELLERY STORE CONSULTANT (NOT A SEARCH ENGINE):
    - Never sound like a robotic catalog index or automated bot.
    - Do NOT dump a list of 3-4 raw catalog titles with long links if the customer just said a single word like "chain", "ring", or "earrings".
@@ -180,7 +191,7 @@ JEWELRY_CATEGORY_CANONICAL = {
 }
 
 
-DUAL_GENDER_CATEGORIES = {"chain", "bracelet", "kada", "ring", "necklace", "pendant"}
+DUAL_GENDER_CATEGORIES = {"chain", "bracelet", "kada", "ring"}
 
 
 def get_relevant_product_context(customer_query: str, chat_history: str = "") -> tuple[str, list[dict]]:
@@ -1043,9 +1054,12 @@ def generate_qwen_reply(
 
         # If LLM generated a product link or pitched a product without verified top_matches,
         # replace with a safe clarification asking the customer what they want, rather than hallucinating!
-        if not top_matches and re.search(r'https?://jwlbillion\.com/products/[^\s\)\],]+', answer):
+        if not top_matches and (re.search(r'https?://jwlbillion\.com/products/[^\s\)\],]+', answer) or re.search(r'https?://jwlbillion\.com/collections/[^\s\)\],]+', answer)):
             logger.warning("[AI Service] Blocked hallucinated product recommendation with no live match.")
-            answer = "Ji, hamare paas bohot pyaare designs uplabdh hain! 😊 Aapko kis type ki jewelry dekhni hai — jaise Bracelets/Kadas, Rings, Chains ya Earrings?"
+            answer = (
+                "Hamare paas wedding aur party wear ke liye bohot hi sundar gale ke necklaces aur pendant sets uplabdh hain! ✨\n\n"
+                "Aap ladies ke liye dekh rahi hain ya men ke liye? Aap hamari official website https://jwlbillion.com par saare trending designs aur videos bhi aaram se dekh sakti hain."
+            )
 
         # Prevent weird halucinated repetitive names or phrases like "Keya, " at the start
         answer = re.sub(r'^(?:Keya|Kya),?\s*', '', answer, flags=re.I).strip()
