@@ -1291,7 +1291,6 @@ def handle_inbound_auto_reply(
                 tracked_prod_url = build_tracked_url(raw_prod_url, sender_phone, source="ai_chat")
                 cap = (
                     f"*{prod.get('title')}*\n"
-                    f"Price: ₹{float(prod.get('price') or 0):,.0f}\n"
                     f"Link: {tracked_prod_url}"
                 )
                 media_res = send_whatsapp_media(sender_phone, "image", media_url=prod_img, caption=cap, db=db)
