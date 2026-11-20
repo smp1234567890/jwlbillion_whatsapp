@@ -75,7 +75,7 @@ HINDI_PATTERNS = [
     r"\b(?:kya|keya|kia|h|hai|hain|he|ho|batao|bhejo|dikhao|dekhao|chahiye|chiya|chahie|muje|mujhe|hum|hume|apka|aapka|kripya|kitna|kitne|kaise|kaha|kab|nahi|bhai|bhaiya|didi|kaisa|kaisi|ye|yeh|wo|woh|wale|wali|wala|mil|milega|milegi|shukriya|dhanyawad|dekhna|soch|ke|batati|batata|achha|acha|sahi|bilkul|aur|kuch|kisko|kiske|apne|liye)\b"
 ]
 
-SALES_SYSTEM_PROMPT = """You are Riya, a warm, respectful and highly knowledgeable personal jewelry stylist for JWL Billion (jwlbillion.com).
+SALES_SYSTEM_PROMPT = """You are a warm, respectful and highly knowledgeable female personal jewelry stylist for JWL Billion (jwlbillion.com).
 JWL Billion crafts premium jewelry for BOTH Men and Women (Men's Kadas/Bracelets, Chains, Rings, and Women's Necklaces, Earrings, Bangles) with premium gold-plated, silver-finish, American Diamond / CZ jewelry (₹300–₹2,000).
 CRITICAL: We DO have a complete Men's Jewelry collection! NEVER say we only have ladies jewelry or that we don't have men's jewelry.
 
@@ -108,7 +108,8 @@ CORE PSYCHOLOGICAL & CONVERSATIONAL SELLING PRINCIPLES:
    - Prioritize our premium mid-range bestseller designs (₹500–₹1,200) first. Do not push cheap, low-end items (< ₹400) first unless customer specifically asks for low budget/cheap.
 
 6. PERSONA & LANGUAGE MIRRORING:
-   - Your name is Riya from JWL Billion. Always speak with feminine polite grammar ("karti hoon", "bataungi").
+   - You represent JWL Billion. You are a woman, so ALWAYS speak as a woman using feminine polite grammar ("karti hoon", "bataungi", "samajh sakti hoon").
+   - DO NOT USE ANY PERSONAL NAME. Do NOT say "My name is Riya/Maya" or introduce yourself with a name.
    - ALWAYS MIRROR THE CUSTOMER'S LANGUAGE:
      * Gujarati -> Warm Gujarati ("Kem cho, tame aaje shu jova mango cho?")
      * Hindi / Devanagari -> Natural Hindi
@@ -150,7 +151,7 @@ def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int
         msgs.reverse()
         history_lines = ["Recent Conversation History:"]
         for m in msgs:
-            sender = "Customer" if m.sender_type == "CUSTOMER" else "Riya (JWL Stylist)"
+            sender = "Customer" if m.sender_type == "CUSTOMER" else "JWL Stylist"
             body = (m.text or "").strip()
             # If customer or message tagged/quoted another message, surface it in the history
             if m.quoted_message and isinstance(m.quoted_message, dict) and m.quoted_message.get("text"):
@@ -639,11 +640,10 @@ def generate_qwen_reply(
         return {"status": "success", "reply": clarify_short, "model": "playbook"}
 
     # 0a. Instant Fast-Path for Meta Ads Default Inbound ("Hello! Can I get more info on this?")
-    # Default greeting directly introduces Riya, welcomes the user, and asks how to help without invoking AI
+    # Default greeting directly welcomes the user and asks how to help without invoking AI
     if re.search(r"^(?:hello!?\s*)?can\s*i\s*get\s*more\s*info\s*(?:on\s*this)?\??$", q_clean):
         welcome_hinglish = (
             "Namaste! Welcome to JWL Billion ✨\n\n"
-            "Main Riya hoon, aapki personal jewelry stylist. "
             "Main aapki kya madad kar sakti hoon? Aap koi specific jewellery dekh rahe hain ya latest collection explore karna chahenge?"
         )
         return {"status": "success", "reply": welcome_hinglish, "model": "default-greeting"}
@@ -817,8 +817,8 @@ def generate_qwen_reply(
     prompt_parts.append(
         f"New Customer Message: {customer_query}\n"
         f"Target Language: {lang_pref}\n"
-        f"CRITICAL INSTRUCTION: Reply in the customer's own language ({lang_pref}). Always speak as female stylist Riya. Be polite, concise (2 short sentences), and help with product links/prices.\n"
-        f"Riya (Female JWL Stylist response):"
+        f"CRITICAL INSTRUCTION: Reply in the customer's own language ({lang_pref}). Always speak as a woman with polite feminine grammar (e.g. 'karti hoon', 'bataungi'). DO NOT USE ANY PERSONAL NAME. Be polite, concise (2 short sentences), and help with product links/prices.\n"
+        f"Female Stylist response:"
     )
 
     full_prompt = "\n\n".join(prompt_parts)
