@@ -112,36 +112,47 @@ def track_and_redirect(
             if valid_handles and slug not in valid_handles:
                 # 404 product slug fallback to matching collection
                 if "earring" in slug:
-                    return "https://jwlbillion.com/collections/earrings"
+                    return "https://jwlbillion.com/collections/womens-earrings"
                 elif "bangle" in slug:
                     return "https://jwlbillion.com/collections/bangle"
                 elif "bracelet" in slug or "kada" in slug:
-                    return "https://jwlbillion.com/collections/bracelet"
+                    return "https://jwlbillion.com/collections/bangle"
                 elif "chain" in slug:
                     return "https://jwlbillion.com/collections/chains"
                 elif "ring" in slug:
-                    return "https://jwlbillion.com/collections/rings"
-                elif "necklace" in slug or "pendant" in slug:
-                    return "https://jwlbillion.com/collections/necklace"
+                    return "https://jwlbillion.com/collections/womens-ring"
+                elif "necklace" in slug or "pendant" in slug or "gale" in slug:
+                    return "https://jwlbillion.com/collections/jewelry-set"
                 return "https://jwlbillion.com/collections/all"
             return u_clean
 
         if "/collections/" in u_clean:
+            c_m = re.search(r'/collections/([a-zA-Z0-9_-]+)', u_clean)
+            if c_m:
+                cslug = c_m.group(1).lower()
+                if cslug in ["necklace", "necklaces", "pendant", "pendants"]:
+                    return "https://jwlbillion.com/collections/jewelry-set"
+                elif cslug in ["earring", "earrings"]:
+                    return "https://jwlbillion.com/collections/womens-earrings"
+                elif cslug in ["bracelet", "bracelets", "kada", "kadas"]:
+                    return "https://jwlbillion.com/collections/bangle"
+                elif cslug in ["ring", "rings"]:
+                    return "https://jwlbillion.com/collections/womens-ring"
             return u_clean
 
         # Malformed route like /ladies-earrings/
         if "earring" in u_lower:
-            return "https://jwlbillion.com/collections/earrings"
+            return "https://jwlbillion.com/collections/womens-earrings"
         elif "bangle" in u_lower:
             return "https://jwlbillion.com/collections/bangle"
         elif "bracelet" in u_lower or "kada" in u_lower:
-            return "https://jwlbillion.com/collections/bracelet"
+            return "https://jwlbillion.com/collections/bangle"
         elif "chain" in u_lower:
             return "https://jwlbillion.com/collections/chains"
         elif "ring" in u_lower:
-            return "https://jwlbillion.com/collections/rings"
-        elif "necklace" in u_lower or "pendant" in u_lower:
-            return "https://jwlbillion.com/collections/necklace"
+            return "https://jwlbillion.com/collections/womens-ring"
+        elif "necklace" in u_lower or "pendant" in u_lower or "gale" in u_lower:
+            return "https://jwlbillion.com/collections/jewelry-set"
         return "https://jwlbillion.com"
 
     # Check if this tracking code was pre-registered or if it follows structured convention

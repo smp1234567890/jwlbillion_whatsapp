@@ -174,7 +174,7 @@ JEWELRY_CATEGORY_CANONICAL = {
     "anklet": [r"\b(?:anklets?|payals?|pajeb|panjeb|pair\s*ke)\b", r"पायल|पाजेब|एंक्लेट"],
     "ring": [r"\b(?:rings?|ringss?|anguthi|anguthiyan|anguti|chhalla)\b", r"(?<![a-zA-Z\u0900-\u097F])(?:अंगूठी|रिंग)(?![a-zA-Z\u0900-\u097F])"],
     "chain": [r"\b(?:chains?|chane|chaines?|chen|chene|cene|chainke|chenke|chainka)\b", r"ચૈન|ચેન|चैन|चेन"],
-    "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent)\b", r"હાર|हार|नेकलेस|पेंडेंट"],
+    "necklace": [r"\b(?:necklaces?|necjlace?|haar|haars?|choker|mangalsutra|pendant|pendants?|pendent|gale\s*ka|gale\s*ki|gale\s*ke)\b", r"હાર|हार|नेकलेस|पेंडेंट|गले\s*का|गले\s*की"],
     "earring": [r"\b(?:earrings?|ear\s*rings?|jhumk[ai]|jhumkhe|balis?|studs?|ear?nings?|errings?|earings?)\b", r"ઇયરરિંગ|झुमका|बाली|इयररिंग|इयरिंग्स|झुमके"],
     "set": [r"\b(?:sets?|combo|combos?|jewellery\s*sets?|necklace\s*sets?|complete\s*set)\b", r"સેટ|सेट"]
 }
@@ -1009,8 +1009,14 @@ def generate_qwen_reply(
             coll_match = re.search(r'/collections/([a-zA-Z0-9_-]+)', u)
             if coll_match:
                 cslug = coll_match.group(1).lower()
-                if cslug in ["bangle", "bracelet", "earrings", "chains", "necklace", "rings", "anklet", "all", "mens-collection"]:
+                if cslug in ["bangle", "chains", "jewelry-set", "womens-jewelers-set", "womens-earrings", "anklet", "all", "mens-collection"]:
                     return f"https://jwlbillion.com/collections/{cslug}"
+                elif cslug in ["necklace", "necklaces", "pendant", "pendants"]:
+                    return "https://jwlbillion.com/collections/jewelry-set"
+                elif cslug in ["earring", "earrings"]:
+                    return "https://jwlbillion.com/collections/womens-earrings"
+                elif cslug in ["bracelet", "bracelets", "kada", "kadas"]:
+                    return "https://jwlbillion.com/collections/bangle"
                 return "https://jwlbillion.com/collections/all"
 
             # Fallback for weird URLs like /ladies-earrings/... or hallucinated routes
@@ -1018,17 +1024,17 @@ def generate_qwen_reply(
                 # Check if it was trying to point to an earring, bangle, chain, ring, etc.
                 u_lower = u.lower()
                 if "earring" in u_lower:
-                    return "https://jwlbillion.com/collections/earrings"
+                    return "https://jwlbillion.com/collections/womens-earrings"
                 elif "bangle" in u_lower:
                     return "https://jwlbillion.com/collections/bangle"
                 elif "bracelet" in u_lower or "kada" in u_lower:
-                    return "https://jwlbillion.com/collections/bracelet"
+                    return "https://jwlbillion.com/collections/bangle"
                 elif "chain" in u_lower:
                     return "https://jwlbillion.com/collections/chains"
                 elif "ring" in u_lower:
-                    return "https://jwlbillion.com/collections/rings"
-                elif "necklace" in u_lower or "pendant" in u_lower:
-                    return "https://jwlbillion.com/collections/necklace"
+                    return "https://jwlbillion.com/collections/womens-ring"
+                elif "necklace" in u_lower or "pendant" in u_lower or "gale" in u_lower:
+                    return "https://jwlbillion.com/collections/jewelry-set"
                 return primary_verified_url
             return u
 
