@@ -14,7 +14,9 @@ export default function ChatInputBox({
   isNearBottomRef,
   selectedFileType,
   replyInputRef,
-  initialText = ""
+  initialText = "",
+  replyingToMessage = null,
+  onClearReplyingTo = null
 }) {
   const textRef = useRef(initialText || "");
   const [hasText, setHasText] = useState(Boolean(initialText && initialText.trim()));
@@ -41,7 +43,10 @@ export default function ChatInputBox({
       const trimmed = currentVal ? currentVal.trim() : "";
       if (!trimmed || chatSending) return;
       if (handleSendChatMessage) {
-        handleSendChatMessage(e, trimmed);
+        handleSendChatMessage(e, trimmed, replyingToMessage);
+      }
+      if (onClearReplyingTo) {
+        onClearReplyingTo();
       }
       textRef.current = "";
       if (replyInputRef?.current) {

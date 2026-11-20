@@ -1588,7 +1588,7 @@ export default function App() {
     fetchChatMessages(phone, false);
   };
 
-  const handleSendChatMessage = async (e, textToSend) => {
+  const handleSendChatMessage = async (e, textToSend, replyingToMessage = null) => {
     e?.preventDefault();
     const rawText = typeof textToSend === "string" ? textToSend : chatReplyText;
     if (!rawText.trim() || !selectedChatPhone || chatSending) return;
@@ -1605,18 +1605,30 @@ export default function App() {
       text: messageText,
       status: "SENDING",
       is_read: true,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      quoted_message: replyingToMessage ? {
+        id: replyingToMessage.id,
+        meta_message_id: replyingToMessage.meta_message_id,
+        text: replyingToMessage.text,
+        media_url: replyingToMessage.media_url,
+        sender_type: replyingToMessage.sender_type,
+        message_type: replyingToMessage.message_type
+      } : null
     };
     setChatMessages((prev) => [...prev, optimisticMsg]);
     setChatReplyText("");
 
     try {
+      const payload = {
+        customer_phone: selectedChatPhone,
+        text: messageText
+      };
+      if (replyingToMessage?.id && typeof replyingToMessage.id === "number") {
+        payload.reply_to_message_id = replyingToMessage.id;
+      }
       const res = await axios.post(
         "/api/chat/send",
-        {
-          customer_phone: selectedChatPhone,
-          text: messageText
-        },
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       // Replace optimistic message with actual backend response

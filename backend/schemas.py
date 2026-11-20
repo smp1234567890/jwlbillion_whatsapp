@@ -429,6 +429,7 @@ class ChatSendMessageRequest(BaseModel):
     customer_phone: str = Field(..., description="Customer WhatsApp phone number e.g. +919876543210")
     text: str = Field(..., min_length=1, description="Message text content to send to customer")
     channel: Optional[str] = Field("general", description="Message channel: 'general' or 'support'")
+    reply_to_message_id: Optional[int] = Field(None, description="Optional DB id of the message being replied/tagged to")
 
     @field_validator("customer_phone")
     @classmethod

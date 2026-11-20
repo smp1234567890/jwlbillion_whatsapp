@@ -38,6 +38,7 @@ import {
   Ban,
   MoreVertical,
   MapPin,
+  Reply,
   Package
 } from "lucide-react";
 import { formatToISTTime, formatToISTDateTime, formatChatDateDivider, getMessageISTDateKey } from "../utils/dateUtils";
@@ -168,6 +169,7 @@ export default function LiveChatPage({
   const [callDuration, setCallDuration] = useState(0);
   const [activeCallId, setActiveCallId] = useState(null);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+  const [replyingToMessage, setReplyingToMessage] = useState(null);
   const peerConnectionRef = useRef(null);
   const localAudioStreamRef = useRef(null);
   const remoteAudioRef = useRef(null);
@@ -1059,29 +1061,46 @@ export default function LiveChatPage({
                                 : "bg-white text-gray-900 rounded-tl-xs border border-gray-200/80"
                               }`}
                           >
-                            {/* Quick Reaction Toolbar (visible on hover or tap) */}
-                            {handleReactToMessage && typeof msg.id === "number" && (
+                            {/* Quick Reaction Toolbar & Reply / Tag Button (visible on hover or tap) */}
+                            {typeof msg.id === "number" && (
                               <div
                                 className={`absolute -top-3.5 ${isAgent ? "left-2" : "right-2"
                                   } opacity-0 group-hover/msg:opacity-100 transition-all duration-150 flex items-center gap-1 bg-white border border-gray-200 shadow-md rounded-full px-2 py-0.5 z-10`}
                               >
+                                {handleReactToMessage && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      title="Thumbs Up"
+                                      onClick={() => handleReactToMessage(msg.id, "👍")}
+                                      className={`p-1 rounded-full hover:bg-emerald-50 transition transform hover:scale-125 ${msg.reaction === "👍" ? "text-emerald-600 bg-emerald-100" : "text-gray-500 hover:text-emerald-600"
+                                        }`}
+                                    >
+                                      <ThumbsUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      title="Thumbs Down"
+                                      onClick={() => handleReactToMessage(msg.id, "👎")}
+                                      className={`p-1 rounded-full hover:bg-rose-50 transition transform hover:scale-125 ${msg.reaction === "👎" ? "text-rose-600 bg-rose-100" : "text-gray-500 hover:text-rose-600"
+                                        }`}
+                                    >
+                                      <ThumbsDown className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
                                 <button
                                   type="button"
-                                  title="Thumbs Up"
-                                  onClick={() => handleReactToMessage(msg.id, "👍")}
-                                  className={`p-1 rounded-full hover:bg-emerald-50 transition transform hover:scale-125 ${msg.reaction === "👍" ? "text-emerald-600 bg-emerald-100" : "text-gray-500 hover:text-emerald-600"
-                                    }`}
+                                  title="Reply / Tag this message"
+                                  onClick={() => {
+                                    setReplyingToMessage(msg);
+                                    if (replyInputRef?.current) {
+                                      replyInputRef.current.focus();
+                                    }
+                                  }}
+                                  className="p-1 rounded-full text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 transition transform hover:scale-125"
                                 >
-                                  <ThumbsUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  title="Thumbs Down"
-                                  onClick={() => handleReactToMessage(msg.id, "👎")}
-                                  className={`p-1 rounded-full hover:bg-rose-50 transition transform hover:scale-125 ${msg.reaction === "👎" ? "text-rose-600 bg-rose-100" : "text-gray-500 hover:text-rose-600"
-                                    }`}
-                                >
-                                  <ThumbsDown className="w-3.5 h-3.5" />
+                                  <Reply className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             )}
@@ -1557,6 +1576,42 @@ export default function LiveChatPage({
                 </div>
               )}
 
+              {/* Replying / Tagged Message Preview Bar */}
+              {replyingToMessage && (
+                <div className="mb-2 p-2 rounded-xl bg-emerald-50 border-l-4 border-emerald-500 border border-emerald-200 text-xs flex items-center justify-between gap-2 shadow-xs animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {replyingToMessage.media_url && (
+                      <img
+                        src={
+                          replyingToMessage.media_url.startsWith("http")
+                            ? replyingToMessage.media_url
+                            : `${getApiBaseUrl().replace(/\/$/, "")}${replyingToMessage.media_url.startsWith("/") ? "" : "/"}${replyingToMessage.media_url}`
+                        }
+                        alt="Replying media preview"
+                        className="w-9 h-9 object-cover rounded shrink-0 border border-emerald-200"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+                        <Reply className="w-3 h-3 text-emerald-600" />
+                        <span>Replying to {replyingToMessage.sender_type === "AGENT" ? "Store / Stylist" : "Customer"}</span>
+                      </p>
+                      <p className="text-[11px] text-gray-700 truncate line-clamp-1">
+                        {replyingToMessage.text || (replyingToMessage.media_url ? "[Photo / Product]" : "Tagged Message")}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReplyingToMessage(null)}
+                    className="p-1 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition shrink-0"
+                    title="Cancel reply"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               {/* Form Bar */}
               <div className="flex items-end gap-2 min-w-0 w-full">
                 {/* Paperclip Button */}
@@ -1616,6 +1671,8 @@ export default function LiveChatPage({
                     selectedFileType={selectedFileType}
                     replyInputRef={replyInputRef}
                     initialText={localInputText}
+                    replyingToMessage={replyingToMessage}
+                    onClearReplyingTo={() => setReplyingToMessage(null)}
                   />
                 )}
               </div>

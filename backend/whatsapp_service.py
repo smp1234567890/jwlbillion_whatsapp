@@ -917,7 +917,8 @@ def send_whatsapp_free_text(
     db: Optional[Session] = None,
     bypass_policy: bool = False,
     phone_number_id: Optional[str] = None,
-    api_token: Optional[str] = None
+    api_token: Optional[str] = None,
+    reply_to_meta_message_id: Optional[str] = None
 ) -> dict:
     """
     Sends a free-form customer service text message (used within Meta's 24-hour service window).
@@ -981,6 +982,8 @@ def send_whatsapp_free_text(
                 "body": message_text
             }
         }
+        if reply_to_meta_message_id:
+            payload["context"] = {"message_id": reply_to_meta_message_id}
 
         url = f"{config.META_GRAPH_BASE_URL}/{config.META_GRAPH_VERSION}/{active_phone_id}/messages"
         with httpx.Client(timeout=config.HTTP_TIMEOUT_SECONDS) as client:

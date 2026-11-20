@@ -544,6 +544,22 @@ def send_agent_reply(
                 detail=f"Daily outbound message limit reached ({count_today}/{effective_limit}). Outbound message blocked."
             )
 
+        # Check if replying to / tagging a specific message
+        reply_to_meta_id = None
+        quoted_payload = None
+        if payload.reply_to_message_id:
+            parent_msg = db.query(models.ChatMessage).filter(models.ChatMessage.id == payload.reply_to_message_id).first()
+            if parent_msg:
+                reply_to_meta_id = parent_msg.meta_message_id
+                quoted_payload = {
+                    "id": parent_msg.id,
+                    "meta_message_id": parent_msg.meta_message_id,
+                    "text": (parent_msg.text or "")[:200],
+                    "media_url": parent_msg.media_url,
+                    "sender_type": parent_msg.sender_type,
+                    "message_type": parent_msg.message_type
+                }
+
         # Dispatch via whatsapp_service using the dedicated credentials if support
         res = send_whatsapp_free_text(
             clean_phone,
@@ -551,7 +567,8 @@ def send_agent_reply(
             sender_user=current_user.username,
             db=db,
             phone_number_id=active_phone_id,
-            api_token=active_token
+            api_token=active_token,
+            reply_to_meta_message_id=reply_to_meta_id
         )
         msg_id = res.get("message_id")
         status_str = "SENT" if res.get("status") in ["success", "success_simulated"] else "FAILED"
@@ -565,7 +582,8 @@ def send_agent_reply(
         channel="support" if is_support_chat else "general",
         status=status_str,
         is_read=True,
-        assigned_user_id=current_user.id
+        assigned_user_id=current_user.id,
+        quoted_message=quoted_payload
     )
     db.add(chat_entry)
 
