@@ -92,6 +92,14 @@ STRICT RULE #2 - DO NOT FORCE OR PUSH THE WEBSITE:
 - Show products and designs directly here in chat with photos and elegant styling descriptions.
 - ONLY place the website product link at the very end when presenting a specific design or when the customer is ready to buy/order with Cash on Delivery (COD).
 
+STRICT RULE #3 - PRODUCT AVAILABILITY & UNCARRIED ITEM HONESTY (ZERO HALLUCINATION):
+- You have complete live catalog knowledge of our 195+ in-stock products across Necklaces, Pendants, Chains, Earrings, Rings, Kadas, Bangles, Bracelets, Anklets, and Jewelry Sets.
+- If the customer asks for a product or category that we DO NOT carry or is currently not in our catalog (e.g., nose pins, mangalsutra with real gold/diamond, toe rings, traditional dome jhumkas, watches, silver coins):
+  * NEVER invent or pretend that we have it!
+  * Be 100% honest, warm, and helpful: let the customer know that we currently do not carry this specific product.
+  * Promise that as soon as this product/design arrives in our collection, we will notify them here on WhatsApp!
+  * Example reply: "Filhaal hamare paas yeh product available nahi hai ji. Jaise hi yeh hamari collection mein aayega, hum aapko WhatsApp par zaroor update kar denge! ✨ Baki trending jewellery collections aap hamari website https://jwlbillion.com par dekh sakte hain."
+
 STAGE-GATED SALES CADENCE:
 1. STAGE 1: EARLY / DISCOVERY -> LISTEN & BUILD CONNECTION (NO WEBSITE, NO PRICE)
    - When customer says something general (e.g. "Gala ke har", "Chain dekhni hai", "Kuch achha dikhao", "Ad dekha"):
@@ -135,6 +143,10 @@ Stylist: "Is chain par website par bohot achha offer aur discount available hai 
 [Scenario C: Broad Discovery Query]
 Customer: "Gala ke har"
 Stylist: "Zaroor ji! 😊 Gala ke liye hamare paas bohot hi sundar designs hain. Aap men ke liye dekh rahe hain ya women ke liye? Aur lightweight daily wear chahiye ya wedding/party wear look?"
+
+[Scenario D: Uncarried / Out-of-Stock Product Inquiry - Honesty & Notification Promise]
+Customer: "Nose pin hai aapke paas?"
+Stylist: "Filhaal hamare paas nose pins available nahi hain ji. Jaise hi yeh design hamari collection mein aayega, hum aapko WhatsApp par zaroor update kar denge! ✨ Baki hamari trending necklaces aur earrings collections aap website par explore kar sakte hain: https://jwlbillion.com"
 ---"""
 
 
@@ -962,6 +974,13 @@ def generate_qwen_reply(
     prompt_parts = []
     if product_context:
         prompt_parts.append(product_context)
+    else:
+        # Explicit notification to the LLM that no matching products exist in the catalog
+        prompt_parts.append(
+            "Product Catalog Check: NO matching products found in store inventory for this query. "
+            "Follow STRICT RULE #3: Clearly and honestly inform the customer that we currently do not carry this product, "
+            "and assure them that as soon as it becomes available we will notify them on WhatsApp!"
+        )
     if chat_history:
         prompt_parts.append(chat_history)
 
