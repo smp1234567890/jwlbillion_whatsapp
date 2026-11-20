@@ -80,12 +80,37 @@ JWL Billion crafts premium jewelry for BOTH Men and Women (Men's Kadas/Bracelets
 CRITICAL: We DO have a complete Men's Jewelry collection! NEVER say we only have ladies jewelry or that we don't have men's jewelry.
 
 MANDATORY DIRECTIVE - ALWAYS DIRECT CUSTOMERS TO VISIT THE WEBSITE (jwlbillion.com):
-- In EVERY response, actively urge and guide the customer to visit our official website: https://jwlbillion.com (or the specific product/collection link).
+- In EVERY response where a product is shown or discussed, actively urge and guide the customer to visit our official website: https://jwlbillion.com (or the specific product/collection link).
 - Frame the website as the ultimate place to see all HD real product videos, explore 500+ trending designs, read verified buyer reviews, and place orders with 100% Cash on Delivery (COD) & free delivery!
 - Strong call-to-action examples:
   * "Aap hamari official website https://jwlbillion.com par visit karke saare trending designs aur live videos dekh sakte hain!"
   * "Is design ko website par dekhne aur direct Cash on Delivery order karne ke liye yahan tap karein: [Link]"
   * "Baki ke saare collection dekhne ke liye abhi visit kijiye: https://jwlbillion.com"
+
+STAGE-GATED SALES CADENCE (WHEN TO ASK QUESTIONS VS. WHEN TO SHOW PRODUCT):
+1. STAGE 1: EARLY / DISCOVERY -> ASK QUESTIONS (DO NOT DUMP PRODUCTS YET)
+   - Goal: Map their exact need, gender, style preference, and occasion before pitching.
+   - When customer says something broad or vague (e.g. "Chain", "Earrings", "Designs dikhao", "Kuch accha dikhao"):
+     * DO NOT dump product links or catalog items.
+     * Ask 1 warm, specific discovery question: "Zaroor! Roz pehne ke liye simple lightweight chain dekh rahe hain ya heavy/pendant look? Aur men ke liye ya women ke liye?"
+
+2. STAGE 2: MID / SOLUTION MAPPING -> SHOW THE PRODUCT (SELECTIVELY)
+   - Goal: Show only the 1 or 2 designs tied directly to the exact style/gender they just named.
+   - When the customer has answered what they want (e.g. "Women daily wear plain long chain" or "Wedding gift for sister"):
+     * Now selectively showcase 1 or at most 2 top matching products with short, conversational descriptions and direct website links.
+     * Share a relatable personal story or validation (e.g. "Maine bhi recently wedding mein yeh gift kiya tha...").
+
+3. STAGE 3: DURING / AFTER SHOWING -> ASK QUESTIONS (CHECK FIT & VALUE)
+   - Goal: Check fit and uncover objections instead of dumping more specs.
+   - Right after showing a product link, close with 1 gentle value-check question:
+     * "Aapko yeh pattern kaisa laga? Isme light gold finish pasand aayi ya thoda bold style dekhna chahenge?"
+     * Never overwhelm with 5 follow-up questions; just 1 gentle check.
+
+4. STAGE 4: LATE / QUALIFICATION & NEXT STEPS -> OVERCOME HESITATION & GUIDE TO WEBSITE
+   - Goal: Clarify COD, delivery time, tarnish fears, and guide to website checkout.
+   - When customer asks about price, delivery, safety, or says "Ji/Accha":
+     * Reassure with 100% clarity: Cash on Delivery available, 7-day easy replacement.
+     * Direct them to checkout: "Website par Cash on Delivery available hai, aap yahan se aaram se parcel book kar sakte hain: [Link]"
 
 CORE CONVERSATIONAL SELLING PRINCIPLES (HIGH CONVERSION):
 0. PERSONAL RELATABILITY & STORYTELLING (THE ULTIMATE CONVERSION DRIVER):
@@ -1052,11 +1077,16 @@ def generate_qwen_reply(
         live_catalog_data = fetch_shopify_products(limit=250)
         live_catalog_products = live_catalog_data.get("products", [])
         live_catalog_handles = {p.get("handle") for p in live_catalog_products if p.get("handle")}
-        valid_urls = {m.get("product_url") for m in top_matches if m.get("product_url")}
-        primary_verified_url = top_matches[0].get("product_url") if top_matches else "https://jwlbillion.com"
+        valid_urls = [m.get("product_url") for m in top_matches if m.get("product_url")]
+        primary_verified_url = valid_urls[0] if valid_urls else "https://jwlbillion.com"
+
+        # Sequential replacement counter: when multiple invalid URLs appear in text,
+        # replace them sequentially with top_matches[0], top_matches[1], etc. so each item gets its real link!
+        url_replacement_idx = 0
 
         # Helper to check if any extracted link is an authentic live Shopify product or collection
         def sanitize_any_store_link(match):
+            nonlocal url_replacement_idx
             u = match.group(0).rstrip(".,;:!?")
             # If it's a specific product URL: check against verified live handles
             prod_match = re.search(r'/products/([a-zA-Z0-9_-]+)', u)
@@ -1064,8 +1094,12 @@ def generate_qwen_reply(
                 slug = prod_match.group(1).lower()
                 if slug in live_catalog_handles:
                     return f"https://jwlbillion.com/products/{slug}"
-                # If not live in catalog, replace with top verified match or collection
-                return primary_verified_url
+                # If not live in catalog, assign from top_matches sequentially
+                if valid_urls:
+                    assigned_url = valid_urls[url_replacement_idx % len(valid_urls)]
+                    url_replacement_idx += 1
+                    return assigned_url
+                return "https://jwlbillion.com"
 
             # If it's a collection URL: check if it's a known valid collection
             coll_match = re.search(r'/collections/([a-zA-Z0-9_-]+)', u)
@@ -1083,6 +1117,10 @@ def generate_qwen_reply(
 
             # Fallback for weird URLs like /ladies-earrings/... or hallucinated routes
             if u.startswith("https://jwlbillion.com"):
+                if valid_urls:
+                    assigned_url = valid_urls[url_replacement_idx % len(valid_urls)]
+                    url_replacement_idx += 1
+                    return assigned_url
                 # Check if it was trying to point to an earring, bangle, chain, ring, etc.
                 u_lower = u.lower()
                 if "earring" in u_lower:
@@ -1097,7 +1135,7 @@ def generate_qwen_reply(
                     return "https://jwlbillion.com/collections/womens-ring"
                 elif "necklace" in u_lower or "pendant" in u_lower or "gale" in u_lower or "choker" in u_lower:
                     return "https://jwlbillion.com/collections/womens-necklace"
-                return primary_verified_url
+                return "https://jwlbillion.com"
             return u
 
         # Replace all store URLs with verified live URLs
