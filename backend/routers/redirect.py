@@ -121,8 +121,8 @@ def track_and_redirect(
                     return "https://jwlbillion.com/collections/chains"
                 elif "ring" in slug:
                     return "https://jwlbillion.com/collections/womens-ring"
-                elif "necklace" in slug or "pendant" in slug or "gale" in slug:
-                    return "https://jwlbillion.com/collections/jewelry-set"
+                elif "necklace" in slug or "pendant" in slug or "gale" in slug or "choker" in slug:
+                    return "https://jwlbillion.com/collections/womens-necklace"
                 return "https://jwlbillion.com/collections/all"
             return u_clean
 
@@ -130,8 +130,8 @@ def track_and_redirect(
             c_m = re.search(r'/collections/([a-zA-Z0-9_-]+)', u_clean)
             if c_m:
                 cslug = c_m.group(1).lower()
-                if cslug in ["necklace", "necklaces", "pendant", "pendants"]:
-                    return "https://jwlbillion.com/collections/jewelry-set"
+                if cslug in ["necklace", "necklaces", "pendant", "pendants", "choker"]:
+                    return "https://jwlbillion.com/collections/womens-necklace"
                 elif cslug in ["earring", "earrings"]:
                     return "https://jwlbillion.com/collections/womens-earrings"
                 elif cslug in ["bracelet", "bracelets", "kada", "kadas"]:
@@ -151,8 +151,8 @@ def track_and_redirect(
             return "https://jwlbillion.com/collections/chains"
         elif "ring" in u_lower:
             return "https://jwlbillion.com/collections/womens-ring"
-        elif "necklace" in u_lower or "pendant" in u_lower or "gale" in u_lower:
-            return "https://jwlbillion.com/collections/jewelry-set"
+        elif "necklace" in u_lower or "pendant" in u_lower or "gale" in u_lower or "choker" in u_lower:
+            return "https://jwlbillion.com/collections/womens-necklace"
         return "https://jwlbillion.com"
 
     # Check if this tracking code was pre-registered or if it follows structured convention

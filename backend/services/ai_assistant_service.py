@@ -130,7 +130,26 @@ CORE CONVERSATIONAL SELLING PRINCIPLES (HIGH CONVERSION):
      * Hinglish -> Fluent Roman Hinglish
      * Marathi, Bengali, Tamil, Telugu, English -> Mirror accordingly!
    - Use respectful pronouns ("Aap", "Tame").
-   - Keep messages concise, conversational (2 to 3 short natural sentences), always driving the customer to check the website (https://jwlbillion.com)."""
+   - Keep messages concise, conversational (2 to 3 short natural sentences), always driving the customer to check the website (https://jwlbillion.com).
+
+GOLDEN FEW-SHOT DIALOGUES (STUDY THESE REAL EXAMPLES):
+---
+[Scenario A: Broad Query - The Listening & Discovery Rule]
+Customer: "Chain"
+Stylist: "Zaroor! 😊 Aap daily wear ke liye lightweight simple chain dekh rahe hain ya koi special function/pendant look ke liye? Aur men ke liye chahiye ya women ke liye?"
+
+[Scenario B: Wedding / Gifting - The Personal Relatability & Storytelling Rule]
+Customer: "Wedding gift ke liye kuch accha dikhao"
+Stylist: "Arey bohot badhiya! Congratulations! ✨ Maine bhi abhi recently apne cousin ki wedding mein hamara gold-plated necklace set gift kiya tha, sabko iska royal look aur finishing bohot pasand aaya tha! Yeh design gift ke liye sabse bestseller hai: https://jwlbillion.com/products/necklace-set. Website par Cash on Delivery (COD) bhi available hai. Aapko yeh kaisa laga?"
+
+[Scenario C: Trust / Tarnish / Quality Objection - The 2-Sentence Pitch]
+Customer: "Kala toh nahi padega? Polish kitne din chalegi?"
+Stylist: "Bilkul genuine sawaal hai! Hamare pieces premium finish ke sath aate hain jinki shine paani aur perfume se bachane par saalo-saal bohot achhi rehti hai. Saath hi website par Cash on Delivery aur 7-day easy replacement policy hai, toh aap delivery ke time parcel dekh kar tasalli se pay kar sakte hain. 😊"
+
+[Scenario D: Price / Direct Website Closing]
+Customer: "Yah char peace kitne ka hai?"
+Stylist: "Yeh 4 piece set total ₹4,000 ka padega ji, aur abhi ispe 50% OFF chal raha hai! Iska complete video aur details aap direct website par dekh sakte hain: https://jwlbillion.com/products/bangle-set. Wahan se aap Cash on Delivery par aaram se order book kar sakte hain."
+---"""
 
 
 def is_forbidden_query(query: str) -> bool:
@@ -176,6 +195,33 @@ def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int
         return "\n".join(history_lines)
     except Exception as e:
         logger.warning(f"[AI Service] Error loading chat history: {e}")
+        return ""
+
+
+def get_top_learned_interactions(db: Optional[Session], limit: int = 3) -> str:
+    """Fetches high-quality human agent responses captured in AILearnedInteraction table for few-shot learning."""
+    if not db:
+        return ""
+    try:
+        interactions = (
+            db.query(models.AILearnedInteraction)
+            .filter(models.AILearnedInteraction.is_approved == True)
+            .order_by(models.AILearnedInteraction.id.desc())
+            .limit(limit)
+            .all()
+        )
+        if not interactions:
+            return ""
+        
+        lines = ["Examples of Successful Stylist Conversations:"]
+        for it in interactions:
+            if it.customer_query and it.agent_reply:
+                q_text = it.customer_query.replace("\n", " ")[:120]
+                a_text = it.agent_reply.replace("\n", " ")[:160]
+                lines.append(f"Customer: \"{q_text}\"\nStylist: \"{a_text}\"")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.debug(f"[AI Service] Could not fetch learned interactions: {e}")
         return ""
 
 
@@ -1020,10 +1066,10 @@ def generate_qwen_reply(
             coll_match = re.search(r'/collections/([a-zA-Z0-9_-]+)', u)
             if coll_match:
                 cslug = coll_match.group(1).lower()
-                if cslug in ["bangle", "chains", "jewelry-set", "womens-jewelers-set", "womens-earrings", "anklet", "all", "mens-collection"]:
+                if cslug in ["bangle", "chains", "womens-necklace", "jewelry-set", "womens-jewelers-set", "womens-earrings", "anklet", "all", "mens-collection", "womens-ring"]:
                     return f"https://jwlbillion.com/collections/{cslug}"
-                elif cslug in ["necklace", "necklaces", "pendant", "pendants"]:
-                    return "https://jwlbillion.com/collections/jewelry-set"
+                elif cslug in ["necklace", "necklaces", "pendant", "pendants", "choker"]:
+                    return "https://jwlbillion.com/collections/womens-necklace"
                 elif cslug in ["earring", "earrings"]:
                     return "https://jwlbillion.com/collections/womens-earrings"
                 elif cslug in ["bracelet", "bracelets", "kada", "kadas"]:
@@ -1044,8 +1090,8 @@ def generate_qwen_reply(
                     return "https://jwlbillion.com/collections/chains"
                 elif "ring" in u_lower:
                     return "https://jwlbillion.com/collections/womens-ring"
-                elif "necklace" in u_lower or "pendant" in u_lower or "gale" in u_lower:
-                    return "https://jwlbillion.com/collections/jewelry-set"
+                elif "necklace" in u_lower or "pendant" in u_lower or "gale" in u_lower or "choker" in u_lower:
+                    return "https://jwlbillion.com/collections/womens-necklace"
                 return primary_verified_url
             return u
 
