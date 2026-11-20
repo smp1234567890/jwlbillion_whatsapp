@@ -33,20 +33,15 @@ export default function LeadInterestReportPage({ token, onOpenChat }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [callingPhone, setCallingPhone] = useState(null);
 
-  // Sorting (Default to 'last_message_time' desc when on ALL intents, or 'interest_score' when filtered)
+  // Sorting: strictly chronological (latest message on top) across all tabs by default
   const [sortField, setSortField] = useState("last_message_time");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  // When switching between "ALL" and specific intent tabs, intelligently adjust default sort
+  // Keep latest message on top when switching tabs
   const handleInterestFilterChange = (newFilter) => {
     setInterestFilter(newFilter);
-    if (newFilter === "ALL") {
-      setSortField("last_message_time");
-      setSortOrder("desc");
-    } else {
-      setSortField("interest_score");
-      setSortOrder("desc");
-    }
+    setSortField("last_message_time");
+    setSortOrder("desc");
     setCurrentPage(1);
   };
 
