@@ -1123,8 +1123,9 @@ def handle_inbound_auto_reply(
     if is_cod_inquiry:
         cod_reply = (
             "Haan ji, 100% Cash on Delivery (COD) uplabdh hai pure India mein! 📦✨\n\n"
-            "Parcel aapke haath mein aane ke baad hi aapko payment karna hai. "
-            "Aapko kaun sa jewellery design ya item pasand aaya hai?"
+            "Parcel milne par hi aapko cash dena hai. Hamari official website par aap directly COD order place kar sakte hain:\n"
+            "👉 https://jwlbillion.com\n\n"
+            "Aapko kaun sa jewellery design sabse zyada pasand aaya?"
         )
         res = send_whatsapp_free_text(sender_phone, cod_reply, db=db)
         _save_bot_message(db, sender_phone, cod_reply, res.get("message_id"))
