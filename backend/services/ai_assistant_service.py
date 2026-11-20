@@ -124,6 +124,9 @@ STRICT RULE #2 - DO NOT FORCE OR PUSH THE WEBSITE:
 
 STRICT RULE #3 - PRODUCT AVAILABILITY & UNCARRIED ITEM HONESTY (ZERO HALLUCINATION):
 - You have complete live catalog knowledge of our in-stock products across Necklaces, Pendants, Chains, Earrings, Rings, Kadas, Bangles, Bracelets, Anklets, and Jewelry Sets.
+- If the customer uses a typo, unknown term, or hallucinated collection name (e.g. "C collection", "X category", "B collection"):
+  * NEVER pretend that a "C collection" exists or repeat "Hamare paas C collection hai"!
+  * Politely ask for clarification: "Kya aap Chains, Choker ya kisi specific jewellery ke baare mein pooch rahe hain? Aap bataiye aapko kis tarah ki design dekhni hai!"
 - If the customer asks for a product or category that we DO NOT carry or is currently not in our catalog (e.g., nose pins, mangalsutra with real gold/diamond, toe rings, traditional dome jhumkas, watches, silver coins):
   * NEVER invent or pretend that we have it!
   * Be 100% honest, warm, and helpful: let the customer know that we currently do not carry this specific product.
@@ -1084,9 +1087,9 @@ def generate_qwen_reply(
         answer = re.sub(r'\[[^\]]*\]\s*\(?(https?://[^\s\)]+)\)?', r'\1', answer)
 
         # If LLM outputted literal placeholder like [Link], [here], [view] instead of the actual URL
-        if top_matches and re.search(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', answer, re.I):
-            primary_url = top_matches[0].get("product_url") or top_matches[0].get("shop_url") or "https://jwlbillion.com"
-            answer = re.sub(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', primary_url, answer, flags=re.I)
+        if re.search(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', answer, re.I):
+            fallback_target_url = (top_matches[0].get("product_url") or top_matches[0].get("shop_url")) if top_matches else "https://jwlbillion.com"
+            answer = re.sub(r'\[(?:Link|here|view|details?|product|website|Product Link)\]', fallback_target_url, answer, flags=re.I)
 
         # Clean any accidental Karat references (18K, 22K, 24K, karat, carat)
         answer = re.sub(r'\b(?:18\s*k(?:arat)?|22\s*k(?:arat)?|24\s*k(?:arat)?)\b', 'premium', answer, flags=re.I)
