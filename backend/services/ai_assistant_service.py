@@ -410,11 +410,20 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
                 continue
 
             # Keyword score: ignore generic words like 'jewellery', 'jewelry', 'collection', 'design', etc.
-            STOP_TERMS = {"jewellery", "jewelry", "collection", "product", "products", "item", "items", "good", "acchi", "achhi", "best", "dekh", "rahe", "hain", "liye", "kharidne"}
+            STOP_TERMS = {
+                "jewellery", "jewelry", "collection", "product", "products", "item", "items", "good",
+                "acchi", "achhi", "best", "dekh", "rahe", "hain", "liye", "kharidne", "for", "with",
+                "been", "transit", "days", "know", "when", "will", "order", "status", "support", "help"
+            }
             q_terms = [w for w in re.split(r"\W+", q_lower) if len(w) > 2 and w not in STOP_TERMS]
             text_score = sum(3 if re.search(r"\b" + re.escape(t), p_title) else 1 for t in q_terms if re.search(r"\b" + re.escape(t), p_text))
 
-            total_score = cat_score + text_score
+            # If no jewelry category was identified in current query or history,
+            # require at least 2 distinct jewelry keyword hits to avoid matching random words
+            if not active_categories and text_score < 2:
+                total_score = 0
+            else:
+                total_score = cat_score + text_score
             matches.append((total_score, p))
 
         # Filter out products that have zero relevance score
@@ -1186,9 +1195,11 @@ def generate_qwen_reply(
                 if title_words and sum(1 for w in title_words if w in answer.lower()) >= min(3, len(title_words)):
                     recommended_products.append(p)
 
-        # If none matched by explicit string but top_matches exist and AI offered products
-        if not recommended_products and top_matches:
-            recommended_products = top_matches[:2]
+        # Only attach recommended products if they were genuinely pitched or referenced in the AI's reply text!
+        # NEVER dump products blindly if the customer was asking for support, order tracking, or general conversation.
+        has_product_recommendation = bool(re.search(r'https?://(?:www\.)?jwlbillion\.com/products/', answer))
+        if not has_product_recommendation:
+            recommended_products = []
 
         # Keep unique products up to 3
         seen_p_ids = set()
@@ -1199,7 +1210,7 @@ def generate_qwen_reply(
                 seen_p_ids.add(p_id)
                 unique_rec_prods.append(p)
 
-        first_prod = unique_rec_prods[0] if unique_rec_prods else (top_matches[0] if top_matches else None)
+        first_prod = unique_rec_prods[0] if unique_rec_prods else None
         first_img = _clean_product_photo(first_prod) if first_prod else None
 
         return {

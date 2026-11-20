@@ -48,6 +48,15 @@ FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
 # Smart Link Tracking Domain (Vercel Frontend URL)
 TRACKING_BASE_URL = os.getenv("TRACKING_BASE_URL", "https://jwlbillion.vercel.app").rstrip("/")
 
+# Email / SMTP Configuration for Support Escalation
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SUPPORT_NOTIFICATION_EMAILS = [
+    e.strip() for e in os.getenv("SUPPORT_NOTIFICATION_EMAILS", "ansbillion@gmail.com,jwlbillion@gmail.com").split(",") if e.strip()
+]
+
 # ── Business Logic Limits & Constants ──
 # Subscription / Multi-tenant user limit (e.g. maximum 5 team members)
 MAX_USERS_LIMIT = int(os.getenv("MAX_USERS_LIMIT", "5"))

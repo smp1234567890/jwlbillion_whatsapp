@@ -53,6 +53,12 @@ ORDER_QUERY_TRIGGERS = [
     "delivery status", "order status"
 ]
 
+SUPPORT_ESCALATION_PATTERNS = [
+    r"\b(?:customer\s*support|customer\s*care|support\s*team|talk\s*to\s*(?:an?\s*)?(?:agent|human|representative|support|person)|human\s*support|live\s*agent|connect\s*(?:me\s*)?(?:to\s*)?(?:agent|human|support)|speak\s*to\s*(?:an?\s*)?(?:agent|human|support))\b",
+    r"\b(?:helpdesk|call\s*me|complaint|issue\s*with\s*(?:order|delivery|item|parcel))\b",
+    r"\b(?:in\s*transit|transit\s*for|delayed|not\s*delivered|havent\s*received|haven['’]t\s*received|abhy\s*tak\s*nahi\s*mila|abhi\s*tak\s*nahi\s*mila|nahi\s*pahucha|parcel\s*nahi\s*aaya|late\s*ho\s*gaya|refund|return\s*request|exchange\s*request)\b"
+]
+
 COD_QUERY_PATTERNS = [
     r"\b(?:cod|cash\s*on\s*delivery)\b",
     r"\b(?:cod\s*(?:ha|hai|he|hoga|milega|available|options?))\b",
@@ -1113,6 +1119,68 @@ def handle_inbound_auto_reply(
         text_reply = _format_order_details(order, extracted_order)
         res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
         _save_bot_message(db, sender_phone, text_reply, res.get("message_id"))
+
+        # Notify human support via email and pause AI so human team can monitor or take over if needed
+        try:
+            from services.email_notification_service import send_support_escalation_email
+            from models import Contact
+            clean_p = sender_phone.replace("+", "").strip()
+            contact = db.query(Contact).filter(Contact.phone.in_([sender_phone, clean_p, f"+{clean_p}"])).first()
+            if contact:
+                attrs = dict(contact.custom_attributes or {})
+                attrs["ai_disabled"] = True
+                contact.custom_attributes = attrs
+                db.commit()
+            send_support_escalation_email(
+                customer_phone=sender_phone,
+                customer_name=customer_name,
+                latest_message=message_text,
+                order_info=text_reply
+            )
+        except Exception as e:
+            logger.warning(f"[Bot Auto-Reply] Could not escalate order inquiry: {e}")
+
+        return res
+
+    # -------------------------------------------------------------
+    # 2a. Support Request Escalation (e.g. "I need customer support", "It's in transit for 9 days")
+    # We are sales, NOT support. Provide courteous acknowledgement, pause AI, and email support team!
+    # -------------------------------------------------------------
+    is_support_request = any(re.search(p, text_clean, re.I) for p in SUPPORT_ESCALATION_PATTERNS)
+    if is_support_request:
+        # Pause AI for this customer so bot stops sending sales pitches/products
+        try:
+            from models import Contact
+            clean_p = sender_phone.replace("+", "").strip()
+            contact = db.query(Contact).filter(Contact.phone.in_([sender_phone, clean_p, f"+{clean_p}"])).first()
+            if contact:
+                attrs = dict(contact.custom_attributes or {})
+                attrs["ai_disabled"] = True
+                contact.custom_attributes = attrs
+                db.commit()
+        except Exception as e:
+            logger.warning(f"[Bot Auto-Reply] Error disabling AI for support escalation: {e}")
+
+        # Send escalation email to ansbillion@gmail.com and jwlbillion@gmail.com
+        try:
+            from services.email_notification_service import send_support_escalation_email
+            send_support_escalation_email(
+                customer_phone=sender_phone,
+                customer_name=customer_name,
+                latest_message=message_text,
+                chat_history=f"Customer Phone: {sender_phone}\nMessage: {message_text}"
+            )
+        except Exception as e:
+            logger.warning(f"[Bot Auto-Reply] Error sending support escalation email: {e}")
+
+        support_ack = (
+            "Hello! Thank you for reaching out to JWL Billion. 🙏\n\n"
+            "Your support request has been forwarded directly to our dedicated customer support team. "
+            "Our representative is reviewing your details and will assist you shortly here on WhatsApp.\n\n"
+            "Thank you for your patience!"
+        )
+        res = send_whatsapp_free_text(sender_phone, support_ack, db=db)
+        _save_bot_message(db, sender_phone, support_ack, res.get("message_id"))
         return res
 
     # -------------------------------------------------------------
