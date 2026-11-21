@@ -143,7 +143,7 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
         },
         "body": {
             "text": (
-                f"Hello{name_str}! ✨\n"
+                f"Hello{name_str}!\n"
                 "Thank you for contacting *JWL Billion*.\n\n"
                 "Visit our website: https://jwlbillion.com/\n\n"
                 "How can we assist you today? Please tap below to choose an option:"
@@ -1184,7 +1184,7 @@ def handle_inbound_auto_reply(
             logger.warning(f"[Bot Auto-Reply] Error sending support escalation email: {e}")
 
         support_ack = (
-            "Hello! Thank you for reaching out to JWL Billion. 🙏\n\n"
+            "Hello! Thank you for reaching out to JWL Billion.\n\n"
             "Your support request has been forwarded directly to our dedicated customer support team. "
             "Our representative is reviewing your details and will assist you shortly here on WhatsApp.\n\n"
             "Thank you for your patience!"
@@ -1200,7 +1200,7 @@ def handle_inbound_auto_reply(
     is_cod_inquiry = any(re.search(p, text_clean, re.I) for p in COD_QUERY_PATTERNS)
     if is_cod_inquiry:
         cod_reply = (
-            "Haan ji, 100% Cash on Delivery (COD) uplabdh hai pure India mein! 📦✨\n\n"
+            "Haan ji, 100% Cash on Delivery (COD) uplabdh hai pure India mein!\n\n"
             "Parcel milne par hi aapko cash dena hai. Hamari official website par aap directly COD order place kar sakte hain:\n"
             "👉 https://jwlbillion.com\n\n"
             "Aapko kaun sa jewellery design sabse zyada pasand aaya?"
@@ -1332,7 +1332,7 @@ def handle_inbound_auto_reply(
 
 def _format_order_details(order: Optional[dict], order_num: str) -> str:
     if order:
-        reply = f"📦 *Order Status for {order['order_number']}*\n\n"
+        reply = f"*Order Status for {order['order_number']}*\n\n"
         reply += f"• *Status:* {order['fulfillment_status']}\n"
         reply += f"• *Payment:* {order['financial_status']}\n"
         reply += f"• *Items:* {order['items_summary']}\n"

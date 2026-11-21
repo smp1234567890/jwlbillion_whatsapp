@@ -196,7 +196,7 @@ STRICT RULE #3 - PRODUCT AVAILABILITY & UNCARRIED ITEM HONESTY (ZERO HALLUCINATI
   * NEVER invent or pretend that we have it!
   * Be 100% honest, warm, and helpful: let the customer know that we currently do not carry this specific product.
   * Promise that as soon as this product/design arrives in our collection, we will notify them here on WhatsApp!
-  * Example reply: "Filhaal hamare paas yeh product available nahi hai ji. Jaise hi yeh hamari collection mein aayega, hum aapko WhatsApp par zaroor update kar denge! ✨ Baki trending jewellery collections aap hamari website https://jwlbillion.com par dekh sakte hain."
+  * Example reply: "Filhaal hamare paas yeh product available nahi hai ji. Jaise hi yeh hamari collection mein aayega, hum aapko WhatsApp par zaroor update kar denge! Baki trending jewellery collections aap hamari website https://jwlbillion.com par dekh sakte hain."
 
 CORE CONVERSATIONAL SELLING PRINCIPLES:
 - Sound Human & Warm: Use polite feminine grammar ("karti hoon", "bataungi", "samajh sakti hoon").
@@ -207,23 +207,23 @@ GOLDEN FEW-SHOT DIALOGUES:
 ---
 [Scenario A: Price Inquiry - Transparent Price & COD]
 Customer: "Yahan price ki shuruat kya hai?"
-Stylist: "Namaste! 😊 Hamari jewellery collection ₹270 se shuru hoti hai! Sath hi festive discounts aur Cash on Delivery (COD) bhi available hai. Aap kis category mein dekhna chahenge — Chains, Earrings, ya Bracelets?"
+Stylist: "Namaste! Hamari jewellery collection ₹270 se shuru hoti hai! Sath hi festive discounts aur Cash on Delivery (COD) bhi available hai. Aap kis category mein dekhna chahenge — Chains, Earrings, ya Bracelets?"
 
 [Scenario B: Specific Product Price Inquiry]
 Customer: "Kitne ki hogi yeh chain?"
-Stylist: "Yeh premium Gold-Plated Link Chain sirf ₹950 ki hai ji! ✨ Isme Cash on Delivery (COD) aur 7-day easy replacement policy bhi available hai. Aap is link se directly order book kar sakte hain: [Link]"
+Stylist: "Yeh premium Gold-Plated Link Chain sirf ₹950 ki hai ji! Isme Cash on Delivery (COD) aur 7-day easy replacement policy bhi available hai. Aap is link se directly order book kar sakte hain: [Link]"
 
 [Scenario C: Broad Discovery Query]
 Customer: "Gala ke har"
-Stylist: "Zaroor ji! 😊 Gala ke liye hamare paas bohot hi sundar designs hain. Aap daily wear ke liye dekh rahe hain ya shaadi/party function ke liye? Main aapko best match dikhati hoon!"
+Stylist: "Zaroor ji! Gala ke liye hamare paas bohot hi sundar designs hain. Aap daily wear ke liye dekh rahe hain ya shaadi/party function ke liye? Main aapko best match dikhati hoon!"
 
 [Scenario D: Indecision Handling]
 Customer: "Soch ke batata hoon"
-Stylist: "Bilkul ji, aaram se sochiye! 😊 Kya design mein kuch specific pasand nahi aaya ya price/delivery se juda koi doubt hai? Main aapko aapke pasand ke mutabiq aur designs dikha sakti hoon."
+Stylist: "Bilkul ji, aaram se sochiye! Kya design mein kuch specific pasand nahi aaya ya price/delivery se juda koi doubt hai? Main aapko aapke pasand ke mutabiq aur designs dikha sakti hoon."
 
 [Scenario E: Uncarried / Out-of-Stock Product Inquiry - Honesty & Notification Promise]
 Customer: "Nose pin hai aapke paas?"
-Stylist: "Filhaal hamare paas nose pins available nahi hain ji. Jaise hi yeh design hamari collection mein aayega, hum aapko WhatsApp par zaroor update kar denge! ✨ Baki hamari trending necklaces aur earrings collections aap website par explore kar sakte hain: https://jwlbillion.com"
+Stylist: "Filhaal hamare paas nose pins available nahi hain ji. Jaise hi yeh design hamari collection mein aayega, hum aapko WhatsApp par zaroor update kar denge! Baki hamari trending necklaces aur earrings collections aap website par explore kar sakte hain: https://jwlbillion.com"
 ---"""
 
 
@@ -708,7 +708,7 @@ def _call_gemini_semantic_match(
             f"   - Customer First Name: {customer_name or 'None'}\n"
             f"   - Inferred Gender: {customer_gender or 'Neutral'}\n"
             "   - When Customer First Name is known:\n"
-            "     * In the greeting / first interaction: Address them warmly using '[FirstName] ji!' (e.g. 'Namaste Nilima ji! ✨', 'Hello Kartik ji!').\n"
+            "     * In the greeting / first interaction: Address them warmly using '[FirstName] ji!' (e.g. 'Namaste Nilima ji!', 'Hello Kartik ji!').\n"
             "     * While browsing, explaining designs, or answering quick questions: Do NOT repeat their name in every sentence! Keep it natural.\n"
             "     * When asking a closing choice or follow-up question: You may gently address them again with '[FirstName] ji' (e.g. 'Nilima ji, aapko pehla wala design zyada pasand aaya ya second?').\n"
             "   - If Customer Name is None or not provided, address respectfully as 'Namaste ji!' or 'Bilkul ji!'.\n"
@@ -728,7 +728,7 @@ def _call_gemini_semantic_match(
             "5. Objection Annihilation (Trust & Quality):\n"
             "   - Fear of fading/blackening ('Kala to nahi hoga?'): 'Bilkul fikar mat kijiye! Hamari jewellery premium micron gold plating & anti-tarnish coating ke sath aati hai jo saalon saal chamakti hai.'\n"
             "   - Trust/Online hesitation: 'Aapko pehle paise nahi dene — 100% Cash on Delivery (COD) available hai, parcel ghar aane par check karke pay kijiye + 7-day easy replacement guarantee.'\n"
-            "   - Hesitation/Delay ('Soch ke batata hoon'): 'Zaroor ji, aaram se sochiye! 😊 Kya design mein kuch alag chahiye tha ya price/delivery se juda koi doubt hai? Main aapki pasand ke mutabiq dusra option dikha sakti hoon.'\n"
+            "   - Hesitation/Delay ('Soch ke batata hoon'): 'Zaroor ji, aaram se sochiye! Kya design mein kuch alag chahiye tha ya price/delivery se juda koi doubt hai? Main aapki pasand ke mutabiq dusra option dikha sakti hoon.'\n"
             "6. Low-Friction Alternative-Choice Closing (Every Message Must Move Forward):\n"
             "   - Never end with a passive dead-end or cold full stop.\n"
             "   - Never ask yes/no questions ('Kharidna hai?').\n"
@@ -1013,14 +1013,14 @@ def generate_qwen_reply(
         or bool(re.search(r"^\s*(?:dusra|dusri|aur|next|other|more|aur\s*dikhao|aur\s*dekhao|aur\s*dekhna|aur\s*dekhana|aur\s*bhejo|aur\s*batao|kuch\s*aur)\s*$", q_clean, re.I))
     )
     if is_short_or_followup and not has_prior_context:
-        prefix = f"Ji {first_name} ji! 😊" if first_name else "Ji, kahiye! 😊"
+        prefix = f"Ji {first_name} ji!" if first_name else "Ji, kahiye!"
         clarify_short = f"{prefix} Aap kis type ki jewellery dekh rahe hain — jaise Earrings, Necklace, Rings ya Bracelets?"
         return {"status": "success", "reply": clarify_short, "model": "playbook"}
 
     # 0a. Instant Fast-Path for Meta Ads Default Inbound ("Hello! Can I get more info on this?")
     # Default greeting directly welcomes the user respectfully with their name if available
     if re.search(r"^(?:hello!?\s*)?can\s*i\s*get\s*more\s*info\s*(?:on\s*this)?\??$", q_clean):
-        greeting_line = f"Namaste {first_name} ji! ✨ Welcome to JWL Billion" if first_name else "Namaste! Welcome to JWL Billion ✨"
+        greeting_line = f"Namaste {first_name} ji! Welcome to JWL Billion" if first_name else "Namaste! Welcome to JWL Billion"
         welcome_hinglish = (
             f"{greeting_line}\n\n"
             "Main aapki kya madad kar sakti hoon? Aap koi specific jewellery dekh rahe hain ya latest collection explore karna chahenge?"
@@ -1039,53 +1039,53 @@ def generate_qwen_reply(
         and not has_image_in_history
     )
     if is_generic_photo_request:
-        photo_ask = "Haan ji, bilkul share karti hoon! 😊 Aapko kis category ke designs dekhne hain — jaise Earrings, Necklaces/Chains, Bangles, ya Bracelets?"
+        photo_ask = "Haan ji, bilkul share karti hoon! Aapko kis category ke designs dekhne hain — jaise Earrings, Necklaces/Chains, Bangles, ya Bracelets?"
         return {"status": "success", "reply": photo_ask, "model": "playbook"}
 
     # 0c. Fast-Path for Acknowledgements, Sign-offs & Thank Yous ("ok thanks", "thank you", "dhanyawad", "bye", "by", "byy")
     if re.search(r"^\s*(?:ok\s*)?(?:thanks?|thank\s*you|shukriya|dhanyawad|welcome|ok\s*bye|bye+|by+|good\s*night|alvida|tc|take\s*care)\s*!*\s*$", q_clean):
-        thanks_reply = "Most welcome ji! 😊 Aapka din shubh rahe. Jab bhi koi naya design dekhna ho, bas message kar dijiyega!"
+        thanks_reply = "Most welcome ji! Aapka din shubh rahe. Jab bhi koi naya design dekhna ho, bas message kar dijiyega!"
         return {"status": "success", "reply": thanks_reply, "model": "playbook"}
 
     if re.search(r"^\s*(?:ok\s*)?(?:koi\s*(?:nhi|nahi|baat\s*nhi|baat\s*nahi)|it['’]?s\s*ok|no\s*problem|koi\s*na)\s*!*\s*$", q_clean):
-        koi_nhi_reply = "Koi baat nahi ji! 😊 Jab bhi aapka mann ho ya kuch specific pasand aaye, aap aaram se bata sakte hain. Have a great day!"
+        koi_nhi_reply = "Koi baat nahi ji! Jab bhi aapka mann ho ya kuch specific pasand aaye, aap aaram se bata sakte hain. Have a great day!"
         return {"status": "success", "reply": koi_nhi_reply, "model": "playbook"}
 
     if re.search(r"^\s*(?:ok|okay|thik\s*hai|theek\s*hai|achha|acha|accha|h[ao]ji|hmm|hm)\s*!*\s*$", q_clean):
-        ok_reply = "Bilkul ji! 😊 Aap araam se collection dekhiye, main yahin hoon."
+        ok_reply = "Bilkul ji! Aap araam se collection dekhiye, main yahin hoon."
         return {"status": "success", "reply": ok_reply, "model": "playbook"}
 
     # 0d. Fast-Path for How are you / Kaise ho
     if re.search(r"\b(?:kaise\s*ho|kaisa\s*hai|kaisi\s*ho|kya\s*haal|kem\s*cho|how\s*are\s*you)\b", q_clean):
-        kaise_reply = "Main badhiya hoon, aap bataiye aap kaise hain! 😊 JWL Billion mein aapka swagat hai. Aaj aapke liye kya collection dekhna chahenge?"
+        kaise_reply = "Main badhiya hoon, aap bataiye aap kaise hain! JWL Billion mein aapka swagat hai. Aaj aapke liye kya collection dekhna chahenge?"
         return {"status": "success", "reply": kaise_reply, "model": "playbook"}
 
     # 0c. Instant Fast-Path for Common Exploring / Greeting Hooks (0.01s latency)
     if re.search(r"^(?:lets?\s*explore|just\s*(?:exploring|looking|browsing)|bas\s*dekh\s*(?:rahi|raha)\s*hoon)$", q_clean):
         is_hindi = bool(re.search(r"[\u0900-\u097F]|(?:bas|dekh|rahi|raha|hoon)", q_clean))
         if is_hindi:
-            fast_reply = "Haan ji, bilkul! Aaram se dekhiye. 😊 Waise aapko usually kis type ke designs pasand aate hain — simple aur elegant ya thode stylish aur trendy?"
+            fast_reply = "Haan ji, bilkul! Aaram se dekhiye. Waise aapko usually kis type ke designs pasand aate hain — simple aur elegant ya thode stylish aur trendy?"
         else:
-            fast_reply = "That's great! ✨ What kind of designs usually catch your eye — something simple and elegant, or something bold and eye-catching?"
+            fast_reply = "That's great! What kind of designs usually catch your eye — something simple and elegant, or something bold and eye-catching?"
         return {"status": "success", "reply": fast_reply, "model": "qwen2.5:1.5b"}
 
     # 0c. Objections & Natural Playbook Fast-Paths (Accurate, Instant & Hinglish)
     if re.search(r"\b(?:warrenty|warranty|garanty|guarantee)\b|(?:गारंटी|वारंटी)", q_clean, re.I):
         if re.search(r"[\u0900-\u097F]", customer_query):
             warranty_reply = (
-                "हमारी फैशन ज्वेलरी पर कोई 1 साल की टाइम-बाउंड वारंटी नहीं होती है। 😊 "
+                "हमारी फैशन ज्वेलरी पर कोई 1 साल की टाइम-बाउंड वारंटी नहीं होती है। "
                 "लेकिन डिलीवरी के समय पार्सल में कोई भी डिफेक्ट या डैमेज मिले, तो 7-दिन का आसान रिप्लेसमेंट/एक्सचेंज मिलता है! "
                 "साथ ही 100% Cash on Delivery (COD) उपलब्ध है ताकि आप डिलीवरी पर सुरक्षित रूप से पार्सल देख सकें।"
             )
         elif re.search(r"[\u0A80-\u0AFF]", customer_query):
             warranty_reply = (
-                "અમારી ફેશન જ્વેલરી પર કોઈ 1 વર્ષની ટાઈમ-બાઉન્ડ વોરંટી નથી હોતી. 😊 "
+                "અમારી ફેશન જ્વેલરી પર કોઈ 1 વર્ષની ટાઈમ-બાઉન્ડ વોરંટી નથી હોતી. "
                 "પણ ડિલિવરી વખતે જો પાર્સલમાં કોઈ ડિફેક્ટ હોય તો 7-દિવસનું ઇઝી રિપ્લેસમેન્ટ/એક્સચેન્જ મળે છે! "
                 "સાથે 100% Cash on Delivery (COD) પણ ઉપલબ્ધ છે."
             )
         else:
             warranty_reply = (
-                "Hamari fashion jewellery par koi 1 saal ya time-bound warranty nahi hoti hai. 😊 "
+                "Hamari fashion jewellery par koi 1 saal ya time-bound warranty nahi hoti hai. "
                 "Lekin delivery ke waqt agar parcel mein koi defect ya damage mile, "
                 "toh 7-day easy replacement/exchange milta hai! Saath hi 100% Cash on Delivery (COD) bhi available hai taaki aap delivery par safely parcel dekh sakein."
             )
@@ -1097,27 +1097,27 @@ def generate_qwen_reply(
     ))
     if is_fade_or_tarnish_inquiry:
         if re.search(r"[\u0900-\u097F]", customer_query):
-            fade_reply = "जी बिल्कुल नहीं! 😊 इसमें मल्टी-लेयर प्रीमियम गोल्ड-प्लेटेड फिनिश होती है जिससे यह आसानी से काली नहीं पड़ती। बस इसे पानी, पसीने और परफ्यूम से बचाकर रखें तो इसकी चमक और पॉलिश लंबे समय तक बिल्कुल नई जैसी बनी रहती है! ❤️"
+            fade_reply = "जी बिल्कुल नहीं! इसमें मल्टी-लेयर प्रीमियम गोल्ड-प्लेटेड फिनिश होती है जिससे यह आसानी से काली नहीं पड़ती। बस इसे पानी, पसीने और परफ्यूम से बचाकर रखें तो इसकी चमक और पॉलिश लंबे समय तक बिल्कुल नई जैसी बनी रहती है!️"
         elif re.search(r"[\u0A80-\u0AFF]", customer_query):
-            fade_reply = "જી બિલકુલ નહીં! 😊 આમાં મલ્ટી-લેયર પ્રીમિયમ ગોલ્ડ-પ્લેટેડ ફિનિશ હોય છે જેથી તે કાળી પડતી નથી. બસ પાણી અને પરફ્યુમથી દૂર રાખો તો ચમક લાંબા સમય સુધી સચવાઈ રહે છે! ❤️"
+            fade_reply = "જી બિલકુલ નહીં! આમાં મલ્ટી-લેયર પ્રીમિયમ ગોલ્ડ-પ્લેટેડ ફિનિશ હોય છે જેથી તે કાળી પડતી નથી. બસ પાણી અને પરફ્યુમથી દૂર રાખો તો ચમક લાંબા સમય સુધી સચવાઈ રહે છે!️"
         else:
-            fade_reply = "Ji bilkul nahi, yeh kaale nahi honge! 😊 Ismein multi-layer premium gold-plated finish hoti hai. Bas direct paani aur perfume se bacha kar rakhein toh iski shine aur polish lambe time tak bilkul nayi jaisi rehti hai! ❤️"
+            fade_reply = "Ji bilkul nahi, yeh kaale nahi honge! Ismein multi-layer premium gold-plated finish hoti hai. Bas direct paani aur perfume se bacha kar rakhein toh iski shine aur polish lambe time tak bilkul nayi jaisi rehti hai!️"
         return {"status": "success", "reply": fade_reply, "model": "playbook"}
 
     if re.search(r"\b(?:trust|bharosa|fraud|scam|online\s*order|fake)\b", q_clean):
-        trust_reply = "Aapka doubt bilkul sahi hai! 😊 JWL Billion par 100% Cash on Delivery (COD) available hai — parcel haath mein milne ke baad hi pay karna hai, plus 7-day easy exchange bhi hai."
+        trust_reply = "Aapka doubt bilkul sahi hai! JWL Billion par 100% Cash on Delivery (COD) available hai — parcel haath mein milne ke baad hi pay karna hai, plus 7-day easy exchange bhi hai."
         return {"status": "success", "reply": trust_reply, "model": "playbook"}
 
     if re.search(r"\b(?:cod|cash\s*on\s*delivery)\b", q_clean):
-        cod_reply = "Haan ji, 100% Cash on Delivery (COD) uplabdh hai pure India mein! Parcel milne par hi cash dena hai. 😊 Aapko kaun sa design pasand aaya?"
+        cod_reply = "Haan ji, 100% Cash on Delivery (COD) uplabdh hai pure India mein! Parcel milne par hi cash dena hai. Aapko kaun sa design pasand aaya?"
         return {"status": "success", "reply": cod_reply, "model": "playbook"}
 
     if re.search(r"\b(?:expensive|mehnga|mahnga|thoda\s*kam|discount|offer|last\s*price|kam\s*karo)\b", q_clean):
-        disc_reply = "Haan ji, samajh sakti hoon! 😊 Hamare paas ₹300 se lekar ₹2,000 tak har range mein sundar designs hain. Aap kis budget range (jaise ₹500–₹800) mein dekhna chahenge?"
+        disc_reply = "Haan ji, samajh sakti hoon! Hamare paas ₹300 se lekar ₹2,000 tak har range mein sundar designs hain. Aap kis budget range (jaise ₹500–₹800) mein dekhna chahenge?"
         return {"status": "success", "reply": disc_reply, "model": "playbook"}
 
     if re.search(r"\b(?:soch\s*ke|baad\s*mein|dekh\s*kar\s*batat|later)\b", q_clean):
-        soch_reply = "Haan ji, bilkul! Aap araam se decide kijiye. 😊 Bas ek baat batayein, aapko design pasand aaya ya price ko lekar koi doubt hai?"
+        soch_reply = "Haan ji, bilkul! Aap araam se decide kijiye. Bas ek baat batayein, aapko design pasand aaya ya price ko lekar koi doubt hai?"
         return {"status": "success", "reply": soch_reply, "model": "playbook"}
 
     # 0c. Jhumki / Traditional Dome Jhumka Clarification & Alternative (Option B)
@@ -1144,19 +1144,19 @@ def generate_qwen_reply(
 
         if re.search(r"[\u0900-\u097F]", customer_query):
             jhumki_reply = (
-                "हमारे पास अभी ट्रेडिशनल डोम झुमकी उपलब्ध नहीं है जी। 😊 "
+                "हमारे पास अभी ट्रेडिशनल डोम झुमकी उपलब्ध नहीं है जी। "
                 "लेकिन हमारे पास बहुत ही सुंदर और क्लासिक ड्राप और डैंगल इयररिंग्स हैं जो ट्रेडिशनल और पार्टी वियर दोनों के साथ बहुत प्यारे लगते हैं! "
                 "क्या आप इनमें से कोई स्टाइल देखना पसंद करेंगे?"
             )
         elif re.search(r"[\u0A80-\u0AFF]", customer_query):
             jhumki_reply = (
-                "અમારી પાસે હમણાં ટ્રેડિશનલ ઝુમકી ઉપલબ્ધ નથી જી. 😊 "
+                "અમારી પાસે હમણાં ટ્રેડિશનલ ઝુમકી ઉપલબ્ધ નથી જી. "
                 "પણ અમારી પાસે ખૂબ જ સુંદર અને ક્લાસી ડ્રોપ અને ડેંગલ ઇયરરિંગ્સ છે જે ટ્રેડિશનલ અને પાર્ટી વેર સાથે ખૂબ જ સરસ લાગે છે! "
                 "શું તમે આ ડિઝાઇન્સ જોવા માંગો છો?"
             )
         else:
             jhumki_reply = (
-                "Hamare paas abhi traditional dome jhumki uplabdh nahi hai ji. 😊 "
+                "Hamare paas abhi traditional dome jhumki uplabdh nahi hai ji. "
                 "Lekin hamare paas bohot sundar drop aur dangle earrings hain jo traditional aur party wear ke saath kaafi stylish lagte hain! "
                 "Aapko yeh alternative drop designs kaise lage?"
             )
@@ -1173,7 +1173,7 @@ def generate_qwen_reply(
     has_specific_category = any(re.search(pat, q_clean, re.I) for pats in JEWELRY_CATEGORY_CANONICAL.values() for pat in pats)
 
     if not has_specific_category and re.search(r"^\s*(?:daily\s*wear|office|regular|daily)\s*$", q_clean):
-        daily_reply = "Samajh gayi! Daily & office wear ke liye simple, lightweight aur classy pieces sabse best rehte hain. Main aapko kuch comfortable options share karti hoon. 😊"
+        daily_reply = "Samajh gayi! Daily & office wear ke liye simple, lightweight aur classy pieces sabse best rehte hain. Main aapko kuch comfortable options share karti hoon."
         return {"status": "success", "reply": daily_reply, "model": "playbook"}
 
     if not has_specific_category and re.search(r"^\s*(?:party|wedding|shaadi|function|heavy|occasion)\s*$", q_clean):
@@ -1181,12 +1181,12 @@ def generate_qwen_reply(
         return {"status": "success", "reply": party_reply, "model": "playbook"}
 
     if not has_specific_category and re.search(r"^\s*(?:gift|gifting|kisi\s*ko\s*dena)\s*$", q_clean):
-        gift_reply = "That's lovely! 😊 Kiske liye gift dekh rahe hain — sister, wife, mother ya kisi friend ke liye? Main unke taste ke according best options suggest karungi."
+        gift_reply = "That's lovely! Kiske liye gift dekh rahe hain — sister, wife, mother ya kisi friend ke liye? Main unke taste ke according best options suggest karungi."
         return {"status": "success", "reply": gift_reply, "model": "playbook"}
 
     # 0d. Fast-Path for generic "friend" or "friends"
     if re.search(r"^\s*(?:dost|friend|friends|dosto|doston)\s*$", q_clean):
-        friend_reply = "Aapke dost ke liye gift dekhna toh bohot achha idea hai! 😊 Kya dost male hain ya female, aur unhe kis type ki jewelry pasand aayegi (jaise Men's Kada/Bracelet, Ring ya Chain)?"
+        friend_reply = "Aapke dost ke liye gift dekhna toh bohot achha idea hai! Kya dost male hain ya female, aur unhe kis type ki jewelry pasand aayegi (jaise Men's Kada/Bracelet, Ring ya Chain)?"
         return {"status": "success", "reply": friend_reply, "model": "playbook"}
 
     # 0e. Option A: Proactive Gender Qualification for Dual-Gender Categories
@@ -1207,22 +1207,22 @@ def generate_qwen_reply(
     if is_asking_dual_cat and not has_gender_context:
         # Detect language preference for natural qualification
         if re.search(r"[\u0A80-\u0AFF]", customer_query) or re.search(r"\b(?:kem\s*cho|tamne|tamare|joye)\b", customer_query, re.I):
-            gender_ask = "ચોક્કસ જી! 😊 તમે જેન્ટ્સ માટે જોઈ રહ્યા છો કે લેડીઝ માટે? જેથી હું તમને એકદમ પરફેક્ટ ડિઝાઇન્સ બતાવી શકું."
+            gender_ask = "ચોક્કસ જી! તમે જેન્ટ્સ માટે જોઈ રહ્યા છો કે લેડીઝ માટે? જેથી હું તમને એકદમ પરફેક્ટ ડિઝાઇન્સ બતાવી શકું."
         elif re.search(r"[\u0900-\u097F]", customer_query):
-            gender_ask = "बिल्कुल जी! 😊 आप जेंट्स के लिए देख रहे हैं या लेडीज के लिए? ताकि मैं आपको सही और बेस्ट डिज़ाइन दिखा सकूं।"
+            gender_ask = "बिल्कुल जी! आप जेंट्स के लिए देख रहे हैं या लेडीज के लिए? ताकि मैं आपको सही और बेस्ट डिज़ाइन दिखा सकूं।"
         elif re.search(r"^[a-zA-Z0-9\s\.,!\?']+$", customer_query) and not any(bool(re.search(p, q_clean, re.I)) for p in HINDI_PATTERNS):
-            gender_ask = "Sure! 😊 Are you looking for men or women? So I can share the best designs for you."
+            gender_ask = "Sure! Are you looking for men or women? So I can share the best designs for you."
         else:
-            gender_ask = "Bilkul ji! 😊 Aap gents ke liye dekh rahe hain ya ladies ke liye? Taaki main aapko perfect designs dikha sakun."
+            gender_ask = "Bilkul ji! Aap gents ke liye dekh rahe hain ya ladies ke liye? Taaki main aapko perfect designs dikha sakun."
         return {"status": "success", "reply": gender_ask, "model": "proactive-qualification"}
 
     # 1. Refuse forbidden/off-topic requests
     if is_forbidden_query(customer_query):
         is_hindi = any(bool(re.search(p, customer_query.lower(), re.I)) for p in HINDI_PATTERNS)
         refusal_msg = (
-            "Main sirf JWL Billion jewelry aur store orders ke baare mein madad kar sakti hoon. ✨ Aapko kisi product design, delivery, ya order ke baare mein jaanna hai?"
+            "Main sirf JWL Billion jewelry aur store orders ke baare mein madad kar sakti hoon. Aapko kisi product design, delivery, ya order ke baare mein jaanna hai?"
             if is_hindi else
-            "I can only assist with JWL Billion jewelry products, order tracking, and deliveries. ✨ How may I help you with our collections?"
+            "I can only assist with JWL Billion jewelry products, order tracking, and deliveries. How may I help you with our collections?"
         )
         return {
             "status": "refused",
@@ -1509,7 +1509,7 @@ def generate_qwen_reply(
         if not top_matches and (re.search(r'https?://jwlbillion\.com/products/[^\s\)\],]+', answer) or re.search(r'https?://jwlbillion\.com/collections/[^\s\)\],]+', answer)):
             logger.warning("[AI Service] Blocked hallucinated product recommendation with no live match.")
             answer = (
-                "Hamare paas wedding, party aur daily wear ke liye bohot hi sundar gale ke necklaces aur chains uplabdh hain! ✨\n\n"
+                "Hamare paas wedding, party aur daily wear ke liye bohot hi sundar gale ke necklaces aur chains uplabdh hain!\n\n"
                 "Aap ladies ke liye dekh rahe hain ya gents ke liye? Aur simple lightweight look chahiye ya thoda heavy set?"
             )
 

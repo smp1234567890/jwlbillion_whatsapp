@@ -70,9 +70,9 @@ def _delayed_followup_after_click(phone: str, tracking_code: str, delay_seconds:
                     cust_name = None
 
             if cust_name:
-                followup_text = f"{cust_name} ji, aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge? 😊"
+                followup_text = f"{cust_name} ji, aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge?"
             else:
-                followup_text = "Aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge? 😊"
+                followup_text = "Aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge?"
             res = send_whatsapp_free_text(phone, followup_text, db=db)
             _save_bot_message(db, phone, followup_text, res.get("message_id"))
             logger.info(f"[Link Followup Sent] 20s post-click follow-up delivered to {phone} for code {tracking_code}")
