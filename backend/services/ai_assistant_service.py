@@ -129,7 +129,8 @@ STRICT RULE #3 - PRODUCT AVAILABILITY & UNCARRIED ITEM HONESTY (ZERO HALLUCINATI
 - If the customer uses a typo, unknown term, or hallucinated collection name (e.g. "C collection", "X category", "B collection"):
   * NEVER pretend that a "C collection" exists or repeat "Hamare paas C collection hai"!
   * Politely ask for clarification: "Kya aap Chains, Choker ya kisi specific jewellery ke baare mein pooch rahe hain? Aap bataiye aapko kis tarah ki design dekhni hai!"
-- If the customer asks for a product or category that we DO NOT carry or is currently not in our catalog (e.g., nose pins, mangalsutra with real gold/diamond, toe rings, traditional dome jhumkas, watches, silver coins):
+- If the customer asks for a product or category that we DO NOT carry or is currently not in our catalog (e.g., nose pins/nath, real gold bullion / 24K real gold coins, real diamond coins, toe rings, traditional dome jhumkas, silver coins):
+  * Note: We DO carry American Diamond (AD) & Gold-Plated Mangalsutras with black beads! Do NOT say we don't have Mangalsutras.
   * NEVER invent or pretend that we have it!
   * Be 100% honest, warm, and helpful: let the customer know that we currently do not carry this specific product.
   * Promise that as soon as this product/design arrives in our collection, we will notify them here on WhatsApp!
@@ -642,7 +643,7 @@ def _call_gemini_semantic_match(
             "   - If an image is provided by the customer, inspect the jewelry design, style, stones, plating, and identify what category it belongs to.\n"
             "   - Search the store catalog for the closest matching live designs.\n"
             "3. Honesty on Uncarried Items (Zero Hallucination):\n"
-            "   - If customer asks for something we DO NOT carry (e.g. nose pins/nath, real gold/diamond coins, mangalsutra with real diamond, watches, silver coins), be 100% honest and warm. Say we do not have it in stock right now, but will notify them on WhatsApp when it arrives.\n"
+            "   - If customer asks for something we DO NOT carry (e.g. nose pins/nath, real gold/bullion coins, toe rings, silver coins), be 100% honest and warm. Note: We DO have American Diamond & Gold-Plated Mangalsutras in our catalog! If they ask for Mangalsutra, recommend our black beads AD mangalsutras.\n"
             "4. Pricing & Website Conversion Policy:\n"
             "   - NEVER quote exact prices or rupee amounts (no numbers, no ₹) in chat.\n"
             "   - Point warmly to our website for live festive discount offers, high-res videos, and Cash on Delivery (COD).\n"
