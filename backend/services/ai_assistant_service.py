@@ -16,6 +16,8 @@ Core Architecture:
 import logging
 import json
 import re
+import os
+import base64
 import urllib.request
 import urllib.error
 from typing import Optional, Dict, Any, List
@@ -195,6 +197,8 @@ def get_recent_chat_history(sender_phone: str, db: Optional[Session], limit: int
         for m in msgs:
             sender = "Customer" if m.sender_type == "CUSTOMER" else "JWL Stylist"
             body = (m.text or "").strip()
+            if m.media_url and (not body or body == "[IMAGE]"):
+                body = f"[Customer shared photo: {m.media_url}]"
             # If customer or message tagged/quoted another message, surface it in the history
             if m.quoted_message and isinstance(m.quoted_message, dict) and m.quoted_message.get("text"):
                 q_txt = m.quoted_message.get("text", "")[:80]
@@ -508,22 +512,48 @@ def get_relevant_product_context(customer_query: str, chat_history: str = "") ->
         return "", []
 
 
-def _call_gemini_api(system_prompt: str, user_prompt: str, api_key_override: Optional[str] = None) -> Optional[str]:
+def _call_gemini_api(
+    system_prompt: str,
+    user_prompt: str,
+    api_key_override: Optional[str] = None,
+    image_bytes: Optional[bytes] = None,
+    image_mime_type: Optional[str] = None,
+    response_json: bool = False,
+    response_schema: Optional[dict] = None
+) -> Optional[str]:
     """
     Calls Google Gemini Flash API for high-accuracy, fluent Roman Hinglish generation.
-    Supports automatic model fallback if a specific model returns 404 (e.g. legacy model deprecations).
-    Returns the generated response string, or None if the request fails or key is missing.
+    Supports multimodal image inspection and JSON schema responses.
     """
     api_key = api_key_override or getattr(config, "GEMINI_API_KEY", None) or ""
     if not api_key:
         return None
 
     configured_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
-    # Candidate models to try in order (handles project-specific access differences)
     candidate_models = [configured_model]
-    for alt in ["gemini-3.5-flash-lite", "gemini-2.5-flash"]:
+    for alt in ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-2.5-flash"]:
         if alt not in candidate_models:
             candidate_models.append(alt)
+
+    user_parts: list[dict] = [{"text": user_prompt}]
+    if image_bytes:
+        mime = image_mime_type or "image/jpeg"
+        b64_data = base64.b64encode(image_bytes).decode("utf-8")
+        user_parts.append({
+            "inline_data": {
+                "mime_type": mime,
+                "data": b64_data
+            }
+        })
+
+    gen_config: dict[str, Any] = {
+        "temperature": 0.2 if response_json else 0.3,
+        "maxOutputTokens": 2500
+    }
+    if response_json:
+        gen_config["response_mime_type"] = "application/json"
+    if response_schema:
+        gen_config["response_schema"] = response_schema
 
     payload = {
         "system_instruction": {
@@ -532,13 +562,10 @@ def _call_gemini_api(system_prompt: str, user_prompt: str, api_key_override: Opt
         "contents": [
             {
                 "role": "user",
-                "parts": [{"text": user_prompt}]
+                "parts": user_parts
             }
         ],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 800
-        }
+        "generationConfig": gen_config
     }
 
     data_bytes = json.dumps(payload).encode("utf-8")
@@ -551,7 +578,7 @@ def _call_gemini_api(system_prompt: str, user_prompt: str, api_key_override: Opt
                 data=data_bytes,
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 candidates = data.get("candidates", [])
                 if candidates:
@@ -559,7 +586,6 @@ def _call_gemini_api(system_prompt: str, user_prompt: str, api_key_override: Opt
                     if parts:
                         return parts[0].get("text", "").strip()
         except urllib.error.HTTPError as he:
-            # If 404 model not found for this key, try the next candidate model
             if he.code == 404:
                 continue
             logger.warning(f"[AI Service] Gemini ({model}) HTTP Error {he.code}: {he.read().decode('utf-8')[:200]}")
@@ -569,6 +595,143 @@ def _call_gemini_api(system_prompt: str, user_prompt: str, api_key_override: Opt
             break
 
     return None
+
+
+def _call_gemini_semantic_match(
+    customer_query: str,
+    chat_history: str = "",
+    image_bytes: Optional[bytes] = None,
+    image_mime_type: Optional[str] = None
+) -> Optional[dict]:
+    """
+    Directly feeds the customer's raw query and optional image to Gemini 2.5 Flash.
+    Gemini naturally translates, understands dialects (Hindi/Gujarati/Hinglish/English),
+    deciphers slang and typos, matches products against the live Shopify catalog,
+    and returns a structured JSON payload with verified matched products and a high-converting stylist reply.
+    """
+    try:
+        data = fetch_shopify_products(limit=250)
+        products = data.get("products", [])
+        if not products:
+            return None
+
+        # Build compact catalog summary for LLM context
+        catalog_summary = []
+        prod_map = {}
+        for p in products:
+            pid = str(p.get("id"))
+            prod_map[pid] = p
+            catalog_summary.append({
+                "id": pid,
+                "t": p.get("title"),
+                "cat": p.get("product_type"),
+                "tags": p.get("tags") or [],
+                "u": p.get("product_url")
+            })
+
+        system_instruction = (
+            "You are the senior jewelry stylist and catalog intelligence engine for JWL Billion (jwlbillion.com).\n"
+            "JWL Billion crafts premium gold-plated, silver-finish, American Diamond / CZ jewelry for BOTH Men and Women.\n\n"
+            "5 CORE INSTRUCTIONS:\n"
+            "1. Multilingual Understanding:\n"
+            "   - Understand customer queries in ANY language or dialect (Hindi, Gujarati, Hinglish, English, Gujlish, Tamil, etc.).\n"
+            "   - Naturally decipher jewelry slang and colloquialisms (e.g. 'gala ka har' = necklace, 'sui dhaaga' / 'latkan' = dangle/drop earrings, 'kaan ki bali' = hoop/earring, 'chhalla' = ring, 'kadas' = bracelet/bangle, 'chain' = chain).\n"
+            "2. Visual Image Recognition:\n"
+            "   - If an image is provided by the customer, inspect the jewelry design, style, stones, plating, and identify what category it belongs to.\n"
+            "   - Search the store catalog for the closest matching live designs.\n"
+            "3. Honesty on Uncarried Items (Zero Hallucination):\n"
+            "   - If customer asks for something we DO NOT carry (e.g. nose pins/nath, real gold/diamond coins, mangalsutra with real diamond, watches, silver coins), be 100% honest and warm. Say we do not have it in stock right now, but will notify them on WhatsApp when it arrives.\n"
+            "4. Pricing & Website Conversion Policy:\n"
+            "   - NEVER quote exact prices or rupee amounts (no numbers, no ₹) in chat.\n"
+            "   - Point warmly to our website for live festive discount offers, high-res videos, and Cash on Delivery (COD).\n"
+            "   - Reassure that 100% Cash on Delivery (COD) is available with 7-day easy replacement policy.\n"
+            "5. Voice & Tone:\n"
+            "   - Warm, respectful, personal female stylist voice ('karti hoon', 'dikhati hoon', 'samajh sakti hoon').\n"
+            "   - Never use a personal name like Riya or Maya.\n\n"
+            "OUTPUT FORMAT: Return a valid compact JSON object only with strictly escaped characters:\n"
+            "{\n"
+            '  "understood_intent": "Brief explanation of what the customer is asking for",\n'
+            '  "category": "necklace" | "earrings" | "rings" | "chains" | "bracelets" | "kadas" | "anklets" | "sets" | "uncarried" | "general_chat",\n'
+            '  "matched_product_ids": ["List of up to 3 best matching product IDs from the store catalog, or empty if general chat, objection, or uncarried"],\n'
+            '  "reply": "Polite, high-converting stylist response in the customer\'s own language. Reassure COD is available on our website. If products match, include their direct links."\n'
+            "}\n"
+            "CRITICAL: Keep the reply string clean on a single escaped line. Escape all inner quotes and newlines with \\n."
+        )
+
+        user_content = (
+            f"Customer Message: \"{customer_query}\"\n"
+            f"Recent Conversation History:\n{chat_history or 'None'}\n\n"
+            f"Live Store Catalog ({len(catalog_summary)} products in stock):\n"
+            f"{json.dumps(catalog_summary, ensure_ascii=False)}"
+        )
+
+        # Call Gemini with primary or fallback keys
+        gemini_keys = [
+            getattr(config, "GEMINI_API_KEY", None),
+            getattr(config, "GEMINI_FALLBACK_API_KEY", None),
+            getattr(config, "GEMINI_FALLBACK_API_KEY_2", None),
+            getattr(config, "GEMINI_FALLBACK_API_KEY_3", None),
+            getattr(config, "GEMINI_FALLBACK_API_KEY_4", None)
+        ]
+
+        schema_definition = {
+            "type": "OBJECT",
+            "properties": {
+                "understood_intent": {"type": "STRING"},
+                "category": {"type": "STRING"},
+                "matched_product_ids": {"type": "ARRAY", "items": {"type": "STRING"}},
+                "reply": {"type": "STRING"}
+            },
+            "required": ["matched_product_ids", "reply"]
+        }
+
+        raw_resp = None
+        for k in gemini_keys:
+            if not k:
+                continue
+            raw_resp = _call_gemini_api(
+                system_prompt=system_instruction,
+                user_prompt=user_content,
+                api_key_override=k,
+                image_bytes=image_bytes,
+                image_mime_type=image_mime_type,
+                response_json=True,
+                response_schema=schema_definition
+            )
+            if raw_resp:
+                break
+
+        if not raw_resp:
+            return None
+
+        try:
+            parsed = json.loads(raw_resp)
+        except Exception:
+            # Try cleaning raw json fences or unescaped control characters
+            clean_json = raw_resp.strip()
+            if clean_json.startswith("```"):
+                clean_json = re.sub(r"^```(?:json)?", "", clean_json)
+                clean_json = re.sub(r"```$", "", clean_json).strip()
+            # Replace unescaped newlines inside strings with \n
+            clean_json = re.sub(r'(?<!\\)\n', r'\\n', clean_json)
+            parsed = json.loads(clean_json, strict=False)
+        matched_ids = [str(_id) for _id in parsed.get("matched_product_ids", [])]
+        matched_products = [prod_map[pid] for pid in matched_ids if pid in prod_map]
+
+        first_p = matched_products[0] if matched_products else None
+        first_img = _clean_product_photo(first_p) if first_p else None
+
+        return {
+            "understood_intent": parsed.get("understood_intent"),
+            "category": parsed.get("category"),
+            "reply": parsed.get("reply"),
+            "products": matched_products,
+            "product": first_p,
+            "image_url": first_img
+        }
+    except Exception as e:
+        logger.warning(f"[AI Service] Gemini semantic matcher failed: {e}")
+        return None
 
 
 def _call_openai_api(system_prompt: str, user_prompt: str) -> Optional[str]:
@@ -753,11 +916,15 @@ def generate_qwen_reply(
         return {"status": "success", "reply": welcome_hinglish, "model": "default-greeting"}
 
     # 0b. Fast-Path for Generic Photo Requests without category ("Pic bhejiye", "Photos bhejo", "Design dikhao", "aap design bhje")
-    # Clarify which jewelry piece the customer would like to see instead of dumping random pendants or scale photos
+    # Only trigger if the customer has NO prior context in chat history AND did NOT recently send an image.
+    # If the customer already has context or sent an image, let Gemini inspect history/image directly!
+    has_image_in_history = bool(chat_history and ("[IMAGE]" in chat_history or "[Customer shared photo" in chat_history))
     is_generic_photo_request = (
         bool(re.search(r"\b(?:designs?|dijan|डिज़ाइन|डिजाइन|फोटो|photo|photos?|pics?|tasveer)\b", q_clean, re.I))
         and bool(re.search(r"\b(?:bhej\w*|bhj\w*|dikha\w*|dekha\w*|send|share|karo|do|दिखाओ|भेजो|दीजिए|दे)\b", q_clean, re.I))
         and not any(re.search(pat, q_clean, re.I) for pats in JEWELRY_CATEGORY_CANONICAL.values() for pat in pats)
+        and not has_prior_context
+        and not has_image_in_history
     )
     if is_generic_photo_request:
         photo_ask = "Haan ji, bilkul share karti hoon! 😊 Aapko kis category ke designs dekhne hain — jaise Earrings, Necklaces/Chains, Bangles, ya Bracelets?"
@@ -951,7 +1118,66 @@ def generate_qwen_reply(
             "model": MODEL_NAME
         }
 
-    # 3. Retrieve live Shopify product context matching customer's inquiry
+    # 2. Check for Inbound Customer Image attachment (in this turn or recent customer messages)
+    inbound_image_bytes = None
+    inbound_image_mime = None
+    if db and customer_phone:
+        try:
+            clean_p = customer_phone.replace("+", "").replace(" ", "").replace("-", "")
+            last_img_msg = (
+                db.query(models.ChatMessage)
+                .filter(
+                    models.ChatMessage.customer_phone.in_([customer_phone, clean_p, f"+{clean_p}"]),
+                    models.ChatMessage.sender_type == "CUSTOMER",
+                    (models.ChatMessage.message_type == "image") | (models.ChatMessage.media_url.isnot(None))
+                )
+                .order_by(models.ChatMessage.created_at.desc())
+                .first()
+            )
+            if last_img_msg and last_img_msg.media_url and any(last_img_msg.media_url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+                # Resolve local file path
+                rel_path = last_img_msg.media_url.lstrip("/")
+                candidates = [
+                    os.path.join("uploads", os.path.basename(rel_path)),
+                    os.path.join("backend", "uploads", os.path.basename(rel_path)),
+                    os.path.join("/app/uploads", os.path.basename(rel_path)),
+                    rel_path,
+                    os.path.join("backend", rel_path)
+                ]
+                for cpath in candidates:
+                    if os.path.isfile(cpath):
+                        with open(cpath, "rb") as imf:
+                            inbound_image_bytes = imf.read()
+                        ext = os.path.splitext(cpath)[1].lower()
+                        inbound_image_mime = "image/png" if ext == ".png" else "image/webp" if ext == ".webp" else "image/jpeg"
+                        logger.info(f"[AI Service] Successfully loaded customer image from {cpath} ({len(inbound_image_bytes)} bytes)")
+                        break
+        except Exception as img_err:
+            logger.debug(f"[AI Service] Could not fetch customer image: {img_err}")
+
+    # 3. DIRECT AI SEMANTIC & MULTIMODAL MATCHING PIPELINE
+    # Let Gemini 2.5 Flash understand natural language, regional dialects, and images directly
+    gemini_match = _call_gemini_semantic_match(
+        customer_query=customer_query,
+        chat_history=chat_history,
+        image_bytes=inbound_image_bytes,
+        image_mime_type=inbound_image_mime
+    )
+
+    if gemini_match and gemini_match.get("reply"):
+        rec_products = gemini_match.get("products") or []
+        first_p = gemini_match.get("product") or (rec_products[0] if rec_products else None)
+        first_img = gemini_match.get("image_url") or (_clean_product_photo(first_p) if first_p else None)
+        return {
+            "status": "success",
+            "reply": gemini_match["reply"],
+            "product": first_p,
+            "products": rec_products[:3],
+            "image_url": first_img,
+            "model": "gemini-2.5-flash-semantic"
+        }
+
+    # 4. Fallback: Retrieve live Shopify product context matching customer's inquiry
     product_context, top_matches = get_relevant_product_context(customer_query, chat_history)
 
     # Detect customer's preferred language and script dynamically

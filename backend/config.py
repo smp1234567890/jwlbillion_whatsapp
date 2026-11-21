@@ -4,6 +4,9 @@ import warnings
 from dotenv import load_dotenv
 
 load_dotenv()
+# Also check for backend/.env if running from project root
+if not os.getenv("GEMINI_API_KEY") and os.path.exists(os.path.join(os.path.dirname(__file__), ".env")):
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=True)
 
 logger = logging.getLogger("config")
 

@@ -30,6 +30,22 @@ logger = logging.getLogger("bot_service")
 # Set ENABLE_BOT_AUTOREPLY=false in .env to disable if needed.
 ENABLE_BOT_AUTOREPLY = os.getenv("ENABLE_BOT_AUTOREPLY", "true").lower() in ("true", "1", "yes")
 
+
+def is_global_autoreply_enabled(db: Optional[Session] = None) -> bool:
+    """
+    Checks if AI auto-reply is globally enabled.
+    Prioritizes dynamic DB SystemSetting 'ai_autoreply_enabled'.
+    If not set in DB, falls back to ENABLE_BOT_AUTOREPLY from env.
+    """
+    if db:
+        try:
+            setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "ai_autoreply_enabled").first()
+            if setting is not None:
+                return str(setting.value).strip().lower() in ["true", "1", "yes", "on"]
+        except Exception as e:
+            logger.debug(f"[Bot Auto-Reply] Could not query ai_autoreply_enabled setting: {e}")
+    return ENABLE_BOT_AUTOREPLY
+
 GREETING_WORDS = {
     "hi", "hello", "hey", "namaste", "namasta", "namaskar", "namaskaram", "kya haal", "kya haal hai", "kaisa hai", "kaise ho",
     "ram ram", "radhe radhe", "jai shri krishna", "pranam", "salaam", "adaab",
@@ -755,8 +771,8 @@ def handle_inbound_auto_reply(
     Returns dict info on sent reply or None.
     """
     # Immediate circuit breaker: pause bot auto-reply if globally disabled
-    if not ENABLE_BOT_AUTOREPLY:
-        logger.debug(f"[Bot Auto-Reply] Bot is currently paused. Skipping reply to {sender_phone}.")
+    if not is_global_autoreply_enabled(db):
+        logger.info(f"[Bot Auto-Reply] Global AI auto-reply is paused. 100% fallback to human for {sender_phone}.")
         return None
 
     # Check if AI / auto-replies are disabled specifically for this customer
@@ -849,17 +865,11 @@ def handle_inbound_auto_reply(
     # -------------------------------------------------------------
     # 0. Check for Inbound Customer Image/Photo Message
     # If the customer sends a photo (e.g. of a ring, earring, or screenshot),
-    # acknowledge the photo directly instead of dumping generic necklace catalog.
+    # route to AI vision so the AI can inspect the design and find matching products.
     # -------------------------------------------------------------
     is_photo_message = bool(re.match(r"^\[IMAGE\]", text_clean, re.IGNORECASE) or text_clean == "[image]")
     if is_photo_message:
-        photo_reply = (
-            "Thank you for sharing the photo! ✨\n\n"
-            "Our jewelry consultant is reviewing this design right now and will get back to you with live stock availability, purity, and best pricing shortly."
-        )
-        res = send_whatsapp_free_text(sender_phone, photo_reply, db=db)
-        _save_bot_message(db, sender_phone, photo_reply, res.get("message_id"))
-        return res
+        message_text = "Customer shared this jewelry photo. Please inspect the design, identify the style/type, and recommend the best matching products from our store catalog."
     if sel_id:
         if sel_id == "menu_track_order" or sel_id == "track_order":
             recent_orders = get_customer_recent_orders(sender_phone, db)

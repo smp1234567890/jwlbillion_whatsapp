@@ -17,7 +17,8 @@ import {
   Code,
   AlertTriangle,
   ExternalLink,
-  Moon
+  Moon,
+  Bot
 } from "lucide-react";
 import axios, { getApiBaseUrl } from "../api";
 import { formatToIST } from "../utils/dateUtils";
@@ -45,8 +46,27 @@ export default function SettingsPage({
   const [webhookCopied, setWebhookCopied] = useState(false);
   const [togglingQuietHours, setTogglingQuietHours] = useState(false);
   const [quietHoursLocal, setQuietHoursLocal] = useState(null);
+  const [togglingAiAutoreply, setTogglingAiAutoreply] = useState(false);
+  const [aiAutoreplyLocal, setAiAutoreplyLocal] = useState(null);
 
   const isQuietHoursActive = quietHoursLocal !== null ? quietHoursLocal : Boolean(systemSettings?.quiet_hours_enabled);
+  const isAiAutoreplyActive = aiAutoreplyLocal !== null ? aiAutoreplyLocal : (systemSettings?.ai_autoreply_enabled !== false);
+
+  const handleToggleAiAutoreply = async () => {
+    const nextState = !isAiAutoreplyActive;
+    setTogglingAiAutoreply(true);
+    try {
+      const res = await axios.put("/api/settings/ai-autoreply", { enabled: nextState });
+      const updated = res.data?.ai_autoreply_enabled ?? nextState;
+      setAiAutoreplyLocal(updated);
+      setSystemSettings(prev => ({ ...prev, ai_autoreply_enabled: updated }));
+    } catch (err) {
+      console.error("Failed to toggle AI auto-reply:", err);
+      alert("Failed to update AI auto-reply setting: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setTogglingAiAutoreply(false);
+    }
+  };
 
   const handleToggleQuietHours = async () => {
     const nextState = !isQuietHoursActive;
@@ -102,6 +122,44 @@ export default function SettingsPage({
                       <span className="text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-md border border-gray-300/60">
                         Fixed
                       </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-200">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Bot className="w-4 h-4 text-emerald-600" />
+                        <h4 className="font-bold text-gray-900">Universal AI Auto-Reply System</h4>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase border ${
+                          isAiAutoreplyActive 
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                            : "bg-red-50 text-red-700 border-red-200"
+                        }`}>
+                          {isAiAutoreplyActive ? "Active (AI Responding)" : "Paused (100% Human Fallback)"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {isAiAutoreplyActive
+                          ? "AI bot autonomously analyzes customer inquiries & vision photos, answers queries, and shares catalog links."
+                          : "Universal switch OFF: All AI auto-replies are disabled. Every incoming message 100% falls back to human agents."}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={togglingAiAutoreply}
+                        onClick={handleToggleAiAutoreply}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          isAiAutoreplyActive ? "bg-emerald-600" : "bg-gray-300"
+                        }`}
+                        title={isAiAutoreplyActive ? "Click to disable all AI auto-replies (100% Human Fallback)" : "Click to enable AI auto-replies"}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                            isAiAutoreplyActive ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
                     </div>
                   </div>
 
