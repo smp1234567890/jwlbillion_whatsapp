@@ -57,7 +57,7 @@ def list_conversations(
     if unread_only:
         where_clauses.append("COALESCE(u.unread_count, 0) > 0")
 
-    support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+    support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918780001820"
 
     inner_where = ""
     if support_only:
@@ -514,7 +514,7 @@ def send_agent_reply(
         )
 
         # Determine if this message is routed to/from the dedicated Support number
-        support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+        support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918780001820"
         
         # Check if destination phone is support OR if channel is explicitly 'support' OR if latest message in thread was support
         latest_thread_msg = db.query(models.ChatMessage).filter(models.ChatMessage.customer_phone == clean_phone).order_by(models.ChatMessage.id.desc()).first()
@@ -662,7 +662,7 @@ async def send_chat_media_message(
     )
 
     # Determine if this message is routed to/from the dedicated Support number
-    support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+    support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918780001820"
     latest_thread_msg = db.query(models.ChatMessage).filter(models.ChatMessage.customer_phone == clean_phone).order_by(models.ChatMessage.id.desc()).first()
     is_support_chat = (
         channel == "support" or
@@ -822,7 +822,7 @@ def react_to_chat_message(
     # If the message has an active WhatsApp wamid, send reaction to Meta API
     meta_result = None
     if msg.meta_message_id:
-        support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
+        support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918780001820"
         is_support_chat = (msg.customer_phone == support_phone_clean)
         active_token = config.SUPPORT_WHATSAPP_API_TOKEN if (is_support_chat and config.SUPPORT_WHATSAPP_API_TOKEN) else config.WHATSAPP_API_TOKEN
         active_phone_id = config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID if (is_support_chat and config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID) else config.WHATSAPP_PHONE_NUMBER_ID

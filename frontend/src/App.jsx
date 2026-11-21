@@ -399,8 +399,8 @@ export default function App() {
   const lastKnownIncomingSignatureRef = useRef(null);
   const isInitialConversationsLoadRef = useRef(true);
 
-  // Dedicated Support Chat States (+91 8888478888)
-  const SUPPORT_PHONE_NUMBER = "+918888478888";
+  // Dedicated Support Chat States (+91 87800 01820)
+  const SUPPORT_PHONE_NUMBER = "+918780001820";
   const [supportConversations, setSupportConversations] = useState([]);
   const [selectedSupportPhone, setSelectedSupportPhone] = useState("");
   const [supportMessages, setSupportMessages] = useState([]);
@@ -2822,7 +2822,7 @@ export default function App() {
                     : activeTab === "lead_report"
                     ? "Lead Interest & Calling Report"
                     : activeTab === "support_chat"
-                    ? "Support Chat (+91 8888478888)"
+                    ? "Support Chat (+91 87800 01820)"
                     : activeTab === "chat_analytics"
                     ? "Live Chat / Inbox Analytics"
                     : activeTab === "analytics"

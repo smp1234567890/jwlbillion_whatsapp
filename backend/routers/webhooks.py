@@ -1403,8 +1403,8 @@ async def receive_inbound_whatsapp_message(
                 metadata_info = value.get("metadata", {})
                 metadata_phone = metadata_info.get("display_phone_number", "")
                 metadata_phone_id = str(metadata_info.get("phone_number_id", ""))
-                support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918888478888"
-                support_id = str(config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID or "1353696711170456")
+                support_phone_clean = normalize_phone(config.SUPPORT_WHATSAPP_PHONE) if config.SUPPORT_WHATSAPP_PHONE else "+918780001820"
+                support_id = str(config.SUPPORT_WHATSAPP_PHONE_NUMBER_ID or "1537463196107195")
 
                 is_support_message = (
                     (metadata_phone and normalize_phone(metadata_phone) == support_phone_clean) or
