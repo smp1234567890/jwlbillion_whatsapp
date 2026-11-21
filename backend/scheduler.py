@@ -122,7 +122,7 @@ def process_abandoned_cart_job(cart_event_id: int):
     Called when delay timer expires. Checks if the customer completed checkout.
     If not, and not opted-out, sends abandoned cart recovery template.
     """
-    logger.info(f"⏰ [Scheduler] Executing delayed cart check for cart_event_id={cart_event_id}")
+    logger.info(f"[Scheduler] Executing delayed cart check for cart_event_id={cart_event_id}")
     db = SessionLocal()
     try:
         cart = db.query(models.CartEvent).filter(models.CartEvent.id == cart_event_id).first()
@@ -382,7 +382,7 @@ def run_thirty_day_reengagement_sweep():
             ).first()
 
             if recent_msg:
-                logger.info(f"⏭ Skipping {mask_phone(phone)}: Already received 30-day promo within the last 7 days.")
+                logger.info(f"Skipping {mask_phone(phone)}: Already received 30-day promo within the last 7 days.")
                 skipped_count += 1
                 continue
 
@@ -682,7 +682,7 @@ def run_all_active_automation_rules():
     (15-day inactive, 30-day winback, VIP repeat buyer, etc.) and executes them
     with deduplication without requiring manual button clicks.
     """
-    logger.info("⏰ [Daily Cron] Auto-executing all active automation rules...")
+    logger.info("[Daily Cron] Auto-executing all active automation rules...")
     db = SessionLocal()
     try:
         rules = db.query(models.AutomationRule).filter(models.AutomationRule.is_active == True).all()
@@ -898,9 +898,9 @@ def run_evening_click_reengagement_sweep():
 
             # 5. Send warm, respectful evening service check-in
             evening_msg = (
-                "Namaste ji! 😊 Aaj jo jewellery design aapne dekha tha, "
+                "Namaste ji!  Aaj jo jewellery design aapne dekha tha, "
                 "kya usme koi specific color, size ya aur options dekhna chahenge? "
-                "Pure India mein Cash on Delivery (COD) uplabdh hai. ✨"
+                "Pure India mein Cash on Delivery (COD) uplabdh hai. "
             )
 
             res = send_whatsapp_free_text(raw_phone, evening_msg, db=db)
@@ -933,11 +933,11 @@ def run_evening_click_reengagement_sweep():
         if not rule or not rule.is_active:
             return {"status": "inactive", "messages_dispatched": 0, "requires_approval": False}
 
-        # ⏳ Check Expiration Deadline: If past expires_at, automatically turn rule OFF
+        # Check Expiration Deadline: If past expires_at, automatically turn rule OFF
         if rule.expires_at and datetime.utcnow() > rule.expires_at:
             rule.is_active = False
             db.commit()
-            logger.info(f"⏳ [Rule Engine] Rule '{rule.rule_name}' has passed its deadline ({rule.expires_at}). Auto-deactivated.")
+            logger.info(f"[Rule Engine] Rule '{rule.rule_name}' has passed its deadline ({rule.expires_at}). Auto-deactivated.")
             return {"status": "expired", "messages_dispatched": 0, "requires_approval": False, "message": "Automation rule has reached its deadline and is now inactive."}
 
         logger.info(f"[Rule Engine] Running automation rule: '{rule.rule_name}' (force_approved={force_approved})")
@@ -982,7 +982,7 @@ def run_evening_click_reengagement_sweep():
             rule.pending_recipients_count = total_eligible
             db.commit()
 
-            logger.info(f"⏸ Rule '{rule.rule_name}'held: {total_eligible} eligible recipients (> 100 threshold). Requires dashboard approval.")
+            logger.info(f"Rule '{rule.rule_name}'held: {total_eligible} eligible recipients (> 100 threshold). Requires dashboard approval.")
             return {
                 "status": "pending_approval",
                 "messages_dispatched": 0,
@@ -1405,12 +1405,12 @@ def process_workflow_session_step(session_id: int, db=None, mock_send: bool = Fa
                     "details": f"Delayed until {session.next_evaluation_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
                 }]
                 db.commit()
-                logger.info(f"⏳ [Workflow Engine] Session #{session.id} queued for {delay_minutes}m delay.")
+                logger.info(f"[Workflow Engine] Session #{session.id} queued for {delay_minutes}m delay.")
                 return {"status": "delay_scheduled", "delay_minutes": delay_minutes}
             else:
                 # Delay was already queued. Check if the delay time has actually arrived.
                 if session.next_evaluation_at and now < session.next_evaluation_at:
-                    logger.info(f"⏳ [Workflow Engine] Session #{session.id} delay still pending until {session.next_evaluation_at}.")
+                    logger.info(f"[Workflow Engine] Session #{session.id} delay still pending until {session.next_evaluation_at}.")
                     session.status = "WAITING_DELAY"
                     db.commit()
                     return {"status": "delay_pending", "delay_minutes": delay_minutes, "next_eval": session.next_evaluation_at.isoformat()}
@@ -1945,7 +1945,7 @@ def process_all_active_workflow_sessions():
 
         if due_session_ids:
             total_due = len(due_session_ids)
-            logger.info(f"⏰ [Workflow Engine] Processing {total_due} due session(s) in FIFO batches of {WORKFLOW_BATCH_SIZE}...")
+            logger.info(f"[Workflow Engine] Processing {total_due} due session(s) in FIFO batches of {WORKFLOW_BATCH_SIZE}...")
             worker_id = f"sweeper_{uuid_module.uuid4().hex[:8]}"
 
             for i in range(0, total_due, WORKFLOW_BATCH_SIZE):

@@ -160,22 +160,22 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                     "rows": [
                         {
                             "id": "menu_products_list",
-                            "title": "🛍️ All Products",
+                            "title": "All Products",
                             "description": "Which products we have & categories"
                         },
                         {
                             "id": "menu_pendant_sets",
-                            "title": "💎 Pendant Set Design",
+                            "title": "Pendant Set Design",
                             "description": "View trending pendant necklace sets"
                         },
                         {
                             "id": "menu_bestsellers",
-                            "title": "🌟 See Bestsellers",
+                            "title": "See Bestsellers",
                             "description": "View our top-rated jewelry designs"
                         },
                         {
                             "id": "menu_price_avail",
-                            "title": "🏷️ Price & Availability",
+                            "title": "Price & Availability",
                             "description": "Check pricing & stock on designs"
                         }
                     ]
@@ -185,12 +185,12 @@ def build_main_menu_list(customer_name: Optional[str] = None) -> dict:
                     "rows": [
                         {
                             "id": "menu_request_voice_call",
-                            "title": "📞 Request Call",
+                            "title": "Request Call",
                             "description": "Allow our team to call you on WhatsApp"
                         },
                         {
                             "id": "menu_talk_agent",
-                            "title": "👤 Talk to Consultant",
+                            "title": "Talk to Consultant",
                             "description": "Connect with a live jewelry consultant"
                         }
                     ]
@@ -215,9 +215,9 @@ def build_recent_orders_interactive(orders: List[Dict[str, Any]], customer_name:
             "type": "button",
             "body": {
                 "text": (
-                    f"Welcome back{name_str}! 👋\n"
+                    f"Welcome back{name_str}! \n"
                     f"We found your recent purchase:\n\n"
-                    f"🛍️ *Order #{num}*\n"
+                    f"*Order #{num}*\n"
                     f"• *Status:* {o.get('fulfillment_status', 'Processing')}\n"
                     f"• *Amount:* {o.get('currency', '₹')}{o.get('total_price', '0')}\n"
                     f"• *Items:* {o.get('items_summary', 'Jewelry Item')}\n\n"
@@ -258,7 +258,7 @@ def build_recent_orders_interactive(orders: List[Dict[str, Any]], customer_name:
 
     rows.append({
         "id": "menu_diff_order",
-        "title": "🔍 Different Order",
+        "title": "Different Order",
         "description": "Enter another order number manually"
     })
 
@@ -880,7 +880,7 @@ def handle_inbound_auto_reply(
                 return res
             else:
                 text_reply = (
-                    "🔍 *Track Your Order*\n\n"
+                    "*Track Your Order*\n\n"
                     "Please reply with your *Order Number* (e.g. *#1024*), and we'll instantly check its live courier tracking status for you!"
                 )
                 res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
@@ -897,7 +897,7 @@ def handle_inbound_auto_reply(
 
         elif sel_id == "menu_diff_order":
             text_reply = (
-                "📝 Please reply with the *Order Number* you wish to track (for example: *#1050*)."
+                "Please reply with the *Order Number* you wish to track (for example: *#1050*)."
             )
             res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
             _save_bot_message(db, sender_phone, text_reply, res.get("message_id"))
@@ -905,7 +905,7 @@ def handle_inbound_auto_reply(
 
         elif sel_id == "menu_products_list":
             text_reply = (
-                "🛍️ *JWL Billion Jewelry Collections* 🛍️\n\n"
+                "*JWL Billion Jewelry Collections* \n\n"
                 "We craft premium, high-quality jewelry across multiple categories:\n\n"
                 "• *Pendant Sets & Necklaces* — American diamond & gold-plated\n"
                 "• *Chains & Mala* — Classic, box chain, double ball drops\n"
@@ -914,7 +914,7 @@ def handle_inbound_auto_reply(
                 "• *Bracelets & Anklets* — Elegant charms & luxury links\n"
                 "• *Rings* — Adjustable & statement stones\n"
                 "• *Healing Crystals & Stones* — Natural energy stones\n\n"
-                "🔗 *Explore full catalogue:* https://jwlbillion.com/\n\n"
+                "*Explore full catalogue:* https://jwlbillion.com/\n\n"
                 "Tell us which category you'd like to see, and we'll share photos & prices right here!"
             )
             res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
@@ -964,7 +964,7 @@ def handle_inbound_auto_reply(
             # Send photo of the first featured pendant design with caption
             p_first = curated_pendants[0]
             p_cap = (
-                f"💎 *{p_first['title']}*\n"
+                f"*{p_first['title']}*\n"
                 f"• Price: ₹{p_first['price']:,}\n"
                 f"• View Design: {p_first['url']}"
             )
@@ -978,7 +978,7 @@ def handle_inbound_auto_reply(
                 message_type="image"
             )
 
-            msg = "💎 *JWL Billion Trending Pendant & Necklace Sets* 💎\n\nHere are our 6 handcrafted pendant sets:\n\n"
+            msg = "*JWL Billion Trending Pendant & Necklace Sets* \n\nHere are our 6 handcrafted pendant sets:\n\n"
             for i, p in enumerate(curated_pendants, 1):
                 msg += f"*{i}. {p['title']}*\n"
                 msg += f"• Price: ₹{p['price']:,}\n"
@@ -1019,7 +1019,7 @@ def handle_inbound_auto_reply(
             # Send photo of the first bestselling item with caption
             first_p = curated_bestsellers[0]
             caption_first = (
-                f"🌟 *{first_p['title']}*\n"
+                f"*{first_p['title']}*\n"
                 f"• Price: ₹{first_p['price']:,}\n"
                 f"• View Design: {first_p['url']}"
             )
@@ -1033,7 +1033,7 @@ def handle_inbound_auto_reply(
                 message_type="image"
             )
 
-            msg = "🌟 *JWL Billion Bestselling Designs* 🌟\n\nHere are our top customer favorites:\n\n"
+            msg = "*JWL Billion Bestselling Designs* \n\nHere are our top customer favorites:\n\n"
             for i, p in enumerate(curated_bestsellers, 1):
                 msg += f"*{i}. {p['title']}*\n"
                 msg += f"• Price: ₹{p['price']:,}\n"
@@ -1045,7 +1045,7 @@ def handle_inbound_auto_reply(
 
         elif sel_id == "menu_offers":
             text_reply = (
-                "🎁 *Today's Exclusive Offers at JWL Billion* 🎁\n\n"
+                "*Today's Exclusive Offers at JWL Billion* \n\n"
                 "• *Flat 7% OFF* on all handcrafted jewelry: Use code *WELCOME*\n"
                 "• *Free Express Shipping* on orders above ₹999\n"
                 "• Free Luxury Gift Box Packaging included with every order!\n\n"
@@ -1057,7 +1057,7 @@ def handle_inbound_auto_reply(
 
         elif sel_id == "menu_price_avail":
             text_reply = (
-                "💎 *Check Price & Stock Availability*\n\n"
+                "*Check Price & Stock Availability*\n\n"
                 "Please send the *Name*, *Photo*, or *Screenshot* of the design you're interested in.\n\n"
                 "Our jewelry consultant will immediately check live stock, purity, and give you the best price!"
             )
@@ -1067,7 +1067,7 @@ def handle_inbound_auto_reply(
 
         elif sel_id == "menu_live_video":
             text_reply = (
-                "📹 *See On Live Video Call*\n\n"
+                "*See On Live Video Call*\n\n"
                 "Experience our jewelry up close in real-time before you buy!\n\n"
                 "A jewelry consultant will connect with you on WhatsApp Video Call. "
                 "Please reply with your *preferred time slot* (e.g. *Today 4 PM*), and we will schedule your live call!"
@@ -1113,7 +1113,7 @@ def handle_inbound_auto_reply(
 
         elif sel_id == "menu_talk_agent":
             text_reply = (
-                "👤 A jewelry consultant from *JWL Billion* has been notified and will assist you shortly.\n\n"
+                "A jewelry consultant from *JWL Billion* has been notified and will assist you shortly.\n\n"
                 "Feel free to type your question or requirements in the meantime!"
             )
             res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
@@ -1202,7 +1202,7 @@ def handle_inbound_auto_reply(
         cod_reply = (
             "Haan ji, 100% Cash on Delivery (COD) uplabdh hai pure India mein!\n\n"
             "Parcel milne par hi aapko cash dena hai. Hamari official website par aap directly COD order place kar sakte hain:\n"
-            "👉 https://jwlbillion.com\n\n"
+            "https://jwlbillion.com\n\n"
             "Aapko kaun sa jewellery design sabse zyada pasand aaya?"
         )
         res = send_whatsapp_free_text(sender_phone, cod_reply, db=db)
@@ -1222,7 +1222,7 @@ def handle_inbound_auto_reply(
             return res
         else:
             text_reply = (
-                "🔍 *Track Your Order*\n\n"
+                "*Track Your Order*\n\n"
                 "Please reply with your *Order Number* (e.g. *#1024*), and we'll immediately fetch live tracking details for you!"
             )
             res = send_whatsapp_free_text(sender_phone, text_reply, db=db)
@@ -1339,16 +1339,16 @@ def _format_order_details(order: Optional[dict], order_num: str) -> str:
         reply += f"• *Total:* {order['currency']}{order['total_price']}\n"
 
         if order.get("tracking_number"):
-            reply += f"\n🚚 *Courier:* {order.get('tracking_company') or 'Standard Courier'}\n"
-            reply += f"📋 *Tracking No:* {order['tracking_number']}\n"
+            reply += f"\n*Courier:* {order.get('tracking_company') or 'Standard Courier'}\n"
+            reply += f"*Tracking No:* {order['tracking_number']}\n"
             if order.get("tracking_url"):
-                reply += f"🔗 *Track Live:* {order['tracking_url']}\n"
+                reply += f"*Track Live:* {order['tracking_url']}\n"
         else:
-            reply += "\n⏳ *Courier Update:* Your package is currently being packed. You will receive an SMS and WhatsApp update with tracking details as soon as it is picked up!"
+            reply += "\n*Courier Update:* Your package is currently being packed. You will receive an SMS and WhatsApp update with tracking details as soon as it is picked up!"
         return reply
     else:
         return (
-            f"🔍 We couldn't find an order matching *#{order_num}* in our JWL Billion Store records.\n\n"
+            f"We couldn't find an order matching *#{order_num}* in our JWL Billion Store records.\n\n"
             "Please check the order number sent in your confirmation message, or reply with your registered email."
         )
 

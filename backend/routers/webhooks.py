@@ -1435,9 +1435,9 @@ async def receive_inbound_whatsapp_message(
                     if call_perm_reply:
                         resp_action = call_perm_reply.get("response", "accept")
                         if resp_action == "accept":
-                            raw_body = "📞 WhatsApp Call Permission Granted by Customer"
+                            raw_body = "WhatsApp Call Permission Granted by Customer"
                         else:
-                            raw_body = "📞 WhatsApp Call Permission Declined by Customer"
+                            raw_body = "WhatsApp Call Permission Declined by Customer"
                     elif title:
                         raw_body = f"Selected: {title}"
                     elif interactive_id:
@@ -1472,9 +1472,9 @@ async def receive_inbound_whatsapp_message(
                                         t_en = sarvam_res.get("translated") or ""
                                         # If translation to English is available, format so Live Chat shows native and ChatGPT understands translated meaning
                                         if t_en and t_en.lower() != t_native.lower():
-                                            raw_body = f"🎤 {t_native} ({t_en})"
+                                            raw_body = f"{t_native} ({t_en})"
                                         else:
-                                            raw_body = f"🎤 {t_native}"
+                                            raw_body = f"{t_native}"
                                         logger.info(f"[Webhook] Audio processed via Sarvam: '{raw_body}'")
                                 except Exception as _sarvam_err:
                                     logger.warning(f"[Webhook] Sarvam transcription failed: {_sarvam_err}")
@@ -1482,18 +1482,18 @@ async def receive_inbound_whatsapp_message(
                     loc = msg.get("location", {})
                     lat, lng = loc.get("latitude"), loc.get("longitude")
                     name = loc.get("name") or loc.get("address") or "Location"
-                    raw_body = f"📍 {name} ({lat}, {lng})"
+                    raw_body = f"{name} ({lat}, {lng})"
                 elif msg_type == "contacts":
                     contacts_list = msg.get("contacts", [])
                     if contacts_list:
                         first_c = contacts_list[0]
                         c_name = first_c.get("name", {}).get("formatted_name") or "Shared Contact"
                         c_phones = [p.get("phone") for p in first_c.get("phones", []) if p.get("phone")]
-                        phone_str = f"\n📞 {', '.join(c_phones)}" if c_phones else ""
+                        phone_str = f"\n{', '.join(c_phones)}" if c_phones else ""
                         inbound_filename = c_name
-                        raw_body = f"👤 {c_name}{phone_str}"
+                        raw_body = f"{c_name}{phone_str}"
                     else:
-                        raw_body = "👤 Contact Card"
+                        raw_body = "Contact Card"
                 elif msg_type == "reaction":
                     react_data = msg.get("reaction", {})
                     emoji = react_data.get("emoji", "")

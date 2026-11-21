@@ -303,7 +303,7 @@ export default function ContactsPage({
                           className="bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#25D366]"
                         >
                           <option value="ALL">All VIP Tiers</option>
-                          <option value="SUPER_VIP">⭐ Super VIP (10+ Orders)</option>
+                          <option value="SUPER_VIP">Super VIP (10+ Orders)</option>
                           <option value="VIP"> VIP Buyer (5-9 Orders)</option>
                           <option value="REGULAR">Regular (&lt; 5 Orders)</option>
                         </select>
@@ -498,7 +498,7 @@ export default function ContactsPage({
                                   <td className="px-6 py-4">
                                     {orders >= 10 ? (
                                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                                        ⭐ Super VIP
+                                        Super VIP
                                       </span>
                                     ) : orders >= 5 ? (
                                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">

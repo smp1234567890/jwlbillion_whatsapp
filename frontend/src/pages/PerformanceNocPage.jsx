@@ -436,7 +436,7 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
                       </span>
                     </div>
                     <div className="text-xs text-red-700 font-medium">
-                      ⚠️ Reason: {item.stuck_reason}
+                      Reason: {item.stuck_reason}
                     </div>
                     <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-1 border-t border-red-100">
                       <span>Progress: <strong>{item.progress}</strong></span>
@@ -513,7 +513,7 @@ export default function PerformanceNocPage({ token, handleTabChange }) {
                       </span>
                     </div>
                     <div className="text-xs text-amber-800">
-                      ⏱ Overdue by <strong>{s.overdue_by_mins} minutes</strong> (Waiting at step <code className="bg-amber-100 px-1 rounded">{s.current_node_id || "start"}</code>)
+                      Overdue by <strong>{s.overdue_by_mins} minutes</strong> (Waiting at step <code className="bg-amber-100 px-1 rounded">{s.current_node_id || "start"}</code>)
                     </div>
                     <div className="text-[11px] text-gray-500 font-mono">
                       Customer: {s.customer_phone} • Attempts: {s.attempt_count}

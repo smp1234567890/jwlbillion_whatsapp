@@ -73,7 +73,7 @@ export default function TemplateModal({
       header_type: "IMAGE",
       header_url: "",
       header_handle: "",
-      body_text: "✨ Item " + (newIdx + 1) + ": Description & price",
+      body_text: "Item " + (newIdx + 1) + ": Description & price",
       buttons: [defaultBtn]
     };
     setNewTemplate((prev) => ({
@@ -195,13 +195,13 @@ export default function TemplateModal({
 
     if (type === "VIDEO" && file.size > maxVideoSize) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      alert(`⚠️ Video is too large (${sizeMB} MB).\n\nMeta limits WhatsApp template videos to a maximum of 16 MB. Please compress or trim your video to under 16 MB before uploading.`);
+      alert(`Video is too large (${sizeMB} MB).\n\nMeta limits WhatsApp template videos to a maximum of 16 MB. Please compress or trim your video to under 16 MB before uploading.`);
       e.target.value = "";
       return;
     }
     if (type === "IMAGE" && file.size > maxImageSize) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      alert(`⚠️ Image is too large (${sizeMB} MB).\n\nMeta limits WhatsApp template images to a maximum of 5 MB.`);
+      alert(`Image is too large (${sizeMB} MB).\n\nMeta limits WhatsApp template images to a maximum of 5 MB.`);
       e.target.value = "";
       return;
     }
@@ -263,7 +263,7 @@ export default function TemplateModal({
           header_type: "IMAGE",
           header_url: "",
           header_handle: "",
-          body_text: "✨ Item 1: Exclusive Design & Pricing",
+          body_text: "Item 1: Exclusive Design & Pricing",
           buttons: [{ type: "URL", text: "Shop Now", url: "https://example.com/item1" }]
         },
         {
@@ -271,7 +271,7 @@ export default function TemplateModal({
           header_type: "IMAGE",
           header_url: "",
           header_handle: "",
-          body_text: "✨ Item 2: Special Festive Collection",
+          body_text: "Item 2: Special Festive Collection",
           buttons: [{ type: "URL", text: "Shop Now", url: "https://example.com/item2" }]
         }
       ]
@@ -1228,7 +1228,7 @@ export default function TemplateModal({
                               id={`carousel-card-body-${cIdx}`}
                               rows={2}
                               maxLength={160}
-                              placeholder="e.g. ✨ Gold Plated Tennis Bracelet - ₹899 (Special 20% OFF)"
+                              placeholder="e.g. Gold Plated Tennis Bracelet - ₹899 (Special 20% OFF)"
                               value={card.body_text || ""}
                               onChange={(e) => {
                                 // Meta strictly forbids line breaks inside carousel card body text
@@ -1899,12 +1899,12 @@ export default function TemplateModal({
                   if (subType === "CAROUSEL") {
                     const cards = newTemplate.carousel_cards || [];
                     if (cards.length < 2) {
-                      alert("⚠️ Meta requires a minimum of 2 carousel cards.");
+                      alert("Meta requires a minimum of 2 carousel cards.");
                       return;
                     }
                     const emptyCardIdx = cards.findIndex(c => !c.header_url && !c.header_handle);
                     if (emptyCardIdx !== -1) {
-                      alert(`⚠️ Card #${emptyCardIdx + 1} has no image uploaded or attached.\n\nMeta requires every carousel card to have an image header before submission.`);
+                      alert(`Card #${emptyCardIdx + 1} has no image uploaded or attached.\n\nMeta requires every carousel card to have an image header before submission.`);
                       return;
                     }
 

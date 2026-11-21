@@ -1148,7 +1148,7 @@ export default function LiveChatPage({
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-bold text-gray-900 truncate">
-                                    {msg.filename || msg.text?.replace("👤", "").trim() || "Shared Contact"}
+                                    {msg.filename || msg.text.trim() || "Shared Contact"}
                                   </p>
                                   {msg.text && msg.text.includes("\n") && (
                                     <p className="text-[11px] font-mono text-emerald-800 truncate">
@@ -1277,10 +1277,10 @@ export default function LiveChatPage({
                               <div className="mt-3 pt-2 border-t border-black/10">
                                 <div className="flex items-center justify-between mb-2 px-1">
                                   <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                                    <span>🎠</span> WhatsApp Carousel ({msg.carousel_cards.length} Cards)
+                                    WhatsApp Carousel ({msg.carousel_cards.length} Cards)
                                   </span>
                                   <span className="text-[10px] text-gray-600 italic">
-                                    Swipe / Scroll horizontally ➔
+                                    Swipe / Scroll horizontally
                                   </span>
                                 </div>
                                 <div className="flex gap-3 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth snap-x">
@@ -1345,7 +1345,7 @@ export default function LiveChatPage({
                                                   key={bIdx}
                                                   className="w-full py-1.5 px-2 bg-gray-50 text-gray-700 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 truncate border border-gray-100"
                                                 >
-                                                  <span>💬</span> {btn.text || "Quick Reply"}
+                                                  {btn.text || "Quick Reply"}
                                                 </div>
                                               );
                                             })}

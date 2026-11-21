@@ -2960,9 +2960,9 @@ export default function App() {
               <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs">
                 <div className="w-16 h-16 rounded-2xl bg-[#F5A623]/10 text-[#F5A623] flex items-center justify-center mx-auto mb-4 font-black text-2xl">
                   {activePlatform === "facebook" && "f"}
-                  {activePlatform === "instagram" && "📸"}
-                  {activePlatform === "threads" && "🧵"}
-                  {activePlatform === "meta_ads" && "📈"}
+                  {activePlatform === "instagram" && "IG"}
+                  {activePlatform === "threads" && "TH"}
+                  {activePlatform === "meta_ads" && "AD"}
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 capitalize mb-2">
                   {activeTab.replace(/^(fb_|ig_|th_|ads_)/, "").replace(/_/g, " ")}

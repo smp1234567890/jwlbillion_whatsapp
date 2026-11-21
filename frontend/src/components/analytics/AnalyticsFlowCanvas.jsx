@@ -275,7 +275,7 @@ export default function AnalyticsFlowCanvas({
               <span className="text-[10px] text-gray-400">contacts</span>
               {active > 0 && (
                 <span className="ml-1 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded-full">
-                  ⏳ {active} active
+                  {active} active
                 </span>
               )}
             </div>

@@ -357,14 +357,14 @@ def visual_performance_noc(db: Session = Depends(get_db)):
                     <strong style="color:#111827; font-size:13px;">{c.get('title')} <span style="color:#6b7280; font-weight:normal;">#{c.get('id')}</span></strong>
                     <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">{c.get('status')}</span>
                 </div>
-                <div style="color:#b91c1c; font-size:12px; margin-top:6px;">⚠️ Reason: {c.get('stuck_reason')}</div>
+                <div style="color:#b91c1c; font-size:12px; margin-top:6px;"> Reason: {c.get('stuck_reason')}</div>
                 <div style="font-size:11px; color:#4b5563; margin-top:6px;">Progress: <strong>{c.get('progress')}</strong> | Attempts: <strong>{c.get('attempt_count')}</strong> | Template: <code>{c.get('template_name')}</code></div>
             </div>
             """
     else:
         stuck_camp_html = """
         <div style="text-align:center; padding:32px 16px; color:#6b7280;">
-            <div style="font-size:24px; margin-bottom:8px;">✓</div>
+            <div style="font-size:24px; margin-bottom:8px;"></div>
             <strong style="color:#111827; font-size:13px;">No Stuck Campaigns</strong>
             <p style="font-size:12px; margin:4px 0 0 0; color:#6b7280;">All broadcasts are operating normally within lease windows.</p>
         </div>
@@ -381,14 +381,14 @@ def visual_performance_noc(db: Session = Depends(get_db)):
                     <strong style="color:#111827; font-size:13px;">Session #{a.get('session_id')} (Flow #{a.get('flow_id')})</strong>
                     <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">{a.get('status')}</span>
                 </div>
-                <div style="color:#92400e; font-size:12px; margin-top:6px;">⏱ Overdue by <strong>{a.get('overdue_by_mins')} min</strong> at step <code>{a.get('current_node_id') or 'start'}</code></div>
+                <div style="color:#92400e; font-size:12px; margin-top:6px;"> Overdue by <strong>{a.get('overdue_by_mins')} min</strong> at step <code>{a.get('current_node_id') or 'start'}</code></div>
                 <div style="font-size:11px; color:#4b5563; margin-top:6px;">Phone: <code>{a.get('customer_phone')}</code> | Retries: <strong>{a.get('attempt_count')}</strong></div>
             </div>
             """
     else:
         stuck_auto_html = """
         <div style="text-align:center; padding:32px 16px; color:#6b7280;">
-            <div style="font-size:24px; margin-bottom:8px;">✓</div>
+            <div style="font-size:24px; margin-bottom:8px;"></div>
             <strong style="color:#111827; font-size:13px;">Automations Running Smoothly</strong>
             <p style="font-size:12px; margin:4px 0 0 0; color:#6b7280;">Delay nodes and conditions are evaluating on time.</p>
         </div>
@@ -425,7 +425,7 @@ def visual_performance_noc(db: Session = Depends(get_db)):
         <!-- Header -->
         <div class="header">
             <div class="header-title">
-                <div class="logo-box">⚡</div>
+                <div class="logo-box"></div>
                 <div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <h1 style="font-size:18px; font-weight:bold;">System Performance & NOC Live Center</h1>
@@ -461,7 +461,7 @@ def visual_performance_noc(db: Session = Depends(get_db)):
                 <span class="card-label">Process Memory (RSS)</span>
                 <div class="card-value">{server.get('memory_resident_mb', 0)} MB</div>
                 <p style="font-size:12px; color:#6b7280; margin-top:6px;">Backend process footprint</p>
-                <div style="font-size:12px; color:#059669; font-weight:600; margin-top:12px;">✓ Optimal memory envelope</div>
+                <div style="font-size:12px; color:#059669; font-weight:600; margin-top:12px;"> Optimal memory envelope</div>
             </div>
 
             <div class="card">
