@@ -531,7 +531,7 @@ def _call_gemini_api(
 
     configured_model = getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
     candidate_models = [configured_model]
-    for alt in ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-2.5-flash"]:
+    for alt in ["gemini-3.5-flash", "gemini-2.5-flash-lite"]:
         if alt not in candidate_models:
             candidate_models.append(alt)
 
@@ -569,6 +569,7 @@ def _call_gemini_api(
     }
 
     data_bytes = json.dumps(payload).encode("utf-8")
+    req_timeout = 8.0 if image_bytes else 4.0
 
     for model in candidate_models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -578,7 +579,7 @@ def _call_gemini_api(
                 data=data_bytes,
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=req_timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 candidates = data.get("candidates", [])
                 if candidates:
@@ -586,13 +587,14 @@ def _call_gemini_api(
                     if parts:
                         return parts[0].get("text", "").strip()
         except urllib.error.HTTPError as he:
-            if he.code == 404:
+            if he.code in (404, 429, 503, 500):
+                logger.info(f"[AI Service] Gemini ({model}) returned {he.code}, trying fallback candidate...")
                 continue
             logger.warning(f"[AI Service] Gemini ({model}) HTTP Error {he.code}: {he.read().decode('utf-8')[:200]}")
-            break
+            continue
         except Exception as e:
-            logger.warning(f"[AI Service] Gemini ({model}) API call failed: {e}")
-            break
+            logger.info(f"[AI Service] Gemini ({model}) timed out/failed ({e}), trying fallback candidate...")
+            continue
 
     return None
 
