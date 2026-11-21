@@ -58,6 +58,69 @@ def _clean_product_photo(product: dict) -> Optional[str]:
 
     return clean_photos[0] if clean_photos else img_urls[0]
 
+
+FEMALE_INDIAN_NAMES = {
+    'nilima', 'kavita', 'anita', 'aruna', 'durga', 'pooja', 'puja', 'sunita', 'priya', 'neha',
+    'rekha', 'geeta', 'gita', 'seema', 'shital', 'sheetal', 'meena', 'radha', 'anjali', 'kajal',
+    'simran', 'sneha', 'swati', 'divya', 'komal', 'bhavna', 'monika', 'payal', 'jyoti', 'mamta',
+    'sapna', 'deepika', 'priyanka', 'rita', 'zohra', 'nabanita', 'vrinda', 'sangeeta', 'pushpa',
+    'chandrani', 'aarti', 'arti', 'sonia', 'sonal', 'dimple', 'tanvi', 'isha', 'riya', 'rhea',
+    'nisha', 'rashmi', 'alpa', 'rupali', 'shreya', 'mansi', 'chhaya', 'priti', 'preeti', 'khushi'
+}
+
+MALE_INDIAN_NAMES = {
+    'kartik', 'ansar', 'arpit', 'dinesh', 'parth', 'rahul', 'amit', 'vijay', 'rohit', 'sanjay',
+    'deepak', 'manoj', 'rajesh', 'anil', 'sunil', 'vikas', 'mukesh', 'ajay', 'pankaj', 'alok',
+    'ravi', 'kunal', 'suresh', 'ramesh', 'vipin', 'narendra', 'rudhransh', 'vilas', 'pinakin',
+    'nasir', 'harsh', 'bhavik', 'chirag', 'karan', 'varun', 'gaurav', 'ashish', 'abhishek',
+    'chetan', 'pratik', 'mayur', 'hitesh', 'jatin', 'kamal', 'vivek', 'sahil', 'sumit', 'aman'
+}
+
+
+def extract_clean_first_name(raw_name: Optional[str]) -> Optional[str]:
+    """
+    Extracts a genuine first name from WhatsApp contact name or profile name.
+    Strictly filters out emojis, status slogans (e.g. 'love you ma'), phone numbers, and generic strings.
+    """
+    if not raw_name:
+        return None
+    raw_str = raw_name.strip()
+    if not raw_str:
+        return None
+    tokens = raw_str.split()
+    first_token = tokens[0] if tokens else ""
+    # Strip any special symbols or non-alpha unicode
+    clean = re.sub(r'[^a-zA-Z\u0900-\u097F\u0A80-\u0AFF]', '', first_token)
+    if len(clean) < 2 or len(clean) > 20:
+        return None
+    if re.search(r'\d', clean):
+        return None
+    bad_tokens = {
+        'user', 'guest', 'customer', 'support', 'whatsapp', 'lead', 'love', 'ji', 'sir',
+        'madam', 'unknown', 'none', 'admin', 'jwl', 'billion', 'shop', 'order', 'call'
+    }
+    if clean.lower() in bad_tokens:
+        return None
+    return clean.capitalize()
+
+
+def infer_gender_from_name(first_name: Optional[str]) -> Optional[str]:
+    """
+    Infers gender ('Female' or 'Male') from an Indian first name if high confidence, else None.
+    """
+    if not first_name:
+        return None
+    nl = first_name.lower()
+    if nl in FEMALE_INDIAN_NAMES:
+        return "Female"
+    if nl in MALE_INDIAN_NAMES:
+        return "Male"
+    if nl.endswith(('a', 'i', 'ee', 'ya', 'ani')) and nl not in MALE_INDIAN_NAMES:
+        return "Female"
+    if nl.endswith(('esh', 'an', 'ar', 'ik', 'it', 'al', 'ur', 'deep', 'pal')) and nl not in FEMALE_INDIAN_NAMES:
+        return "Male"
+    return None
+
 logger = logging.getLogger("ai_assistant_service")
 
 OLLAMA_API_URL = "http://172.17.0.1:11434/api/generate"
@@ -603,7 +666,9 @@ def _call_gemini_semantic_match(
     customer_query: str,
     chat_history: str = "",
     image_bytes: Optional[bytes] = None,
-    image_mime_type: Optional[str] = None
+    image_mime_type: Optional[str] = None,
+    customer_name: Optional[str] = None,
+    customer_gender: Optional[str] = None
 ) -> Optional[dict]:
     """
     Directly feeds the customer's raw query and optional image to Gemini 2.5 Flash.
@@ -638,34 +703,42 @@ def _call_gemini_semantic_match(
         system_instruction = (
             "You are the Master Luxury Jewelry Stylist and Sales Closer for JWL Billion (jwlbillion.com), with 50+ years of heritage sales expertise.\n"
             "JWL Billion crafts luxury gold-plated, silver-finish, American Diamond (CZ) jewelry for BOTH Men and Women with 1-micron anti-tarnish finish that looks indistinguishable from 22K real gold.\n\n"
-            "7 CORE SALES MASTERY RULES:\n"
-            "1. Multilingual Natural Mirroring & Gender Matching:\n"
+            "8 CORE SALES MASTERY RULES:\n"
+            "1. Customer Personalization & Respectful Name Timing (The 'Ji' Protocol):\n"
+            f"   - Customer First Name: {customer_name or 'None'}\n"
+            f"   - Inferred Gender: {customer_gender or 'Neutral'}\n"
+            "   - When Customer First Name is known:\n"
+            "     * In the greeting / first interaction: Address them warmly using '[FirstName] ji!' (e.g. 'Namaste Nilima ji! ✨', 'Hello Kartik ji!').\n"
+            "     * While browsing, explaining designs, or answering quick questions: Do NOT repeat their name in every sentence! Keep it natural.\n"
+            "     * When asking a closing choice or follow-up question: You may gently address them again with '[FirstName] ji' (e.g. 'Nilima ji, aapko pehla wala design zyada pasand aaya ya second?').\n"
+            "   - If Customer Name is None or not provided, address respectfully as 'Namaste ji!' or 'Bilkul ji!'.\n"
+            "2. Multilingual Natural Mirroring & Gender Matching:\n"
             "   - Understand customer queries in ANY language or dialect (Hindi, Gujarati, Hinglish, English, Gujlish, etc.).\n"
-            "   - Strictly match GENDER: If customer asks for Women's/Ladies jewellery ('women's chain', 'ladies chain', 'ladies ke liye'), NEVER recommend products with 'For Men's' or Men's tags! If they ask for Men's/Gents jewellery, recommend only Men's designs.\n"
+            "   - Strictly match GENDER: If customer is female or asks for Women's/Ladies jewellery ('women's chain', 'ladies chain', 'ladies ke liye'), NEVER recommend products with 'For Men's' or Men's tags! If they ask for Men's/Gents jewellery, recommend only Men's designs.\n"
             "   - For 'Women's Chain': Our catalog has 'Golden Grace Gold-Plated Chain Necklace for Women' (ID 8692233076908). Always prioritize this! If providing another option, include a delicate pendant chain necklace and explain: 'Ladies ke liye hamare paas Golden Grace Minimalist Chain available hai. Saath hi agar aapko chain ke saath delicate pendant pasand hai, toh yeh option bhi behad pyara hai!'. NEVER show Men's Chains for women.\n"
-            "2. Curated Choice Architecture (Rule of 2 Options):\n"
+            "3. Curated Choice Architecture (Rule of 2 Options):\n"
             "   - Do NOT overwhelm the customer with many products! Show maximum 1 or 2 distinct curated options in matched_product_ids.\n"
             "   - Position them smartly (e.g. 'Ek daily lightweight wear ke liye, aur dusra special occasion ke liye').\n"
-            "3. Value Justification Before Price (When Asked for Price):\n"
+            "4. Value Justification Before Price (When Asked for Price):\n"
             "   - DO NOT quote prices unless the customer asks for price, rate, cost, or prize!\n"
             "   - When customer DOES ask for price ('Kitne ka hai?', 'Price?', 'prize', 'rate'):\n"
             "     * Anchor the value FIRST (premium micron gold plating, anti-tarnish shine, looks like 22K gold).\n"
             "     * Quote the offer price in ₹ (and mention the original MRP/compare_at_price if available, e.g. 'MRP ₹1,100 ke muqable aaj festive offer mein sirf ₹750').\n"
             "     * Reassure that 100% Cash on Delivery (COD) is available with 7-day easy replacement policy.\n"
-            "4. Objection Annihilation (Trust & Quality):\n"
+            "5. Objection Annihilation (Trust & Quality):\n"
             "   - Fear of fading/blackening ('Kala to nahi hoga?'): 'Bilkul fikar mat kijiye! Hamari jewellery premium micron gold plating & anti-tarnish coating ke sath aati hai jo saalon saal chamakti hai.'\n"
             "   - Trust/Online hesitation: 'Aapko pehle paise nahi dene — 100% Cash on Delivery (COD) available hai, parcel ghar aane par check karke pay kijiye + 7-day easy replacement guarantee.'\n"
             "   - Hesitation/Delay ('Soch ke batata hoon'): 'Zaroor ji, aaram se sochiye! 😊 Kya design mein kuch alag chahiye tha ya price/delivery se juda koi doubt hai? Main aapki pasand ke mutabiq dusra option dikha sakti hoon.'\n"
-            "5. Low-Friction Alternative-Choice Closing (Every Message Must Move Forward):\n"
+            "6. Low-Friction Alternative-Choice Closing (Every Message Must Move Forward):\n"
             "   - Never end with a passive dead-end or cold full stop.\n"
             "   - Never ask yes/no questions ('Kharidna hai?').\n"
             "   - Ask engaging low-friction choice questions:\n"
             "     * 'Aapko pehla wala minimalist design zyada pasand aaya ya second statement look?'\n"
             "     * 'Aap apne personal wear ke liye dekh rahe hain ya kisi khas ko gift dene ke liye?'\n"
             "     * 'Agar aapko pasand ho, toh main aapka Cash on Delivery order yahin book karwa sakti hoon — bas apna area pincode bata dijiye!'\n"
-            "6. Mangalsutra & Catalog Variety:\n"
+            "7. Mangalsutra & Catalog Variety:\n"
             "   - We have 13 distinct American Diamond & Gold-Plated Mangalsutras! Always cycle through different styles (floral, heart & infinity, drop, butterfly, triple heart). If customer asks for another design, pick fresh unshown ones.\n"
-            "7. Voice & Tone:\n"
+            "8. Voice & Tone:\n"
             "   - Warm, respectful, confident personal female stylist voice ('karti hoon', 'dikhati hoon', 'samajh sakti hoon').\n"
             "   - Never use a personal name like Riya or Maya.\n\n"
             "OUTPUT FORMAT: Return a valid compact JSON object only with strictly escaped characters:\n"
@@ -897,12 +970,29 @@ def _call_groq_api(system_prompt: str, user_prompt: str) -> Optional[str]:
 def generate_qwen_reply(
     customer_query: str,
     customer_phone: Optional[str] = None,
+    customer_name: Optional[str] = None,
     db: Optional[Session] = None
 ) -> Dict[str, Any]:
     """
-    Generates a natural, context-aware sales-converting reply using Qwen 2.5 via Ollama.
+    Generates a natural, context-aware sales-converting reply using Qwen 2.5 / Gemini 2.5 Flash.
     """
     q_clean = (customer_query or "").strip().lower()
+
+    # Look up contact name from DB if not passed directly
+    raw_contact_name = customer_name
+    if not raw_contact_name and db and customer_phone:
+        try:
+            clean_p = customer_phone.replace("+", "").strip()
+            c_row = db.query(models.Contact).filter(
+                models.Contact.phone.in_([customer_phone, clean_p, f"+{clean_p}"])
+            ).first()
+            if c_row and c_row.name:
+                raw_contact_name = c_row.name
+        except Exception:
+            pass
+
+    first_name = extract_clean_first_name(raw_contact_name)
+    inferred_gender = infer_gender_from_name(first_name)
 
     # Retrieve recent chat history early so we know if the customer already defined what they want!
     chat_history = get_recent_chat_history(customer_phone, db, limit=15) if (customer_phone and db) else ""
@@ -923,14 +1013,16 @@ def generate_qwen_reply(
         or bool(re.search(r"^\s*(?:dusra|dusri|aur|next|other|more|aur\s*dikhao|aur\s*dekhao|aur\s*dekhna|aur\s*dekhana|aur\s*bhejo|aur\s*batao|kuch\s*aur)\s*$", q_clean, re.I))
     )
     if is_short_or_followup and not has_prior_context:
-        clarify_short = "Ji, kahiye! 😊 Aap kis type ki jewellery dekh rahe hain — jaise Earrings, Necklace, Rings ya Bracelets?"
+        prefix = f"Ji {first_name} ji! 😊" if first_name else "Ji, kahiye! 😊"
+        clarify_short = f"{prefix} Aap kis type ki jewellery dekh rahe hain — jaise Earrings, Necklace, Rings ya Bracelets?"
         return {"status": "success", "reply": clarify_short, "model": "playbook"}
 
     # 0a. Instant Fast-Path for Meta Ads Default Inbound ("Hello! Can I get more info on this?")
-    # Default greeting directly welcomes the user and asks how to help without invoking AI
+    # Default greeting directly welcomes the user respectfully with their name if available
     if re.search(r"^(?:hello!?\s*)?can\s*i\s*get\s*more\s*info\s*(?:on\s*this)?\??$", q_clean):
+        greeting_line = f"Namaste {first_name} ji! ✨ Welcome to JWL Billion" if first_name else "Namaste! Welcome to JWL Billion ✨"
         welcome_hinglish = (
-            "Namaste! Welcome to JWL Billion ✨\n\n"
+            f"{greeting_line}\n\n"
             "Main aapki kya madad kar sakti hoon? Aap koi specific jewellery dekh rahe hain ya latest collection explore karna chahenge?"
         )
         return {"status": "success", "reply": welcome_hinglish, "model": "default-greeting"}
@@ -1181,7 +1273,9 @@ def generate_qwen_reply(
         customer_query=customer_query,
         chat_history=chat_history,
         image_bytes=inbound_image_bytes,
-        image_mime_type=inbound_image_mime
+        image_mime_type=inbound_image_mime,
+        customer_name=first_name,
+        customer_gender=inferred_gender
     )
 
     if gemini_match and gemini_match.get("reply"):

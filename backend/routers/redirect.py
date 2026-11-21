@@ -60,7 +60,19 @@ def _delayed_followup_after_click(phone: str, tracking_code: str, delay_seconds:
                 logger.info(f"[Link Followup] New message already exchanged with {phone}. Skipping follow-up.")
                 return
 
-            followup_text = "Aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge? 😊"
+            # Determine personalized respectful address if contact name is known
+            cust_name = None
+            if contact and contact.name:
+                try:
+                    from services.ai_assistant_service import extract_clean_first_name
+                    cust_name = extract_clean_first_name(contact.name)
+                except Exception:
+                    cust_name = None
+
+            if cust_name:
+                followup_text = f"{cust_name} ji, aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge? 😊"
+            else:
+                followup_text = "Aapko yeh jewellery design kaisa laga? Pasand aaya ya koi aur style dekhna chahenge? 😊"
             res = send_whatsapp_free_text(phone, followup_text, db=db)
             _save_bot_message(db, phone, followup_text, res.get("message_id"))
             logger.info(f"[Link Followup Sent] 20s post-click follow-up delivered to {phone} for code {tracking_code}")

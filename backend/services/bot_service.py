@@ -1237,7 +1237,7 @@ def handle_inbound_auto_reply(
     # -------------------------------------------------------------
     try:
         from services.ai_assistant_service import generate_qwen_reply
-        ai_result = generate_qwen_reply(message_text, sender_phone, db=db)
+        ai_result = generate_qwen_reply(customer_query=message_text, customer_phone=sender_phone, customer_name=customer_name, db=db)
         if ai_result and ai_result.get("reply"):
             qwen_text = ai_result["reply"]
             image_to_send = ai_result.get("image_url")
